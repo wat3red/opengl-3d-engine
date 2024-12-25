@@ -1,0 +1,1295 @@
+{
+    "asset": {
+        "version": "1.0",
+        "generator": "Open Asset Import Library (assimp v5.2.0)"
+    },
+    "accessors": {
+        "tree1_mesh_accessor": {
+            "bufferView": "tree1_mesh_view",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 66,
+            "type": "VEC3",
+            "max": [
+                0.6573920249938965,
+                0.5009111762046814,
+                0.1475353240966797
+            ],
+            "min": [
+                -0.5198073983192444,
+                -0.5,
+                -0.4111765921115875
+            ]
+        },
+        "tree1_mesh_accessor_0": {
+            "bufferView": "tree1_mesh_view_0",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 66,
+            "type": "VEC3",
+            "max": [
+                0.893929660320282,
+                0.7086998820304871,
+                1.0
+            ],
+            "min": [
+                -0.9815013408660889,
+                -0.5141138434410095,
+                -0.9336968660354614
+            ]
+        },
+        "tree1_mesh_accessor_1": {
+            "bufferView": "tree1_mesh_view_1",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 66,
+            "type": "VEC2",
+            "max": [
+                1.0,
+                1.0
+            ],
+            "min": [
+                0.0,
+                0.0
+            ]
+        },
+        "tree1_mesh_accessor_2": {
+            "bufferView": "tree1_mesh_view_2",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5123,
+            "count": 66,
+            "type": "SCALAR",
+            "max": [
+                65
+            ],
+            "min": [
+                0
+            ]
+        },
+        "deadtreehero_mesh_accessor": {
+            "bufferView": "deadtreehero_mesh_view",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 24,
+            "type": "VEC3",
+            "max": [
+                0.5555031299591065,
+                0.5,
+                0.32329848408699038
+            ],
+            "min": [
+                -0.5084306001663208,
+                -0.5336365103721619,
+                -0.48716801404953005
+            ]
+        },
+        "deadtreehero_mesh_accessor_0": {
+            "bufferView": "deadtreehero_mesh_view_0",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 24,
+            "type": "VEC3",
+            "max": [
+                0.0,
+                0.01579444296658039,
+                1.0
+            ],
+            "min": [
+                -0.8842445015907288,
+                -0.13727210462093354,
+                -0.4660385847091675
+            ]
+        },
+        "deadtreehero_mesh_accessor_1": {
+            "bufferView": "deadtreehero_mesh_view_1",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 24,
+            "type": "VEC2",
+            "max": [
+                1.0,
+                1.0
+            ],
+            "min": [
+                0.0,
+                0.0
+            ]
+        },
+        "deadtreehero_mesh_accessor_2": {
+            "bufferView": "deadtreehero_mesh_view_2",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5123,
+            "count": 24,
+            "type": "SCALAR",
+            "max": [
+                23
+            ],
+            "min": [
+                0
+            ]
+        },
+        "deadtreewide_mesh_accessor": {
+            "bufferView": "deadtreewide_mesh_view",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 18,
+            "type": "VEC3",
+            "max": [
+                0.5084306001663208,
+                0.6949564814567566,
+                0.42541980743408205
+            ],
+            "min": [
+                -0.5084306001663208,
+                -0.5129120945930481,
+                -0.5188033580780029
+            ]
+        },
+        "deadtreewide_mesh_accessor_0": {
+            "bufferView": "deadtreewide_mesh_view_0",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 18,
+            "type": "VEC3",
+            "max": [
+                0.6995666027069092,
+                0.13468094170093537,
+                1.0
+            ],
+            "min": [
+                -0.9285663366317749,
+                0.0,
+                0.371166467666626
+            ]
+        },
+        "deadtreewide_mesh_accessor_1": {
+            "bufferView": "deadtreewide_mesh_view_1",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 18,
+            "type": "VEC2",
+            "max": [
+                1.0,
+                1.0
+            ],
+            "min": [
+                0.0,
+                0.0
+            ]
+        },
+        "deadtreewide_mesh_accessor_2": {
+            "bufferView": "deadtreewide_mesh_view_2",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5123,
+            "count": 18,
+            "type": "SCALAR",
+            "max": [
+                17
+            ],
+            "min": [
+                0
+            ]
+        },
+        "tree1.001_accessor": {
+            "bufferView": "tree1.001_view",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 54,
+            "type": "VEC3",
+            "max": [
+                0.4303688406944275,
+                0.5,
+                0.35517945885658266
+            ],
+            "min": [
+                -0.4101324677467346,
+                -0.5,
+                -0.3595239520072937
+            ]
+        },
+        "tree1.001_accessor_0": {
+            "bufferView": "tree1.001_view_0",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 54,
+            "type": "VEC3",
+            "max": [
+                0.9989487528800964,
+                0.20797844231128694,
+                1.0
+            ],
+            "min": [
+                -0.6851183772087097,
+                -0.8270679712295532,
+                -0.8028339743614197
+            ]
+        },
+        "tree1.001_accessor_1": {
+            "bufferView": "tree1.001_view_1",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 54,
+            "type": "VEC2",
+            "max": [
+                1.0,
+                1.0
+            ],
+            "min": [
+                0.0,
+                0.0
+            ]
+        },
+        "tree1.001_accessor_2": {
+            "bufferView": "tree1.001_view_2",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5123,
+            "count": 54,
+            "type": "SCALAR",
+            "max": [
+                53
+            ],
+            "min": [
+                0
+            ]
+        },
+        "snowbush.001_accessor": {
+            "bufferView": "snowbush.001_view",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 99,
+            "type": "VEC3",
+            "max": [
+                1.493312120437622,
+                0.5,
+                0.7902283072471619
+            ],
+            "min": [
+                -1.4856798648834229,
+                -0.5754292607307434,
+                -0.8505922555923462
+            ]
+        },
+        "snowbush.001_accessor_0": {
+            "bufferView": "snowbush.001_view_0",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 99,
+            "type": "VEC3",
+            "max": [
+                0.9531221985816956,
+                0.04920409992337227,
+                0.9244567155838013
+            ],
+            "min": [
+                -0.9719065427780151,
+                -0.8023377656936646,
+                -0.9998889565467835
+            ]
+        },
+        "snowbush.001_accessor_1": {
+            "bufferView": "snowbush.001_view_1",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 99,
+            "type": "VEC2",
+            "max": [
+                1.0,
+                1.0
+            ],
+            "min": [
+                0.0,
+                -0.08376455307006836
+            ]
+        },
+        "snowbush.001_accessor_2": {
+            "bufferView": "snowbush.001_view_2",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5123,
+            "count": 99,
+            "type": "SCALAR",
+            "max": [
+                98
+            ],
+            "min": [
+                0
+            ]
+        },
+        "treeline_mesh_accessor": {
+            "bufferView": "treeline_mesh_view",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 6,
+            "type": "VEC3",
+            "max": [
+                7.863999366760254,
+                0.5,
+                0.07128921896219254
+            ],
+            "min": [
+                -7.8639984130859379,
+                -0.4999999701976776,
+                -0.07128922641277313
+            ]
+        },
+        "treeline_mesh_accessor_0": {
+            "bufferView": "treeline_mesh_view_0",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 6,
+            "type": "VEC3",
+            "max": [
+                0.009064891375601292,
+                0.0,
+                0.9999588131904602
+            ],
+            "min": [
+                0.009064891375601292,
+                0.0,
+                0.9999588131904602
+            ]
+        },
+        "treeline_mesh_accessor_1": {
+            "bufferView": "treeline_mesh_view_1",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 6,
+            "type": "VEC2",
+            "max": [
+                4.432074546813965,
+                1.0
+            ],
+            "min": [
+                -3.4320743083953859,
+                0.0
+            ]
+        },
+        "treeline_mesh_accessor_2": {
+            "bufferView": "treeline_mesh_view_2",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5123,
+            "count": 6,
+            "type": "SCALAR",
+            "max": [
+                5
+            ],
+            "min": [
+                0
+            ]
+        },
+        "treeline.001_mesh_accessor": {
+            "bufferView": "treeline.001_mesh_view",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 12,
+            "type": "VEC3",
+            "max": [
+                7.863999366760254,
+                0.5000001788139343,
+                12.542076110839844
+            ],
+            "min": [
+                -7.8639984130859379,
+                -0.5000009536743164,
+                -3.1713876724243166
+            ]
+        },
+        "treeline.001_mesh_accessor_0": {
+            "bufferView": "treeline.001_mesh_view_0",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 12,
+            "type": "VEC3",
+            "max": [
+                0.009064891375601292,
+                0.0,
+                0.9999588131904602
+            ],
+            "min": [
+                -0.9990348219871521,
+                0.0,
+                0.04392293840646744
+            ]
+        },
+        "treeline.001_mesh_accessor_1": {
+            "bufferView": "treeline.001_mesh_view_1",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 12,
+            "type": "VEC2",
+            "max": [
+                4.432074546813965,
+                1.0
+            ],
+            "min": [
+                -3.4320743083953859,
+                0.0
+            ]
+        },
+        "treeline.001_mesh_accessor_2": {
+            "bufferView": "treeline.001_mesh_view_2",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5123,
+            "count": 12,
+            "type": "SCALAR",
+            "max": [
+                11
+            ],
+            "min": [
+                0
+            ]
+        },
+        "snowbush.002_accessor": {
+            "bufferView": "snowbush.002_view",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 60,
+            "type": "VEC3",
+            "max": [
+                1.493312120437622,
+                0.5,
+                0.7902283072471619
+            ],
+            "min": [
+                -1.4856798648834229,
+                -0.5000000596046448,
+                -0.8505922555923462
+            ]
+        },
+        "snowbush.002_accessor_0": {
+            "bufferView": "snowbush.002_view_0",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 60,
+            "type": "VEC3",
+            "max": [
+                0.9531221985816956,
+                0.03511984646320343,
+                0.9244567155838013
+            ],
+            "min": [
+                -0.9719065427780151,
+                -0.28461647033691409,
+                -0.9998889565467835
+            ]
+        },
+        "snowbush.002_accessor_1": {
+            "bufferView": "snowbush.002_view_1",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5126,
+            "count": 60,
+            "type": "VEC2",
+            "max": [
+                1.0,
+                1.0
+            ],
+            "min": [
+                0.0,
+                0.0
+            ]
+        },
+        "snowbush.002_accessor_2": {
+            "bufferView": "snowbush.002_view_2",
+            "byteOffset": 0,
+            "byteStride": 0,
+            "componentType": 5123,
+            "count": 60,
+            "type": "SCALAR",
+            "max": [
+                59
+            ],
+            "min": [
+                0
+            ]
+        }
+    },
+    "buffers": {
+        "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees": {
+            "byteLength": 11528,
+            "type": "arraybuffer",
+            "uri": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees.bin"
+        }
+    },
+    "bufferViews": {
+        "tree1_mesh_view": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 0,
+            "byteLength": 792,
+            "target": 34962
+        },
+        "tree1_mesh_view_0": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 792,
+            "byteLength": 792,
+            "target": 34962
+        },
+        "tree1_mesh_view_1": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 1584,
+            "byteLength": 528,
+            "target": 34962
+        },
+        "tree1_mesh_view_2": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 2112,
+            "byteLength": 132,
+            "target": 34963
+        },
+        "deadtreehero_mesh_view": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 2244,
+            "byteLength": 288,
+            "target": 34962
+        },
+        "deadtreehero_mesh_view_0": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 2532,
+            "byteLength": 288,
+            "target": 34962
+        },
+        "deadtreehero_mesh_view_1": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 2820,
+            "byteLength": 192,
+            "target": 34962
+        },
+        "deadtreehero_mesh_view_2": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 3012,
+            "byteLength": 48,
+            "target": 34963
+        },
+        "deadtreewide_mesh_view": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 3060,
+            "byteLength": 216,
+            "target": 34962
+        },
+        "deadtreewide_mesh_view_0": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 3276,
+            "byteLength": 216,
+            "target": 34962
+        },
+        "deadtreewide_mesh_view_1": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 3492,
+            "byteLength": 144,
+            "target": 34962
+        },
+        "deadtreewide_mesh_view_2": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 3636,
+            "byteLength": 36,
+            "target": 34963
+        },
+        "tree1.001_view": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 3672,
+            "byteLength": 648,
+            "target": 34962
+        },
+        "tree1.001_view_0": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 4320,
+            "byteLength": 648,
+            "target": 34962
+        },
+        "tree1.001_view_1": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 4968,
+            "byteLength": 432,
+            "target": 34962
+        },
+        "tree1.001_view_2": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 5400,
+            "byteLength": 108,
+            "target": 34963
+        },
+        "snowbush.001_view": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 5508,
+            "byteLength": 1188,
+            "target": 34962
+        },
+        "snowbush.001_view_0": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 6696,
+            "byteLength": 1188,
+            "target": 34962
+        },
+        "snowbush.001_view_1": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 7884,
+            "byteLength": 792,
+            "target": 34962
+        },
+        "snowbush.001_view_2": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 8676,
+            "byteLength": 198,
+            "target": 34963
+        },
+        "treeline_mesh_view": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 8876,
+            "byteLength": 72,
+            "target": 34962
+        },
+        "treeline_mesh_view_0": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 8948,
+            "byteLength": 72,
+            "target": 34962
+        },
+        "treeline_mesh_view_1": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 9020,
+            "byteLength": 48,
+            "target": 34962
+        },
+        "treeline_mesh_view_2": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 9068,
+            "byteLength": 12,
+            "target": 34963
+        },
+        "treeline.001_mesh_view": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 9080,
+            "byteLength": 144,
+            "target": 34962
+        },
+        "treeline.001_mesh_view_0": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 9224,
+            "byteLength": 144,
+            "target": 34962
+        },
+        "treeline.001_mesh_view_1": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 9368,
+            "byteLength": 96,
+            "target": 34962
+        },
+        "treeline.001_mesh_view_2": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 9464,
+            "byteLength": 24,
+            "target": 34963
+        },
+        "snowbush.002_view": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 9488,
+            "byteLength": 720,
+            "target": 34962
+        },
+        "snowbush.002_view_0": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 10208,
+            "byteLength": 720,
+            "target": 34962
+        },
+        "snowbush.002_view_1": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 10928,
+            "byteLength": 480,
+            "target": 34962
+        },
+        "snowbush.002_view_2": {
+            "buffer": "D:\\Desktop\\LearningOpenGL\\res\\models\\trees\\source\\SnowTrees",
+            "byteOffset": 11408,
+            "byteLength": 120,
+            "target": 34963
+        }
+    },
+    "images": {
+        "image": {
+            "uri": "treebaretall.png"
+        },
+        "image_0": {
+            "uri": "deadtreehero.png"
+        },
+        "image_1": {
+            "uri": "deadtreewide.png"
+        },
+        "image_2": {
+            "uri": "tree1.png"
+        },
+        "image_3": {
+            "uri": "snowbush.png"
+        },
+        "image_4": {
+            "uri": "treeline.png"
+        }
+    },
+    "materials": {
+        "treebaretall": {
+            "values": {
+                "ambient": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "diffuse": "texture",
+                "specular": [
+                    0.800000011920929,
+                    0.800000011920929,
+                    0.800000011920929,
+                    1.0
+                ],
+                "emission": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "shininess": 25.0
+            }
+        },
+        "deadtreehero": {
+            "values": {
+                "ambient": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "diffuse": "texture_0",
+                "specular": [
+                    0.800000011920929,
+                    0.800000011920929,
+                    0.800000011920929,
+                    1.0
+                ],
+                "emission": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "shininess": 0.0
+            }
+        },
+        "deadtreewide": {
+            "values": {
+                "ambient": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "diffuse": "texture_1",
+                "specular": [
+                    0.800000011920929,
+                    0.800000011920929,
+                    0.800000011920929,
+                    1.0
+                ],
+                "emission": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "shininess": 0.0
+            }
+        },
+        "tree1": {
+            "values": {
+                "ambient": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "diffuse": "texture_2",
+                "specular": [
+                    0.800000011920929,
+                    0.800000011920929,
+                    0.800000011920929,
+                    1.0
+                ],
+                "emission": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "shininess": 0.0
+            }
+        },
+        "snowbush": {
+            "values": {
+                "ambient": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "diffuse": "texture_3",
+                "specular": [
+                    0.800000011920929,
+                    0.800000011920929,
+                    0.800000011920929,
+                    1.0
+                ],
+                "emission": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "shininess": 0.0
+            }
+        },
+        "treeline": {
+            "values": {
+                "ambient": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "diffuse": "texture_4",
+                "specular": [
+                    0.800000011920929,
+                    0.800000011920929,
+                    0.800000011920929,
+                    1.0
+                ],
+                "emission": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0
+                ],
+                "shininess": 0.0
+            }
+        }
+    },
+    "meshes": {
+        "tree1_mesh": {
+            "name": "",
+            "primitives": [
+                {
+                    "mode": 4,
+                    "material": "treebaretall",
+                    "indices": "tree1_mesh_accessor_2",
+                    "attributes": {
+                        "POSITION": "tree1_mesh_accessor",
+                        "NORMAL": "tree1_mesh_accessor_0",
+                        "TEXCOORD_0": "tree1_mesh_accessor_1"
+                    }
+                }
+            ]
+        },
+        "deadtreehero_mesh": {
+            "name": "",
+            "primitives": [
+                {
+                    "mode": 4,
+                    "material": "deadtreehero",
+                    "indices": "deadtreehero_mesh_accessor_2",
+                    "attributes": {
+                        "POSITION": "deadtreehero_mesh_accessor",
+                        "NORMAL": "deadtreehero_mesh_accessor_0",
+                        "TEXCOORD_0": "deadtreehero_mesh_accessor_1"
+                    }
+                }
+            ]
+        },
+        "deadtreewide_mesh": {
+            "name": "",
+            "primitives": [
+                {
+                    "mode": 4,
+                    "material": "deadtreewide",
+                    "indices": "deadtreewide_mesh_accessor_2",
+                    "attributes": {
+                        "POSITION": "deadtreewide_mesh_accessor",
+                        "NORMAL": "deadtreewide_mesh_accessor_0",
+                        "TEXCOORD_0": "deadtreewide_mesh_accessor_1"
+                    }
+                }
+            ]
+        },
+        "tree1.001": {
+            "name": "",
+            "primitives": [
+                {
+                    "mode": 4,
+                    "material": "tree1",
+                    "indices": "tree1.001_accessor_2",
+                    "attributes": {
+                        "POSITION": "tree1.001_accessor",
+                        "NORMAL": "tree1.001_accessor_0",
+                        "TEXCOORD_0": "tree1.001_accessor_1"
+                    }
+                }
+            ]
+        },
+        "snowbush.001": {
+            "name": "",
+            "primitives": [
+                {
+                    "mode": 4,
+                    "material": "snowbush",
+                    "indices": "snowbush.001_accessor_2",
+                    "attributes": {
+                        "POSITION": "snowbush.001_accessor",
+                        "NORMAL": "snowbush.001_accessor_0",
+                        "TEXCOORD_0": "snowbush.001_accessor_1"
+                    }
+                }
+            ]
+        },
+        "treeline_mesh": {
+            "name": "",
+            "primitives": [
+                {
+                    "mode": 4,
+                    "material": "treeline",
+                    "indices": "treeline_mesh_accessor_2",
+                    "attributes": {
+                        "POSITION": "treeline_mesh_accessor",
+                        "NORMAL": "treeline_mesh_accessor_0",
+                        "TEXCOORD_0": "treeline_mesh_accessor_1"
+                    }
+                }
+            ]
+        },
+        "treeline.001_mesh": {
+            "name": "",
+            "primitives": [
+                {
+                    "mode": 4,
+                    "material": "treeline",
+                    "indices": "treeline.001_mesh_accessor_2",
+                    "attributes": {
+                        "POSITION": "treeline.001_mesh_accessor",
+                        "NORMAL": "treeline.001_mesh_accessor_0",
+                        "TEXCOORD_0": "treeline.001_mesh_accessor_1"
+                    }
+                }
+            ]
+        },
+        "snowbush.002": {
+            "name": "",
+            "primitives": [
+                {
+                    "mode": 4,
+                    "material": "snowbush",
+                    "indices": "snowbush.002_accessor_2",
+                    "attributes": {
+                        "POSITION": "snowbush.002_accessor",
+                        "NORMAL": "snowbush.002_accessor_0",
+                        "TEXCOORD_0": "snowbush.002_accessor_1"
+                    }
+                }
+            ]
+        }
+    },
+    "nodes": {
+        "RootNode": {
+            "children": [
+                "TreeBareTall",
+                "deadtreehero_node",
+                "deadtreewide_node",
+                "snowtree",
+                "snowbush1",
+                "treeline_node",
+                "treeline.001",
+                "snowbush2"
+            ]
+        },
+        "TreeBareTall": {
+            "matrix": [
+                1071.5595703125,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1906.487060546875,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                1906.487060546875,
+                0.0,
+                -604.1201171875,
+                865.484619140625,
+                1704.435546875,
+                1.0
+            ],
+            "meshes": [
+                "tree1_mesh"
+            ]
+        },
+        "deadtreehero_node": {
+            "matrix": [
+                2108.651611328125,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                2108.651611328125,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                2108.651611328125,
+                0.0,
+                678.3792724609375,
+                969.4547729492188,
+                3373.841552734375,
+                1.0
+            ],
+            "meshes": [
+                "deadtreehero_mesh"
+            ]
+        },
+        "deadtreewide_node": {
+            "matrix": [
+                931.6884765625,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                771.3493041992188,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                931.6884765625,
+                0.0,
+                -1426.7308349609376,
+                363.71270751953127,
+                72.33464813232422,
+                1.0
+            ],
+            "meshes": [
+                "deadtreewide_mesh"
+            ]
+        },
+        "snowtree": {
+            "matrix": [
+                1631.6368408203126,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                2188.267578125,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                2188.267578125,
+                0.0,
+                -1413.5682373046876,
+                1029.48974609375,
+                1994.7332763671876,
+                1.0
+            ],
+            "meshes": [
+                "tree1.001"
+            ]
+        },
+        "snowbush1": {
+            "matrix": [
+                30.802011489868165,
+                -0.0000026927973522106187,
+                80.62566375732422,
+                0.0,
+                0.000002300518644915428,
+                136.1545867919922,
+                0.0000036685107716039058,
+                0.0,
+                120.4368667602539,
+                -7.952289706736337e-7,
+                -46.011375427246097,
+                0.0,
+                -546.5119018554688,
+                44.0419807434082,
+                -289.78814697265627,
+                1.0
+            ],
+            "meshes": [
+                "snowbush.001"
+            ]
+        },
+        "treeline_node": {
+            "matrix": [
+                30.971384048461915,
+                0.0,
+                -2982.042724609375,
+                0.0,
+                -0.00022514050942845643,
+                2982.20361328125,
+                -0.0000023383011011901546,
+                0.0,
+                2982.042724609375,
+                0.0002251526602776721,
+                30.971384048461915,
+                0.0,
+                -6510.40283203125,
+                1459.4630126953126,
+                6951.56640625,
+                1.0
+            ],
+            "meshes": [
+                "treeline_mesh"
+            ]
+        },
+        "treeline.001": {
+            "matrix": [
+                -30.971384048461915,
+                0.0,
+                -2982.042724609375,
+                0.0,
+                0.0011612502858042718,
+                2982.20361328125,
+                -0.000012060701919835993,
+                0.0,
+                -2982.042724609375,
+                0.0011613129172474146,
+                30.971384048461915,
+                0.0,
+                9002.61328125,
+                1459.4630126953126,
+                6951.56640625,
+                1.0
+            ],
+            "meshes": [
+                "treeline.001_mesh"
+            ]
+        },
+        "snowbush2": {
+            "matrix": [
+                54.776145935058597,
+                -2.3290185928344728,
+                144.7100372314453,
+                0.0,
+                5.115583896636963,
+                107.98268127441406,
+                -0.19845399260520936,
+                0.0,
+                215.91580200195313,
+                -10.379332542419434,
+                -81.89625549316406,
+                0.0,
+                -796.9600830078125,
+                28.436071395874025,
+                -357.5545349121094,
+                1.0
+            ],
+            "meshes": [
+                "snowbush.002"
+            ]
+        }
+    },
+    "samplers": {
+        "sampler": {
+            "wrapS": 10497,
+            "wrapT": 10497,
+            "magFilter": 9729,
+            "minFilter": 9729
+        },
+        "sampler_0": {
+            "wrapS": 10497,
+            "wrapT": 10497,
+            "magFilter": 9729,
+            "minFilter": 9729
+        },
+        "sampler_1": {
+            "wrapS": 10497,
+            "wrapT": 10497,
+            "magFilter": 9729,
+            "minFilter": 9729
+        },
+        "sampler_2": {
+            "wrapS": 10497,
+            "wrapT": 10497,
+            "magFilter": 9729,
+            "minFilter": 9729
+        },
+        "sampler_3": {
+            "wrapS": 10497,
+            "wrapT": 10497,
+            "magFilter": 9729,
+            "minFilter": 9729
+        },
+        "sampler_4": {
+            "wrapS": 10497,
+            "wrapT": 10497,
+            "magFilter": 9729,
+            "minFilter": 9729
+        }
+    },
+    "scenes": {
+        "defaultScene": {
+            "nodes": [
+                "RootNode"
+            ]
+        }
+    },
+    "textures": {
+        "texture": {
+            "source": "image",
+            "sampler": "sampler"
+        },
+        "texture_0": {
+            "source": "image_0",
+            "sampler": "sampler_0"
+        },
+        "texture_1": {
+            "source": "image_1",
+            "sampler": "sampler_1"
+        },
+        "texture_2": {
+            "source": "image_2",
+            "sampler": "sampler_2"
+        },
+        "texture_3": {
+            "source": "image_3",
+            "sampler": "sampler_3"
+        },
+        "texture_4": {
+            "source": "image_4",
+            "sampler": "sampler_4"
+        }
+    },
+    "scene": "defaultScene"
+}

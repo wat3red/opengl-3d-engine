@@ -1,0 +1,70 @@
+# File produced by Open Asset Import Library (http://www.assimp.sf.net)
+# (assimp v5.2.0)
+
+newmtl treebaretall
+Kd 0.800000012 0.800000012 0.800000012
+Ka 0 0 0
+Ks 0.800000012 0.800000012 0.800000012
+Ke 0 0 0
+Tf 0 0 0
+d 1
+Ns 25
+illum 2
+map_Kd treebaretall.png
+map_d treebaretall.png
+
+newmtl deadtreehero
+Kd 0.800000012 0.800000012 0.800000012
+Ka 0 0 0
+Ks 0.800000012 0.800000012 0.800000012
+Ke 0 0 0
+Tf 0 0 0
+d 1
+illum 1
+map_Kd deadtreehero.png
+map_d deadtreehero.png
+
+newmtl deadtreewide
+Kd 0.800000012 0.800000012 0.800000012
+Ka 0 0 0
+Ks 0.800000012 0.800000012 0.800000012
+Ke 0 0 0
+Tf 0 0 0
+d 1
+illum 1
+map_Kd deadtreewide.png
+map_d deadtreewide.png
+
+newmtl tree1
+Kd 0.800000012 0.800000012 0.800000012
+Ka 0 0 0
+Ks 0.800000012 0.800000012 0.800000012
+Ke 0 0 0
+Tf 0 0 0
+d 1
+illum 1
+map_Kd tree1.png
+map_d tree1.png
+
+newmtl snowbush
+Kd 0.800000012 0.800000012 0.800000012
+Ka 0 0 0
+Ks 0.800000012 0.800000012 0.800000012
+Ke 0 0 0
+Tf 0 0 0
+d 1
+illum 1
+map_Kd snowbush.png
+map_d snowbush.png
+
+newmtl treeline
+Kd 0.800000012 0.800000012 0.800000012
+Ka 0 0 0
+Ks 0.800000012 0.800000012 0.800000012
+Ke 0 0 0
+Tf 0 0 0
+d 1
+illum 1
+map_Kd treeline.png
+map_d treeline.png
+

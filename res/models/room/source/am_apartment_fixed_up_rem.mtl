@@ -1,0 +1,384 @@
+newmtl Model001_Material001
+map_Kd am_apartment_texture_2.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material002
+map_Kd am_apartment_texture_3.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material003
+map_Kd am_apartment_texture_4.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material004
+map_Kd am_apartment_texture_5.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material005
+map_Kd dm_rms_honourable_texture_51.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material006
+map_Kd am_apartment_texture_7.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material007
+map_Kd am_apartment_texture_8.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material008
+map_Kd am_apartment_texture_9.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material009
+map_Kd am_apartment_texture_10.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material010
+map_Kd am_apartment_texture_11.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material011
+map_Kd am_apartment_texture_12.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material012
+map_Kd am_apartment_texture_13.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material013
+map_Kd am_apartment_texture_14.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material014
+map_Kd am_apartment_texture_16.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material015
+map_Kd am_apartment_texture_18.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material016
+map_Kd am_apartment_texture_19.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material017
+map_Kd am_apartment_texture_20.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material018
+map_Kd am_apartment_texture_21.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material019
+map_Kd am_apartment_texture_22.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material020
+map_Kd am_apartment_texture_25.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material021
+map_Kd am_apartment_texture_26.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material022
+map_Kd am_apartment_texture_27.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material023
+map_Kd am_apartment_texture_28.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material024
+map_Kd am_apartment_texture_28.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material025
+map_Kd am_apartment_texture_28.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material026
+map_Kd am_apartment_texture_28.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material027
+map_Kd am_apartment_texture_28.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material028
+map_Kd am_apartment_texture_29.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material029
+map_Kd am_apartment_texture_30.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material030
+map_Kd am_apartment_texture_35.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material031
+map_Kd am_apartment_texture_37.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material032
+map_Kd am_apartment_texture_42.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material033
+map_Kd am_apartment_texture_42.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material034
+map_Kd am_apartment_texture_42.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material035
+map_Kd am_apartment_texture_43.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material036
+map_Kd am_apartment_texture_44.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material037
+map_Kd am_apartment_texture_44.png
+map_bump bumpmap_flat.png
+
+newmtl Model001_Material038
+map_Kd am_apartment_texture_46.png
+map_bump bumpmap_flat.png
+
+newmtl Model002_Material001
+map_Kd door01a.png
+
+newmtl Model003_Material001
+map_Kd door01a.png
+
+newmtl Model004_Material001
+map_Kd door01a.png
+
+newmtl Model005_Material001
+map_Kd Tex_0002_0.png
+
+newmtl Model005_Material002
+map_Kd mattress_clean.png
+
+newmtl Model006_Material001
+map_Kd FurnitureDrawer002a.png
+map_bump bumpmap_flat.png
+
+newmtl Model007_Material001
+map_Kd FurnitureWoodDrawers001a.png
+map_bump bumpmap_flat.png
+
+newmtl Model008_Material001
+map_Kd furniture_lamp_stool01a.png
+map_bump bumpmap_flat.png
+
+newmtl Model008_Material002
+map_Kd furniture_lamp_stool01a.png
+map_bump bumpmap_flat.png
+
+newmtl Model009_Material001
+map_Kd woodfurniture01.png
+map_bump bumpmap_alt.png
+
+newmtl Model009_Material002
+map_Kd tv.png
+map_bump bumpmap_alt.png
+
+newmtl Model009_Material003
+map_Kd tvanimstatic.png
+map_bump bumpmap_alt.png
+
+newmtl Model010_Material001
+map_Kd FurnitureTable003a.png
+map_bump bumpmap_flat.png
+
+newmtl Model011_Material001
+map_Kd bookcase_small.png
+
+newmtl Model012_Material001
+map_Kd FurnitureWoodDrawers001a.png
+map_bump bumpmap_flat.png
+
+newmtl Model013_Material001
+map_Kd phone.png
+
+newmtl Model013_Material002
+map_Kd phone.png
+map_bump bumpmap_alt.png
+
+newmtl Model014_Material001
+map_Kd notepad2.png
+
+newmtl Model015_Material001
+map_Kd Pencil.png
+
+newmtl Model016_Material001
+map_Kd offpaintinge.png
+
+newmtl Model017_Material001
+map_Kd furniture_desk01a.png
+map_bump bumpmap_flat.png
+
+newmtl Model018_Material001
+map_Kd chair_office2.png
+map_bump bumpmap_alt.png
+
+newmtl Model018_Material002
+map_Kd chair_office2.png
+map_bump fabric_tightweave_normal.png
+
+newmtl Model019_Material001
+map_Kd body1.png
+map_bump brushed_bump.png
+
+newmtl Model019_Material002
+map_Kd body2.png
+
+newmtl Model019_Material003
+map_Kd intel.png
+
+newmtl Model019_Material004
+map_Kd keyz.png
+
+newmtl Model019_Material005
+map_Kd keyz_spec.png
+
+newmtl Model019_Material006
+map_Kd keyz.png
+
+newmtl Model019_Material007
+map_Kd keyz_spec.png
+
+newmtl Model019_Material008
+map_Kd body2.png
+
+newmtl Model019_Material009
+map_Kd keyz_spec.png
+
+newmtl Model019_Material010
+map_Kd screen2.png
+
+newmtl Model020_Material001
+map_Kd printer.png
+map_bump bumpmap_alt.png
+
+newmtl Model021_Material001
+map_Kd cs_office_texture_155.png
+
+newmtl Model022_Material001
+map_Kd trash_can.png
+map_bump bumpmap_alt.png
+
+newmtl Model023_Material001
+map_Kd file_box.png
+map_bump bumpmap_alt.png
+
+newmtl Model024_Material001
+map_Kd lab_objects03.png
+
+newmtl Model025_Material001
+map_Kd lab_objects03.png
+
+newmtl Model026_Material001
+map_Kd lab_objects03.png
+
+newmtl Model027_Material001
+map_Kd lab_objects03.png
+
+newmtl Model028_Material001
+map_Kd demotivator_officespace.png
+map_bump bumpmap_flat.png
+
+newmtl Model029_Material001
+map_Kd bts_chair.png
+map_bump bumpmap_flat.png
+
+newmtl Model029_Material002
+map_Kd furniture_chair03a.png
+map_bump bumpmap_flat.png
+
+newmtl Model030_Material001
+map_Kd am_apartment_texture_50.png
+map_bump bumpmap_flat.png
+
+newmtl Model030_Material002
+map_Kd am_apartment_texture_52.png
+map_bump bumpmap_flat.png
+
+newmtl Model031_Material001
+map_Kd bts_chair.png
+map_bump bumpmap_flat.png
+
+newmtl Model031_Material002
+map_Kd furniture_chair03a.png
+map_bump bumpmap_flat.png
+
+newmtl Model032_Material001
+map_Kd bts_chair.png
+map_bump bumpmap_flat.png
+
+newmtl Model032_Material002
+map_Kd furniture_chair03a.png
+map_bump bumpmap_flat.png
+
+newmtl Model033_Material001
+map_Kd bts_chair.png
+map_bump bumpmap_flat.png
+
+newmtl Model033_Material002
+map_Kd furniture_chair03a.png
+map_bump bumpmap_flat.png
+
+newmtl Model034_Material001
+map_Kd bookshelf1.png
+map_bump bumpmap_alt.png
+
+newmtl Model035_Material001
+map_Kd bookshelf1.png
+map_bump bumpmap_alt.png
+
+newmtl Model036_Material001
+map_Kd furniture_couch01a.png
+
+newmtl Model037_Material001
+map_Kd FurnitureCouch002a.png
+map_bump bumpmap_flat.png
+
+newmtl Model038_Material001
+map_Kd closet_clothes.png
+map_bump bumpmap_alt.png
+
+newmtl Model038_Material002
+map_Kd metal.png
+map_bump bumpmap_alt.png
+
+newmtl Model038_Material003
+map_Kd metalbase.png
+map_bump bumpmap_alt.png
+
+newmtl Model039_Material001
+map_Kd cardboard_boxes_texture.png
+
+newmtl Model040_Material001
+map_Kd cardboard_box003a_texture_0.png
+
+newmtl Model041_Material001
+map_Kd cardboard_box001a.png
+
+newmtl Model042_Material001
+map_Kd alarm_clock_on.png
+map_bump bumpmap_alt.png
+
+newmtl Model043_Material001
+map_Kd FurnitureToletSink001a.png
+map_bump bumpmap_flat.png
+
+newmtl Model044_Material001
+map_Kd furnituretoletsink001a.png
+map_bump bumpmap_flat.png
+
