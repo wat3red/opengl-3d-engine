@@ -13,7 +13,7 @@ public:
 	void MouseCallback(GLFWwindow* window, double xposIn, double yposIn);
 	void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
-	void SetCallbacks(GLFWwindow* window, InputHandler* inputHandler);
+	void SetCallbacks(GLFWwindow* window);
 
 private:
 	Camera& camera;

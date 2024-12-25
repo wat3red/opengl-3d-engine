@@ -8,8 +8,6 @@ InputHandler::InputHandler(Camera& camera, glm::ivec2* windowSize) :
 	firstMouse(true),
 	m_WindowSize(windowSize) {}
 
-
-
 void InputHandler::Update(GLFWwindow* window) {
 	float currentFrame = static_cast<float>(glfwGetTime());
 	deltaTime = currentFrame - lastFrame;
@@ -85,7 +83,7 @@ void InputHandler::ScrollCallback(GLFWwindow* window, double xoffset, double yof
 	camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
 
-void InputHandler::SetCallbacks(GLFWwindow* window, InputHandler* inputHandler)
+void InputHandler::SetCallbacks(GLFWwindow* window)
 {
 	glfwSetScrollCallback(window, [](GLFWwindow* win, double xoff, double yoff) {
 		static_cast<InputHandler*>(glfwGetWindowUserPointer(win))->ScrollCallback(win, xoff, yoff);
@@ -100,5 +98,5 @@ void InputHandler::SetCallbacks(GLFWwindow* window, InputHandler* inputHandler)
 		static_cast<InputHandler*>(glfwGetWindowUserPointer(win))->KeyCallback(win, key, scancode, action, mods);
 		});
 
-	glfwSetWindowUserPointer(window, inputHandler);
+	glfwSetWindowUserPointer(window, this);
 }

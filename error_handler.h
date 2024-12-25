@@ -92,7 +92,7 @@ void APIENTRY GLDebugMessageCallback(GLenum source, GLenum type, GLuint id,
 
 	case GL_DEBUG_SEVERITY_NOTIFICATION:
 		_severity = (char*)"NOTIFICATION";
-		break;
+		return;
 
 	default:
 		_severity = (char*)"UNKNOWN";

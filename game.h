@@ -22,14 +22,16 @@ private:
 	float deltaTime;
 	float lastFrameTime;
 
+
+	Shader nord;
+
+
 	GLFWwindow* m_Window;
 	Renderer m_Renderer;
 	Camera m_MainCamera;
 	InputHandler m_InputHandler;
 	std::vector<ModelEntity*> m_Entities;
 	std::vector<Light*> m_Lights;
-	//std::unordered_map<std::string, Light*> m_Lights;
-	
 
 	glm::ivec2 m_WindowSize;
 

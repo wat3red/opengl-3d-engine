@@ -155,6 +155,7 @@
     <ClCompile Include="physics\rigidbody.cpp" />
     <ClCompile Include="renderer.cpp" />
     <ClCompile Include="shader.cpp" />
+    <ClCompile Include="shadow_renderer.cpp" />
     <ClCompile Include="vendor\glm\detail\glm.cpp" />
     <ClCompile Include="vendor\imgui\imgui.cpp" />
     <ClCompile Include="vendor\imgui\imgui_demo.cpp" />
@@ -183,6 +184,7 @@
     <ClInclude Include="physics\rigidbody.h" />
     <ClInclude Include="renderer.h" />
     <ClInclude Include="shader.h" />
+    <ClInclude Include="shadow_renderer.h" />
     <ClInclude Include="vendor\assimp\aabb.h" />
     <ClInclude Include="vendor\assimp\ai_assert.h" />
     <ClInclude Include="vendor\assimp\anim.h" />

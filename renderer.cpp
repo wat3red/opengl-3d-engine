@@ -5,11 +5,120 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
 
-glm::mat4 lightProjection, lightView, lightSpaceMatrix;
-Renderer::Renderer(glm::ivec2 windowSize)
-	: cubeVAO(0), cubeVBO(0) {}
+/// <summary>
+
+std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& projview) {
+    const auto inv = glm::inverse(projview);
+    std::vector<glm::vec4> frustumCorners;
+
+    for (unsigned int x = 0; x < 2; ++x) {
+        for (unsigned int y = 0; y < 2; ++y) {
+            for (unsigned int z = 0; z < 2; ++z) {
+                const glm::vec4 pt = inv * glm::vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
+                frustumCorners.push_back(pt / pt.w);
+            }
+        }
+    }
+
+    return frustumCorners;
+}
+
+std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& proj, const glm::mat4& view)
+{
+	return getFrustumCornersWorldSpace(proj * view);
+}
+
+glm::mat4 Renderer::getLightSpaceMatrix(Camera camera, glm::ivec2 ws, glm::vec3 lightDir, float nearPlane, float farPlane) {
+	// Perspective projection for the camera's view frustum slice
+	const auto proj = glm::perspective(
+		glm::radians(camera.Zoom),
+		static_cast<float>(ws.x) / static_cast<float>(ws.y),
+		nearPlane,
+		farPlane
+	);
+
+	auto corners = getFrustumCornersWorldSpace(proj * camera.GetViewMatrix());
+
+	// Compute the frustum's center in world space
+	glm::vec3 center(0.0f);
+	for (const auto& v : corners) {
+		center += glm::vec3(v);
+	}
+	center /= static_cast<float>(corners.size());
+
+	// Compute the radius of the bounding sphere
+	float radius = 0.0f;
+	for (const auto& v : corners) {
+		radius = glm::max(radius, glm::length(glm::vec3(v) - center));
+	}
+
+	// Align radius to texel boundaries
+	radius = std::ceil(radius * 16.0f) / 16.0f;
+
+	// Orthographic projection bounds
+	glm::vec3 min = glm::vec3(-radius);
+	glm::vec3 max = glm::vec3(radius);
+
+	// Compute the orthographic projection
+	glm::mat4 lightProjection = glm::ortho(min.x, max.x, min.y, max.y, -radius, radius);
+
+	// Compute the light's view matrix
+	glm::mat4 lightView = glm::lookAt(center + lightDir, center, glm::vec3(0.0f, 1.0f, 0.0f));
+
+	// Combine the matrices
+	glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+
+	// Snapping to texel alignment
+	glm::vec4 shadowOrigin = lightSpaceMatrix * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+	shadowOrigin *= m_ShadowSettings.resolution / 2.0f;
+
+	glm::vec4 roundedOrigin = glm::round(shadowOrigin);
+	glm::vec4 roundOffset = (roundedOrigin - shadowOrigin) * (2.0f / m_ShadowSettings.resolution);
+
+	lightSpaceMatrix[3][0] += roundOffset.x;
+	lightSpaceMatrix[3][1] += roundOffset.y;
+
+	return lightSpaceMatrix;
+}
+
+std::vector<glm::mat4> Renderer::GetLightSpaceMatrices(glm::vec3 lightDir) {
+	std::vector<glm::mat4> matrices;
+
+	for (size_t i = 0; i < shadowCascadeLevels.size() + 1; ++i) {
+		float nearPlane = (i == 0) ? m_CurrentCamera.nearPlane : shadowCascadeLevels[i - 1];
+		float farPlane = (i < shadowCascadeLevels.size()) ? shadowCascadeLevels[i] : m_CurrentCamera.farPlane;
+
+		glm::mat4 lightMatrix = getLightSpaceMatrix(m_CurrentCamera, *m_WindowSize, lightDir, nearPlane, farPlane);
+		matrices.push_back(lightMatrix);
+	}
+
+	return matrices;
+}
+
+/// </summary>
+
+Renderer::Renderer(glm::ivec2* windowSize)
+	: cubeVAO(0), cubeVBO(0), m_WindowSize(windowSize)
+{}
+
+#include <vector>
+
+std::vector<float> calculateCascadeSplits(float nearPlane, float farPlane, int numCascades, float lambda) {
+	std::vector<float> cascadeSplits;
+
+	for (int i = 0; i < numCascades; ++i) {
+		float value = exp(i + lambda);
+
+		cascadeSplits.push_back(value);
+	}
+
+	return cascadeSplits;
+}
 
 void Renderer::Initialize() {
+	m_ShadowSettings = GetShadowSettings(ShadowQuality::ULTRA);
+	RecalculateShadowSettings();
+
 	m_MainShader = Shader("D:/Desktop/LearningOpenGL/shaders/Main.shader");
 	m_LightShader = Shader("D:/Desktop/LearningOpenGL/shaders/Light.shader");
 
@@ -19,9 +128,30 @@ void Renderer::Initialize() {
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_DEPTH_CLAMP);
 
 	SetupCube();
 	SetupDepthMaps(2);
+}
+
+void Renderer::UpdateShadowSettings(ShadowQuality quality) {
+	m_ShadowSettings = GetShadowSettings(quality);
+	RecalculateShadowSettings();
+}
+
+void Renderer::RecalculateShadowSettings() {
+	shadowCascadeLevels = calculateCascadeSplits(
+		m_CurrentCamera.nearPlane,
+		m_CurrentCamera.farPlane,
+		m_ShadowSettings.numCascades,
+		m_ShadowSettings.cascadeSplitLambda
+	);
+
+	SetupCascadeDepthMaps();
+
+	/*for (auto& shadowCascadeLevel : shadowCascadeLevels) {
+		std::cout << shadowCascadeLevel << "\n";
+	}*/
 }
 
 void Renderer::SetupCube() {
@@ -87,30 +217,7 @@ void Renderer::SetupCube() {
 }
 
 void Renderer::SetupDepthMaps(int numPointLights) {
-	// 2D depth map for directional/spotlight shadows
-	glGenFramebuffers(1, &m_DirDepthMapFBO);
-	glGenTextures(1, &m_DirDepthMap);
-	glBindTexture(GL_TEXTURE_2D, m_DirDepthMap);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, DIR_SHADOW_WIDTH, DIR_SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-	float borderColor[] = { 1.0, 1.0, 1.0, 1.0 };
-	glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
-	glBindFramebuffer(GL_FRAMEBUFFER, m_DirDepthMapFBO);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_DirDepthMap, 0);
-	glDrawBuffer(GL_NONE);
-	glReadBuffer(GL_NONE);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
 	// Clear any existing shadow data
-	for (auto& shadowData : m_PointLightShadows) {
-		glDeleteTextures(1, &shadowData.depthCubemap);
-		glDeleteFramebuffers(1, &shadowData.fbo);
-	}
-	m_PointLightShadows.clear();
-
 	for (int i = 0; i < numPointLights; ++i) {
 		PointLightShadowData shadowData;
 
@@ -139,39 +246,46 @@ void Renderer::SetupDepthMaps(int numPointLights) {
 	}
 }
 
-float sceneLeft = -200;   // Replace with your scene's minimum X
-float sceneRight = 200;   // Replace with your scene's maximum X
-float sceneBottom = -200; // Replace with your scene's minimum Y
-float sceneTop = 200;     // Replace with your scene's maximum Y
-float nearPlane = 1.f;     // Keep near plane close
-float farPlane = 400.0f;    // Adjust to cover the entire scene depth
-
 void Renderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::vector<Light*>& lights, const std::vector<ModelEntity*>& entities) {
 	// Directional/Spot Lights Shadow Map
-	glCullFace(GL_FRONT); 
-	glEnable(GL_POLYGON_OFFSET_FILL);
-	glPolygonOffset(1.0f, 2.0f);
-	glViewport(0, 0, DIR_SHADOW_WIDTH, DIR_SHADOW_HEIGHT);
+	glViewport(0, 0, m_ShadowSettings.resolution, m_ShadowSettings.resolution);
 	glBindFramebuffer(GL_FRAMEBUFFER, m_DirDepthMapFBO);
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	m_DirectionalSpotShadowShader.Bind();
 	for (const Light* light : lights) {
-		if (light->GetType() == DIRECTIONAL /*|| light->GetType() == SPOTLIGHT*/) {
-			//glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 7.5f);
-
-			glm::mat4 lightProjection = glm::ortho(sceneLeft, sceneRight, sceneBottom, sceneTop, nearPlane, farPlane);
-			glm::mat4 lightView = glm::lookAt(-light->GetDirection() * 100.0f, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-			glm::mat4 lightSpaceMatrix = lightProjection * lightView;
-			m_DirectionalSpotShadowShader.SetUniformMat4f("lightSpaceMatrix", lightSpaceMatrix);
-
+		if (light->GetType() == DIRECTIONAL ) {
+			glm::vec3 lightDir = light->GetDirection();
+			cascadeLightSpaceMatrices = GetLightSpaceMatrices(-lightDir);
+			//std::cout << cascadeLightSpaceMatrices.size() << "\n";
+			//
+			glBindBuffer(GL_UNIFORM_BUFFER, matricesUBO);
+			for (size_t i = 0; i < cascadeLightSpaceMatrices.size(); ++i)
+			{
+				glBufferSubData(GL_UNIFORM_BUFFER, i * sizeof(glm::mat4x4), sizeof(glm::mat4x4), &cascadeLightSpaceMatrices[i]);
+			}
+			glBindBuffer(GL_UNIFORM_BUFFER, 0);
+			//
+			m_DirectionalSpotShadowShader.Bind();
+			glBindFramebuffer(GL_FRAMEBUFFER, lightFBO);
+			glViewport(0, 0, m_ShadowSettings.resolution, m_ShadowSettings.resolution);
+			glClear(GL_DEPTH_BUFFER_BIT);
+			glCullFace(GL_FRONT);  // peter panning
+			glEnable(GL_DEPTH_CLAMP);
 			for (Entity* entity : entities) {
 				entity->Draw(m_DirectionalSpotShadowShader);
 			}
+			glCullFace(GL_BACK);
+			glDisable(GL_DEPTH_CLAMP);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+			// reset viewport
+			glViewport(0, 0, windowSize.x, windowSize.y);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 		}
 	}
-	glDisable(GL_POLYGON_OFFSET_FILL);
-	m_DirectionalSpotShadowShader.Unbind();
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	
 	glViewport(0, 0, POINT_SHADOW_WIDTH, POINT_SHADOW_HEIGHT);
 	// Point Lights Shadow Map
 	m_PointLightShadowShader.Bind();
@@ -223,45 +337,39 @@ void Renderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::vector<
 	glCullFace(GL_BACK); // don't forget to reset original culling face
 }
 
-
 void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, const std::vector<Light*>& lights, const std::vector<ModelEntity*>& entities) {
+	m_CurrentCamera = camera;
+
 	RenderShadowMaps(windowSize, lights, entities);
 
-	
 	m_MainShader.Bind();
-
-
-	// Set view and projection matrices
 
 	m_MainShader.SetUniformMat4f("projection", camera.GetProjectionMatrix(windowSize));
 	m_MainShader.SetUniformMat4f("view", camera.GetViewMatrix());
+
 	m_MainShader.SetUniform3f("viewPos", camera.Position);
+	m_MainShader.SetUniform1f("farPlane", camera.farPlane);
 
-	glActiveTexture(GL_TEXTURE5);
-	glBindTexture(GL_TEXTURE_2D, m_DirDepthMap);
-	m_MainShader.SetUniform1i("dirSpotShadowMap", 5);
+	m_MainShader.SetUniform1f("alphaThreshold", 0.4);
 
-	//glActiveTexture(GL_TEXTURE6);
-	//glBindTexture(GL_TEXTURE_CUBE_MAP, m_PointDepthMap);
-	//m_MainShader.SetUniform1i("pointShadowMap", 6);
-	m_MainShader.SetUniform1f("farPlane", 25.0f);
+	m_MainShader.SetUniform1f("shadowBias", m_ShadowSettings.shadowBias);
+
+	m_MainShader.SetUniform1i("debugCascades", debug1);
+
+	m_MainShader.SetUniform1i("cascadeCount", shadowCascadeLevels.size());
+
+	for (size_t i = 0; i < shadowCascadeLevels.size(); ++i)
+	{
+		//std::cout << shadowCascadeLevels[i] << "\n";
+		m_MainShader.SetUniform1f("cascadePlaneDistances[" + std::to_string(i) + "]", shadowCascadeLevels[i]);
+	}
+
+	glActiveTexture(GL_TEXTURE0 + 64);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, lightDepthMaps);
+	m_MainShader.SetUniform1i("shadowMap", 64);
 
 	// Set material properties
 	m_MainShader.SetUniform1f("material.shininess", 32.0f);
-
-
-
-	for (const Light* light : lights) {
-		if (light->GetType() == DIRECTIONAL /*|| light->GetType() == SPOTLIGHT*/) {
-
-			glm::mat4 lightProjection = glm::ortho(sceneLeft, sceneRight, sceneBottom, sceneTop, nearPlane, farPlane);
-
-			glm::mat4 lightView = glm::lookAt(-light->GetDirection() * 100.0f, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-			glm::mat4 lightSpaceMatrix = lightProjection * lightView;
-			m_MainShader.SetUniformMat4f("lightSpaceMatrix", lightSpaceMatrix);
-			break; // Assume only one directional or spotlight uses this matrix
-		}
-	}
 
 	int pointLightCount = 0;
 	for (const Light* light : lights) {
@@ -273,7 +381,6 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 			m_MainShader.SetUniform3f("dirLight.specular", light->GetColor() * light->GetIntensity() * 0.5f);
 			break;
 		}
-
 		case POINT: {
 			std::string uniformName = "pointLights[" + std::to_string(pointLightCount) + "]";
 			m_MainShader.SetUniform3f(uniformName + ".position", light->GetPosition());
@@ -285,7 +392,7 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 			m_MainShader.SetUniform1f(uniformName + ".quadratic", 0.032f);
 			m_MainShader.SetUniform1i(uniformName + ".shadowMap", 6);
 			m_MainShader.SetUniform1f(uniformName + ".farPlane", 25.0f);
-				++pointLightCount;
+			++pointLightCount;
 			break;
 		}
 
@@ -304,6 +411,7 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 		}
 		}
 	}
+
 	for (int i = 0; i < m_PointLightShadows.size(); ++i) {
 		glActiveTexture(GL_TEXTURE6 + i);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, m_PointLightShadows[i].depthCubemap);
@@ -314,17 +422,57 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 	// Render all entities in the scene
 	for (Entity* entity : entities) {
 		entity->Draw(m_MainShader);
-		
 	}
 
 	m_MainShader.Unbind();
+}
+
+void Renderer::SetupCascadeDepthMaps() {
+	// configure light FBO
+	// -----------------------
+	glGenFramebuffers(1, &lightFBO);
+
+	glGenTextures(1, &lightDepthMaps);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, lightDepthMaps);
+	glTexImage3D(
+		GL_TEXTURE_2D_ARRAY, 0, GL_DEPTH_COMPONENT32F, m_ShadowSettings.resolution, m_ShadowSettings.resolution, int(shadowCascadeLevels.size()) + 1,
+		0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+	constexpr float bordercolor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	glTexParameterfv(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BORDER_COLOR, bordercolor);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, lightFBO);
+	glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, lightDepthMaps, 0);
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
+
+	int status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (status != GL_FRAMEBUFFER_COMPLETE)
+	{
+		std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!";
+		throw 0;
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// configure UBO
+	// --------------------
+	glGenBuffers(1, &matricesUBO);
+	glBindBuffer(GL_UNIFORM_BUFFER, matricesUBO);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(glm::mat4x4) * 16, nullptr, GL_STATIC_DRAW);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, matricesUBO);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 }
 
 void Renderer::Cleanup() {
 	glDeleteVertexArrays(1, &cubeVAO);
 	glDeleteBuffers(1, &cubeVBO);
 }
-
 
 void Renderer::RenderCube() {
 	glBindVertexArray(cubeVAO);

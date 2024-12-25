@@ -20,7 +20,7 @@ const float SPEED = 2.5f * 5;
 const float SENSITIVITY = 0.1f;
 const float ZOOM = 90;
 
-const float NEAR_PLANE = 0.1f;
+const float NEAR_PLANE = 0.05f;
 const float FAR_PLANE = 1000.f;
 
 // An abstract camera class that processes input and calculates the corresponding Euler Angles, Vectors and Matrices for use in OpenGL

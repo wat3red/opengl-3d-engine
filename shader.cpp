@@ -61,7 +61,18 @@ int Shader::CompileShader(unsigned int type, const std::string& source)
 		char* message = (char*)_malloca(length * sizeof(char));
 		glGetShaderInfoLog(id, length, &length, message);
 
-		std::cout << "Failed to compile shader!\n" << message << std::endl;
+		const char* shaderTypeName = "undefined";
+		switch (type) {
+		case GL_VERTEX_SHADER:
+			shaderTypeName = "vertex";
+			break;
+		case GL_FRAGMENT_SHADER:
+			shaderTypeName = "fragment";
+			break;
+		case GL_GEOMETRY_SHADER:
+			shaderTypeName = "geometry";
+		}
+		std::cout << "Failed to compile " << shaderTypeName << " shader!\n" << message << std::endl;
 
 		glDeleteShader(id);
 		return 0;
@@ -179,6 +190,17 @@ bool Shader::SetUniform1f(const std::string& name, float value)
 	glUniform1f(location, value);
 	return true;
 }
+
+bool Shader::SetUniform2f(const std::string& name, float value1, float value2)
+{
+	int location = GetUniformLocation(name);
+	if (location == -1)
+		return false;
+	glUniform2f(location, value1, value2);
+	return true;
+}
+
+
 
 bool Shader::SetUniformMat4f(const std::string& name, glm::mat4 matrix)
 {

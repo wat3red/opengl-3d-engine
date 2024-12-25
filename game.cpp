@@ -3,6 +3,7 @@
 //#include "cube.h"
 #include "model.h"
 #include "model_entity.h"
+#include "error_handler.h"
 #include "light.h"
 
 #include <imgui/imgui.h>
@@ -39,20 +40,25 @@ Game::Game() :
 	m_MainCamera(glm::vec3(0.0f, 0.0f, 3.0f)), 
 	m_WindowSize{ WINDOW_WIDTH, WINDOW_HEIGHT },
 	m_InputHandler(m_MainCamera, &m_WindowSize),
-	m_Renderer(m_WindowSize)
+	m_Renderer(&m_WindowSize)
 {
 	stbi_set_flip_vertically_on_load(true);
 
 	if (!glfwInit()) throw std::runtime_error("Failed to initialize GLFW");
+
+	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE); // necessarily before glfwCreateWindow 
+	
 	m_Window = glfwCreateWindow(m_WindowSize.x, m_WindowSize.y, "Game Window", NULL, NULL);
 	glfwMakeContextCurrent(m_Window);
 	glewInit();
 	glfwSwapInterval(1); // vsync
-	m_Renderer.Initialize();
 
+	m_Renderer.Initialize();
 	InitializeEntities();
 
-	m_InputHandler.SetCallbacks(m_Window, &m_InputHandler); // Set the input callbacks
+	m_InputHandler.SetCallbacks(m_Window); // Set the input callbacks
+	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+	glDebugMessageCallback(GLDebugMessageCallback, NULL);
 
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -63,28 +69,29 @@ Game::Game() :
 	ImGui::StyleColorsDark();
 	ImGui_ImplGlfw_InitForOpenGL(m_Window, true);
 	ImGui_ImplOpenGL3_Init();
+
+
+	nord = Shader("D:/Desktop/LearningOpenGL/shaders/nigger.shader");
+
 }
 
 void Game::InitializeEntities() {
 	// Initialize main entity (house model)
 	ModelEntity* houseEntity = new ModelEntity("D:/Desktop/LearningOpenGL/res/models/house/source/free_fire_maxx_new_clock_tower_map_download_free.glb");
+	//ModelEntity* houseEntity = new ModelEntity("D:/Desktop/LearningOpenGL/res/models/city/scene.gltf");
 	houseEntity->SetRotation(rotationDelta);
-	houseEntity->SetScale(glm::vec3(0.4f));
+	houseEntity->SetScale(glm::vec3(0.2f));
 	m_Entities.push_back(houseEntity);
 
-	// Directional light (Sun)
-	DirectionalLight* sun = new DirectionalLight(directionalLightDirection, directionaLightColor, 0.5f); // Sun-like color
+	DirectionalLight* sun = new DirectionalLight(directionalLightDirection, directionaLightColor, 0.5f);
 	m_Lights.push_back(sun);
 
-	// Point light (Lamp)
 	PointLight* lamp = new PointLight(pointLightPosition1, pointLightColor1, pointLightintensity1, pointLightRange1);
 	m_Lights.push_back(lamp);
 
-	// Point light (Lamp)
 	PointLight* lamp2 = new PointLight(pointLightPosition2, pointLightColor2, pointLightintensity2, 20.0f);
 	m_Lights.push_back(lamp2);
 
-	// Spotlight with adjustable cutoff
 	SpotLight* flashlight = new SpotLight(spotLightPosition, spotLightDirection, spotLightColor, 1.0f, 15.0f, 30.0f);
 	m_Lights.push_back(flashlight);
 }
@@ -97,7 +104,6 @@ void Game::Run() {
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glClearColor(0.2f, 0.2f, 0.2f, 1.f);
-		//std::cout << "started frame" << "\n";
 		
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
@@ -135,41 +141,45 @@ void Game::DrawGUI() {
 	ImGui::SliderFloat("Zoom", &m_MainCamera.Zoom, 0.0f, 180.0f);
 	ImGui::SliderFloat3("Position", &m_MainCamera.Position[0], -5.0f, 5.0f);
 
-	// Light settings
-	ImGui::Text("Light Settings");
+	ImGui::SliderFloat3("rotationDelta", &rotationDelta[0], -180.0f, 180.0f);
 
-	ImGui::Text("Sun settings");
-	//ImGui::SliderFloat3("Directional Light Direction", &directionalLightDirection[0], -1.0f, 1.0f);
-	ImGui::SliderFloat("Directional Light Intensity", &directionaLightIntensity, 0.0f, 2.0f);
-	ImGui::SliderFloat3("Directional Light Color", &directionaLightColor[0], 0.0f, 1.0f);
+	
+
+	// Light settings
+	//ImGui::Text("Light Settings");
+
+	//ImGui::Text("Sun settings");
+	//ImGui::SliderFloat("Directional Light Intensity", &directionaLightIntensity, 0.0f, 2.0f);
+	//ImGui::SliderFloat3("Directional Light Color", &directionaLightColor[0], 0.0f, 1.0f);
 	m_Lights[0]->SetIntensity(directionaLightIntensity);
-	//m_Lights[0]->SetDirection(directionalLightDirection);
 	m_Lights[0]->SetColor(directionaLightColor);
 
-	ImGui::Text("Point Light 1 settings");
-	ImGui::SliderFloat3("Point Light 1 Position", &pointLightPosition1[0], -10.0f, 10.0f);
-	ImGui::SliderFloat("Point Light 1 Intensity", &pointLightintensity1, 0.0f, 2.0f);
-	ImGui::SliderFloat("Point Light 1 Range", &pointLightRange1, 0.0f, 50);
-	ImGui::SliderFloat3("Point Light 1 Color", &pointLightColor1[0], 0.0f, 1.0f);
-	
+	//ImGui::Text("Point Light 1 settings");
+	//ImGui::SliderFloat3("Point Light 1 Position", &pointLightPosition1[0], -10.0f, 10.0f);
+	//ImGui::SliderFloat("Point Light 1 Intensity", &pointLightintensity1, 0.0f, 2.0f);
+	//ImGui::SliderFloat("Point Light 1 Range", &pointLightRange1, 0.0f, 50);
+	//ImGui::SliderFloat3("Point Light 1 Color", &pointLightColor1[0], 0.0f, 1.0f);
+
 	m_Lights[1]->SetIntensity(pointLightintensity1);
 	m_Lights[1]->SetPosition(pointLightPosition1);
 	m_Lights[1]->SetColor(pointLightColor1);
 	m_Lights[1]->SetRange(pointLightRange1);
 
-	ImGui::Text("Point Light 2 settings");
+	/*ImGui::Text("Point Light 2 settings");
 	ImGui::SliderFloat3("Point Light 2 Position", &pointLightPosition2[0], -10.0f, 10.0f);
 	ImGui::SliderFloat("Point Light 2 Intensity", &pointLightintensity2, 0.0f, 2.0f);
-	ImGui::SliderFloat3("Point Light 2 Color", &pointLightColor2[0], 0.0f, 1.0f);
+	ImGui::SliderFloat3("Point Light 2 Color", &pointLightColor2[0], 0.0f, 1.0f);*/
 	m_Lights[2]->SetIntensity(pointLightintensity2);
 	m_Lights[2]->SetPosition(pointLightPosition2);
 	m_Lights[2]->SetColor(pointLightColor2);
 
-	ImGui::Text("Spot light settings");
-	ImGui::SliderFloat("Inner Cutoff", &innerCutoff, 0.0f, 100.0f);
-	ImGui::SliderFloat("Outer Cutoff", &outerCutoff, 0.0f, 100.0f);
-	ImGui::SliderFloat("spotLightintensity", &spotLightintensity, 0.0f, 2.0f);
-	ImGui::SliderFloat3("spotLightColor", &spotLightColor[0], 0.0f, 1.0f);
+	//ImGui::Text("Spot light settings");
+	//ImGui::SliderFloat("Inner Cutoff", &innerCutoff, 0.0f, 100.0f);
+	//ImGui::SliderFloat("Outer Cutoff", &outerCutoff, 0.0f, 100.0f);
+	//ImGui::SliderFloat("spotLightintensity", &spotLightintensity, 0.0f, 2.0f);
+	//ImGui::SliderFloat3("spotLightColor", &spotLightColor[0], 0.0f, 1.0f);
+
+	ImGui::Checkbox("debug1", &m_Renderer.debug1);
 
 	m_Lights[3]->SetInnerCutoff(innerCutoff);
 	m_Lights[3]->SetOuterCutoff(outerCutoff);
@@ -178,13 +188,11 @@ void Game::DrawGUI() {
 	m_Lights[3]->SetPosition(m_MainCamera.Position);
 	m_Lights[3]->SetDirection(m_MainCamera.Front);
 
+	ImGui::SliderFloat4("shadowCascadeLevels", &m_Renderer.shadowCascadeLevels[0], 0.0f, 1000.0f);
 	
-	ImGui::Image(
-		(ImTextureID)m_Renderer.m_DirDepthMap,
-		ImVec2(600, 600),
-		ImVec2(0.0f, 1.0f), // Bottom-left corner
-		ImVec2(1.0f, 0.0f)  // Top-right corner
-	);
+	static int shadowQuality = 3;
+	if (ImGui::SliderInt("shadowQuality", &shadowQuality, 0, 3))
+		m_Renderer.UpdateShadowSettings((ShadowQuality)shadowQuality);
 
 	// Reset button
 	if (ImGui::Button("Reset")) {
