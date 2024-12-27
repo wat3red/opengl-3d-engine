@@ -70,9 +70,7 @@ Game::Game() :
 	ImGui_ImplGlfw_InitForOpenGL(m_Window, true);
 	ImGui_ImplOpenGL3_Init();
 
-
-	nord = Shader("D:/Desktop/LearningOpenGL/shaders/nigger.shader");
-
+	//nord = Shader("D:/Desktop/LearningOpenGL/shaders/nigger.shader");
 }
 
 void Game::InitializeEntities() {
@@ -143,8 +141,6 @@ void Game::DrawGUI() {
 
 	ImGui::SliderFloat3("rotationDelta", &rotationDelta[0], -180.0f, 180.0f);
 
-	
-
 	// Light settings
 	//ImGui::Text("Light Settings");
 
@@ -188,11 +184,11 @@ void Game::DrawGUI() {
 	m_Lights[3]->SetPosition(m_MainCamera.Position);
 	m_Lights[3]->SetDirection(m_MainCamera.Front);
 
-	ImGui::SliderFloat4("shadowCascadeLevels", &m_Renderer.shadowCascadeLevels[0], 0.0f, 1000.0f);
+	ImGui::SliderFloat4("shadowCascadeLevels", &m_Renderer.m_ShadowRenderer.shadowCascadeLevels[0], 0.0f, 1000.0f);
 	
 	static int shadowQuality = 3;
-	if (ImGui::SliderInt("shadowQuality", &shadowQuality, 0, 3))
-		m_Renderer.UpdateShadowSettings((ShadowQuality)shadowQuality);
+	if (ImGui::SliderInt("shadowQuality", &shadowQuality, 0, 5))
+		m_Renderer.m_ShadowRenderer.UpdateShadowSettings((ShadowRenderer::ShadowQuality)shadowQuality);
 
 	// Reset button
 	if (ImGui::Button("Reset")) {
@@ -225,10 +221,10 @@ void Game::Update() {
 
 void Game::Render() {
 	m_Renderer.RenderScene(m_WindowSize, m_MainCamera, m_Lights, m_Entities);
-	int a = glGetError();
+	/*int a = glGetError();
 	if (a) {
 		std::cout << a << std::endl;
-	}
+	}*/
 	Shader lightShader = m_Renderer.GetLightShader();
 	lightShader.Bind();
 	lightShader.SetUniform4f("objectColor", { 1.0f, 1.0f, 1.0f, 1.0f });

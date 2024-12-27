@@ -1,4 +1,4 @@
-// DirectionalSpotShadowsDepth.shader
+// DirectionalShadowsDepth.shader
 #shader vertex
 #version 330 core
 
