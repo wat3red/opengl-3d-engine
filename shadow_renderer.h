@@ -36,11 +36,10 @@ public:
 		ULTRA
 	};
 
-
 	static ShadowSettings GetShadowSettings(ShadowQuality quality) {
 		switch (quality) {
 		case ShadowQuality::VERY_LOW:
-			return { 256, 2, 0.4f, 2, 0.01f }; // Minimal quality
+			return { 256, 3, 0.4f, 2, 0.01f }; // Minimal quality
 		case ShadowQuality::LOW:
 			return { 512, 3, 0.5f, 4, 0.005f }; // Low quality
 		case ShadowQuality::MEDIUM:
@@ -54,13 +53,12 @@ public:
 		}
 	}
 
-
 	ShadowRenderer(glm::ivec2* windowSize);
 
-	void Initialize(Camera* camera, const ShadowSettings& settings);
+	void Initialize(Camera* camera, const ShadowQuality& settings);
 	void SetupCascadeDepthMaps();
 	void Cleanup();
-	std::vector<float> CalculateCascadeSplits(float farPlane, int numCascades, float lambda);
+	std::vector<float> CalculateCascadeSplits(int numCascades, float lambda);
 	void RenderShadowMaps(const glm::ivec2& windowSize, const std::vector<Light*>& lights, const std::vector<ModelEntity*>& entities);
 
 	glm::mat4 GetLightSpaceMatrix(Camera camera, glm::ivec2 ws, glm::vec3 lightDir, float nearPlane, float farPlane);
@@ -80,11 +78,11 @@ public:
 	static constexpr unsigned int POINT_SHADOW_WIDTH = 1024, POINT_SHADOW_HEIGHT = 1024;
 
 	std::vector<PointLightShadowData> m_PointLightShadows;
+
+	ShadowSettings m_ShadowSettings;
 private:
 	glm::ivec2* m_WindowSize;
 	Camera* m_CurrentCamera;
-
-	ShadowSettings m_ShadowSettings;
 
 	std::vector<glm::mat4> cascadeLightSpaceMatrices;
 

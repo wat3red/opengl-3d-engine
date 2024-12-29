@@ -5,9 +5,9 @@
 ShadowRenderer::ShadowRenderer(glm::ivec2* windowSize)
 	: m_WindowSize(windowSize),  lightFBO(0), lightDepthMaps(0), matricesUBO(0) {}
 
-void ShadowRenderer::Initialize(Camera* camera, const ShadowSettings& settings) {
-	// Initialize shaders
-	m_ShadowSettings = settings;
+void ShadowRenderer::Initialize(Camera* camera, const ShadowQuality& settings) {
+	m_ShadowSettings = ShadowRenderer::GetShadowSettings(settings);
+
 	m_DirectionalShadowShader = Shader("D:/Desktop/opengl-3d-engine/shaders/DirectionalShadowsDepth.shader");
 	m_PointShadowShader = Shader("D:/Desktop/opengl-3d-engine/shaders/PointShadowsDepth.shader");
 	m_CurrentCamera = camera;
@@ -26,7 +26,6 @@ void ShadowRenderer::UpdateShadowSettings(ShadowQuality quality) {
 void ShadowRenderer::RecalculateShadowSettings() {
 	if (m_CurrentCamera == nullptr) return;
 	shadowCascadeLevels = CalculateCascadeSplits(
-		m_CurrentCamera->farPlane,
 		m_ShadowSettings.numCascades,
 		m_ShadowSettings.cascadeSplitLambda
 	);
@@ -113,7 +112,6 @@ void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::v
 	glBindFramebuffer(GL_FRAMEBUFFER, m_DirDepthMapFBO);
 	glClear(GL_DEPTH_BUFFER_BIT);
 	
-
 	for (const Light* light : lights) {
 		if (light->GetType() == DIRECTIONAL) {
 			glm::vec3 lightDir = light->GetDirection();
@@ -295,18 +293,27 @@ void ShadowRenderer::Cleanup() {
 		glDeleteTextures(1, &shadowData.depthCubemap);
 	}
 }
-//10 50 250 500
-//8 45 230 500
-//5 150 500
-//15 120 500
-//100 500 
-std::vector<float> ShadowRenderer::CalculateCascadeSplits(float farPlane, int numCascades, float lambda) {
+
+// wip 
+std::vector<float> ShadowRenderer::CalculateCascadeSplits(int numCascades, float lambda) {
 	std::vector<float> cascadeSplits(numCascades);
 
-	for (int i = 0; i < numCascades; ++i) {
-		float max = farPlane / 2;
-		float level = 0;
-		cascadeSplits.push_back(level);
+	float nearPlane = m_CurrentCamera->nearPlane;
+	float farPlane = m_CurrentCamera->farPlane;
+
+	float p = farPlane * nearPlane;
+
+	if (numCascades == 3) {
+		cascadeSplits[0] = farPlane / (p / lambda);
+		cascadeSplits[1] = cascadeSplits[0] * (p * lambda / 10.0f);
+		cascadeSplits[2] = farPlane * (lambda * lambda);
+	}
+	if (numCascades == 4) {
+		cascadeSplits[0] = farPlane / (p / lambda);
+		cascadeSplits[3] = farPlane * lambda;
+		
+		cascadeSplits[1] = cascadeSplits[0] * (p * lambda / 10.0f);
+		cascadeSplits[2] = (cascadeSplits[3] - cascadeSplits[1]) / (4 * lambda);
 	}
 
 	return cascadeSplits;

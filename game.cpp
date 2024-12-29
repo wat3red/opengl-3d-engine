@@ -13,6 +13,8 @@
 #include <std_image/stb_image.h>
 #include <codecvt>
 
+#include <chrono>
+
 glm::vec3 directionalLightDirection(0.f, 0.f, 0.f);
 glm::vec3 directionaLightColor(1.f, 1.f, 1.f);
 float directionaLightIntensity = 3;
@@ -70,15 +72,21 @@ Game::Game() :
 	ImGui_ImplGlfw_InitForOpenGL(m_Window, true);
 	ImGui_ImplOpenGL3_Init();
 
-	//nord = Shader("D:/Desktop/LearningOpenGL/shaders/nigger.shader");
+	//nord = Shader("D:/Desktop/opengl-3d-engine/shaders/nigger.shader");
 }
 
 void Game::InitializeEntities() {
 	// Initialize main entity (house model)
-	ModelEntity* houseEntity = new ModelEntity("D:/Desktop/LearningOpenGL/res/models/house/source/free_fire_maxx_new_clock_tower_map_download_free.glb");
-	//ModelEntity* houseEntity = new ModelEntity("D:/Desktop/LearningOpenGL/res/models/city/scene.gltf");
+	//ModelEntity* houseEntity = new ModelEntity("D:/Desktop/opengl-3d-engine/res/models/house/source/free_fire_maxx_new_clock_tower_map_download_free.glb");
+	//ModelEntity* houseEntity = new ModelEntity("D:/Desktop/opengl-3d-engine/res/models/city/scene.gltf");
+	//ModelEntity* houseEntity = new ModelEntity("D:/Desktop/opengl-3d-engine/res/models/sphere/source/office desk.fbx");
+	ModelEntity* houseEntity = new ModelEntity("D:/Desktop/opengl-3d-engine/res/models/dust2/source/CSS de_dust2/Generic_Item.obj");
+	
+	//ModelEntity* houseEntity = new ModelEntity("D:/Desktop/opengl-3d-engine/res/models/gat/source/model.obj");
+	
 	houseEntity->SetRotation(rotationDelta);
-	houseEntity->SetScale(glm::vec3(0.2f));
+	//houseEntity->SetScale(glm::vec3(100));
+	//houseEntity->SetScale(glm::vec3(0.2f));
 	m_Entities.push_back(houseEntity);
 
 	DirectionalLight* sun = new DirectionalLight(directionalLightDirection, directionaLightColor, 0.5f);
@@ -94,6 +102,7 @@ void Game::InitializeEntities() {
 	m_Lights.push_back(flashlight);
 }
 
+float renderTime;
 void Game::Run() {
 	while (!glfwWindowShouldClose(m_Window)) {
 		float currentFrameTime = static_cast<float>(glfwGetTime());
@@ -105,13 +114,21 @@ void Game::Run() {
 		
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
+
 		ImGui::NewFrame();
 		DrawGUI();
 		ImGui::Render();
 
 		ProcessInput();
 		Update();
-		Render();
+
+		auto start = std::chrono::high_resolution_clock::now();
+		Render(); // Ваша функция рендера
+		auto end = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<float> duration = end - start;
+		renderTime = duration.count() * 1000.0f; // Время в миллисекундах
+		
+
 
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 		glfwSwapBuffers(m_Window);
@@ -187,8 +204,10 @@ void Game::DrawGUI() {
 	ImGui::SliderFloat4("shadowCascadeLevels", &m_Renderer.m_ShadowRenderer.shadowCascadeLevels[0], 0.0f, 1000.0f);
 	
 	static int shadowQuality = 3;
-	if (ImGui::SliderInt("shadowQuality", &shadowQuality, 0, 5))
+	if (ImGui::SliderInt("shadowQuality", &shadowQuality, 0, 4))
 		m_Renderer.m_ShadowRenderer.UpdateShadowSettings((ShadowRenderer::ShadowQuality)shadowQuality);
+
+	ImGui::SliderFloat("shadowBias", &m_Renderer.m_ShadowRenderer.m_ShadowSettings.shadowBias, 0.0f, 0.1);
 
 	// Reset button
 	if (ImGui::Button("Reset")) {
@@ -196,6 +215,8 @@ void Game::DrawGUI() {
 		rotationDelta = glm::vec3(0.0f, 0.0f, 0.0f);
 	}
 	ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+
+	ImGui::Text("Render Time: %.2f ms", renderTime);
 
 	ImGui::End();
 }

@@ -14,7 +14,7 @@
 
 class Renderer {
 public:
-	ShadowSettings m_ShadowSettings;
+	//ShadowSettings m_ShadowSettings;
 	ShadowRenderer m_ShadowRenderer;
 
 	std::vector<glm::mat4> lightMatricesCache;

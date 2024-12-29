@@ -11,13 +11,10 @@ Renderer::Renderer(glm::ivec2* windowSize)
 {}
 
 void Renderer::Initialize() {
-	m_ShadowSettings = ShadowRenderer::GetShadowSettings(ShadowRenderer::ShadowQuality::ULTRA);
-	//m_ShadowRenderer.RecalculateShadowSettings();
+	m_ShadowRenderer.Initialize(&m_CurrentCamera, ShadowRenderer::ShadowQuality::ULTRA);
 
 	m_MainShader = Shader("D:/Desktop/LearningOpenGL/shaders/Main.shader");
 	m_LightShader = Shader("D:/Desktop/LearningOpenGL/shaders/Light.shader");
-
-	m_ShadowRenderer.Initialize(&m_CurrentCamera, m_ShadowSettings);
 
 	//m_PointLightShadowShader = Shader("D:/Desktop/LearningOpenGL/shaders/PointShadowsDepth.shader");
 	//m_DirectionalSpotShadowShader = Shader("D:/Desktop/LearningOpenGL/shaders/DirectionalSpotShadowsDepth.shader");
@@ -107,8 +104,8 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 	m_MainShader.SetUniform1f("farPlane", camera.farPlane);
 
 	m_MainShader.SetUniform1f("alphaThreshold", 0.4);
-
-	m_MainShader.SetUniform1f("shadowBias", m_ShadowSettings.shadowBias);
+	//std::cout << m_ShadowSettings.shadowBias << "\n";
+	m_MainShader.SetUniform1f("shadowBias", m_ShadowRenderer.m_ShadowSettings.shadowBias);
 
 	m_MainShader.SetUniform1i("debugCascades", debug1);
 
@@ -116,7 +113,6 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 
 	for (size_t i = 0; i < m_ShadowRenderer.shadowCascadeLevels.size(); ++i)
 	{
-		//std::cout << shadowCascadeLevels[i] << "\n";
 		m_MainShader.SetUniform1f("cascadePlaneDistances[" + std::to_string(i) + "]", m_ShadowRenderer.shadowCascadeLevels[i]);
 	}
 
