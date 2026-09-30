@@ -47,7 +47,6 @@ public:
 	vector<Texture>      textures;
 	unsigned int VAO;
 
-	// constructor
 	Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures)
 	{
 		this->vertices = vertices;
@@ -57,6 +56,42 @@ public:
 		// now that we have all the required data, set the vertex buffers and its attribute pointers.
 		setupMesh();
 	}
+
+	~Mesh()
+	{
+		glDeleteVertexArrays(1, &VAO);
+		glDeleteBuffers(1, &VBO);
+		glDeleteBuffers(1, &EBO);
+	}
+
+	Mesh(Mesh&& other) noexcept {
+		vertices = std::move(other.vertices);
+		indices = std::move(other.indices);
+		textures = std::move(other.textures);
+		VAO = other.VAO;
+		VBO = other.VBO;
+		EBO = other.EBO;
+		other.VAO = 0;
+		other.VBO = 0;
+		other.EBO = 0;
+	}
+
+	Mesh& operator=(Mesh&& other) noexcept {
+		if (this != &other) {
+			vertices = std::move(other.vertices);
+			indices = std::move(other.indices);
+			textures = std::move(other.textures);
+			VAO = other.VAO;
+			VBO = other.VBO;
+			EBO = other.EBO;
+			other.VAO = 0;
+			other.VBO = 0;
+			other.EBO = 0;
+		}
+		return *this;
+	}
+
+	Mesh(const Mesh&) = delete;
 
 	// render the mesh
 	void Draw(Shader& shader)

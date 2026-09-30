@@ -36,18 +36,16 @@ public:
 	void Cleanup();
 	void RenderCube();
 
-	Shader GetLightShader() const {
-		return m_LightShader;
-	}
-	Shader GetMainShader() const {
-		return m_MainShader;
-	}
-	Shader GetShadowShader() const {
-		return m_ShadowShader;
-	}
+	Shader& GetLightShader() { return m_LightShader; }
+	const Shader& GetLightShader() const { return m_LightShader; }
+
+	Shader& GetMainShader() { return m_MainShader; }
+	const Shader& GetMainShader() const { return m_MainShader; }
+
+	Shader& GetShadowShader() { return m_ShadowShader; }
+	const Shader& GetShadowShader() const { return m_ShadowShader; }
 
 	bool debug1 = false;
-
 private:
 	std::vector<glm::mat4> cascadeLightSpaceMatrices;
 

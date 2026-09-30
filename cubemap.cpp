@@ -11,11 +11,9 @@
 #include "vertex_buffer.h"
 #include "shader.h"
 
-// Function to generate cube indices
 std::vector<unsigned int> generateCubeIndices() {
 	std::vector<unsigned int> indices;
 
-	// Generate indices for each face
 	for (unsigned int i = 0; i < 36; ++i) {
 		indices.push_back(i);
 	}
@@ -24,7 +22,6 @@ std::vector<unsigned int> generateCubeIndices() {
 }
 
 float vertices[] = {
-	// positions          
 	-1.0f,  1.0f, -1.0f,
 	-1.0f, -1.0f, -1.0f,
 	 1.0f, -1.0f, -1.0f,
@@ -104,7 +101,7 @@ Cubemap::Cubemap(const std::vector<std::string>& facePathes) : m_RendererID(0), 
 
 Cubemap::~Cubemap()
 {
-
+	glDeleteTextures(1, &m_RendererID);
 }
 
 void Cubemap::Render() const

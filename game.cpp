@@ -193,7 +193,7 @@ void Game::Render()
 		m_Renderer.RenderScene(viewportSize, m_MainCamera, m_Scene, m_Framebuffer->GetRendererID());
 
 		// Render small light visualizer cubes in the offscreen scene
-		Shader lightShader = m_Renderer.GetLightShader();
+		Shader& lightShader = m_Renderer.GetLightShader();
 		lightShader.Bind();
 
 		for (const auto& light : m_Scene.GetLights())

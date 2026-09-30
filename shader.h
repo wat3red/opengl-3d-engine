@@ -19,13 +19,20 @@ private:
 	std::unordered_map<std::string, int> m_UniformLocationCache;
 
 	int CompileShader(unsigned int type, const std::string& source);
-	unsigned int GetUniformLocation(const std::string& name);
+	int GetUniformLocation(const std::string& name);
 	int CreateShader(ShaderSources shaderSources);
 	ShaderSources ParseShaders(std::string filename);
 public:
 	Shader(const std::string& filePath);
 	Shader();
+
 	~Shader();
+	
+	Shader(const Shader&) = delete;
+	Shader& operator=(const Shader&) = delete;
+	
+	Shader(Shader&& other) noexcept;
+	Shader& operator=(Shader&& other) noexcept;
 
 	void Bind() const;
 	void Unbind() const;
@@ -38,5 +45,5 @@ public:
 	bool SetUniform1f(const std::string& name, float value);
 	bool SetUniform2f(const std::string& name, float value1, float value2);
 	bool SetUniformMat4f(const std::string& name, glm::mat4 matrix);
-	unsigned int RendererID() const { return m_RendererID; }
+	inline unsigned int RendererID() const { return m_RendererID; }
 };

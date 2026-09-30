@@ -58,8 +58,9 @@ int Shader::CompileShader(unsigned int type, const std::string& source)
 	if (!result) {
 		int length;
 		glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
-		char* message = (char*)_malloca(length * sizeof(char));
-		glGetShaderInfoLog(id, length, &length, message);
+
+		std::string message(length, '\0');
+		glGetShaderInfoLog(id, length, &length, &message[0]);
 
 		const char* shaderTypeName = "undefined";
 		switch (type) {
@@ -81,7 +82,7 @@ int Shader::CompileShader(unsigned int type, const std::string& source)
 	return id;
 }
 
-unsigned int Shader::GetUniformLocation(const std::string& name)
+int Shader::GetUniformLocation(const std::string& name)
 {
 	if (m_UniformLocationCache.find(name) != m_UniformLocationCache.end())
 		return m_UniformLocationCache[name];
@@ -102,7 +103,31 @@ Shader::Shader(const std::string& filePath) : m_RendererID(0), m_FilePath(filePa
 
 Shader::Shader() : m_RendererID(0) {}
 
-Shader::~Shader() {}
+Shader::Shader(Shader&& other) noexcept
+	: m_RendererID(std::exchange(other.m_RendererID, 0)),
+	m_FilePath(std::move(other.m_FilePath)),
+	m_UniformLocationCache(std::move(other.m_UniformLocationCache)) {}
+
+Shader& Shader::operator=(Shader&& other) noexcept
+{
+	if (this != &other)
+	{
+		if (m_RendererID != 0)
+		{
+			glDeleteProgram(m_RendererID);
+		}
+
+		m_RendererID = std::exchange(other.m_RendererID, 0);
+		m_FilePath = std::move(other.m_FilePath);
+		m_UniformLocationCache = std::move(other.m_UniformLocationCache);
+	}
+	return *this;
+}
+
+Shader::~Shader() {
+	if (RendererID() != 0)
+		glDeleteProgram(RendererID());
+}
 
 void Shader::Bind() const
 {

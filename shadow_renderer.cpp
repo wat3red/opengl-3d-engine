@@ -34,15 +34,15 @@ void ShadowRenderer::RecalculateShadowSettings() {
 	);
 
 	SetupCascadeDepthMaps();
-
-	/*for (auto& shadowCascadeLevel : shadowCascadeLevels) {
-		std::cout << shadowCascadeLevel << "\n";
-	}*/
 }
 
 void ShadowRenderer::SetupCascadeDepthMaps() {
-	// configure light FBO
-	// -----------------------
+	if (lightFBO != 0) {
+		glDeleteFramebuffers(1, &lightFBO);
+		glDeleteTextures(1, &lightDepthMaps);
+		glDeleteBuffers(1, &matricesUBO);
+	}
+
 	glGenFramebuffers(1, &lightFBO);
 
 	glGenTextures(1, &lightDepthMaps);

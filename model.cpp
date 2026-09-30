@@ -50,7 +50,11 @@ unsigned int TextureFromFile(const std::wstring& path, const std::wstring& direc
 	int width, height, nrComponents;
 	unsigned char* data = stbi_load(filenameUtf8.c_str(), &width, &height, &nrComponents, 0);
 	if (data) {
-		GLenum format = (nrComponents == 3) ? GL_RGB : GL_RGBA;
+		GLenum format = GL_RGBA;
+		if (nrComponents == 1) format = GL_RED;
+		else if (nrComponents == 3) format = GL_RGB;
+		else if (nrComponents == 4) format = GL_RGBA;
+
 		glBindTexture(GL_TEXTURE_2D, textureID);
 		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 		glGenerateMipmap(GL_TEXTURE_2D);
@@ -117,6 +121,12 @@ Model::Model(const std::string& path, bool gamma, bool flipUVs) : gammaCorrectio
 		std::cout << "Loading model: " << path << std::endl;
 		loadModel(path, flipUVs);
 		CalculateBoundingVolumes();
+}
+
+Model::~Model() {
+	for (const auto& tex : textures_loaded) {
+		glDeleteTextures(1, &tex.id);
+	}
 }
 
 void Model::Draw(Shader& shader) {
