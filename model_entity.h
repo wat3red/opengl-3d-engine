@@ -3,51 +3,69 @@
 
 #include "entity.h"
 #include "model.h"
+#include "asset_manager.h"
 #include "physics/rigidbody.h"
-#include <iostream>
+#include <memory>
+#include <string>
 
 class ModelEntity : public Entity {
 public:
-	ModelEntity(const std::string& modelPath, bool gamma = false, bool flipUVs = false)
-		: model(new Model(modelPath, gamma, flipUVs)), rigidbody(new Rigidbody(model)) {
-		//std::cout << "ModelEntity created for model: " << modelPath << std::endl;
-	}
-
-	void Update(float deltaTime) {
-		//std::cout << "deltaTime: " << deltaTime << std::endl;
-
-		if (rigidbody) {
-			//std::cout << "rigidbody: " << rigidbody << std::endl;
-
-			rigidbody->Update(deltaTime);
-			//std::cout << "rigidbody->position x: " << rigidbody->position.x << std::endl;
-			//std::cout << "rigidbody->position y: " << rigidbody->position.y << std::endl;
-			//std::cout << "rigidbody->position z: " << rigidbody->position.z << std::endl;
-
-			
-			SetPosition(rigidbody->GetPosition()); // Update entity position for rendering
+	ModelEntity(const std::string& name, const std::string& modelPath, bool flipUVs = false)
+		: Entity(name), m_ModelPath(modelPath), m_Model(AssetManager::Get().LoadModel(modelPath, flipUVs)), m_Rigidbody(nullptr)
+	{
+		if (m_Model)
+		{
+			m_Rigidbody = new Rigidbody(m_Model.get());
 		}
 	}
 
-	Rigidbody* GetRigidbody() const { return rigidbody; };
+	explicit ModelEntity(const std::string& modelPath)
+		: ModelEntity("Model Entity", modelPath, false) {}
 
-	void Draw(Shader& shader) override {
-		// Set the model matrix uniform before drawing
-		shader.SetUniformMat4f("model", modelMatrix);
-		model->Draw(shader);
+	~ModelEntity() override
+	{
+		delete m_Rigidbody;
 	}
 
-	glm::vec3 GetBoundingBoxMin() const {
-		return glm::vec3(modelMatrix * glm::vec4(model->GetAABB().min, 1.0f));
+	void Update(float deltaTime) override
+	{
+		if (m_Rigidbody && deltaTime > 0.0f)
+		{
+			m_Rigidbody->Update(deltaTime);
+			// Update position from physics if velocity is active
+			if (glm::length(m_Rigidbody->GetVelocity()) > 0.0001f)
+			{
+				m_Transform.Position = m_Rigidbody->GetPosition();
+			}
+		}
 	}
 
-	glm::vec3 GetBoundingBoxMax() const {
-		return glm::vec3(modelMatrix * glm::vec4(model->GetAABB().max, 1.0f));
+	void Draw(Shader& shader) override
+	{
+		if (!m_Active || !m_Model) return;
+
+		shader.SetUniformMat4f("model", m_Transform.GetMatrix());
+		m_Model->Draw(shader);
 	}
 
+	std::shared_ptr<Model> GetModel() const { return m_Model; }
+	const std::string& GetModelPath() const { return m_ModelPath; }
+	Rigidbody* GetRigidbody() const { return m_Rigidbody; }
 
+	glm::vec3 GetBoundingBoxMin() const
+	{
+		if (!m_Model) return glm::vec3(0.0f);
+		return glm::vec3(m_Transform.GetMatrix() * glm::vec4(m_Model->GetAABB().min, 1.0f));
+	}
+
+	glm::vec3 GetBoundingBoxMax() const
+	{
+		if (!m_Model) return glm::vec3(0.0f);
+		return glm::vec3(m_Transform.GetMatrix() * glm::vec4(m_Model->GetAABB().max, 1.0f));
+	}
 
 private:
-	Model* model;
-	Rigidbody* rigidbody;
+	std::string m_ModelPath;
+	std::shared_ptr<Model> m_Model;
+	Rigidbody* m_Rigidbody;
 };

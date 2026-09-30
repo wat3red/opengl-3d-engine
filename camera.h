@@ -37,7 +37,7 @@ public:
 	float Yaw;
 	float Pitch;
 	// camera options
-	bool isCapturingMovements;
+	bool isCapturingMovements = false;
 
 	float MovementSpeed;
 	float MouseSensitivity;

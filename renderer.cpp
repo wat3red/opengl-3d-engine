@@ -1,5 +1,6 @@
 //renderer.cpp
 #include "renderer.h"
+#include "scene.h"
 #include "light.h"
 #include <iostream>
 #define GLM_ENABLE_EXPERIMENTAL
@@ -7,13 +8,17 @@
 #include <vector>
 
 Renderer::Renderer(glm::ivec2* windowSize)
-	: cubeVAO(0), cubeVBO(0), m_WindowSize(windowSize), m_ShadowRenderer(windowSize)
+	: cubeVAO(0), cubeVBO(0), m_WindowSize(windowSize), m_ShadowRenderer(windowSize), debug1(false)
 {}
 
 void Renderer::Initialize() {
 	m_ShadowRenderer.Initialize(&m_CurrentCamera, ShadowRenderer::ShadowQuality::ULTRA);
 
 	m_MainShader = Shader("shaders/Main.shader");
+	unsigned int mainUBO = glGetUniformBlockIndex(m_MainShader.RendererID(), "LightSpaceMatrices");
+	if (mainUBO != GL_INVALID_INDEX) {
+		glUniformBlockBinding(m_MainShader.RendererID(), mainUBO, 0);
+	}
 	m_LightShader = Shader("shaders/Light.shader");
 
 	//m_PointLightShadowShader = Shader("shaders/PointShadowsDepth.shader");
@@ -90,10 +95,15 @@ void Renderer::SetupCube() {
 	glBindVertexArray(0);
 }
 
-void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, const std::vector<Light*>& lights, const std::vector<ModelEntity*>& entities) {
+void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, const std::vector<Light*>& lights, const std::vector<ModelEntity*>& entities, unsigned int targetFBO) {
 	m_CurrentCamera = camera;
 
 	m_ShadowRenderer.RenderShadowMaps(windowSize, lights, entities);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
+	glViewport(0, 0, windowSize.x, windowSize.y);
+	glClearColor(0.12f, 0.12f, 0.14f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	m_MainShader.Bind();
 
@@ -101,24 +111,23 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 	m_MainShader.SetUniformMat4f("view", camera.GetViewMatrix());
 
 	m_MainShader.SetUniform3f("viewPos", camera.Position);
-	m_MainShader.SetUniform1f("farPlane", camera.farPlane);
 
-	m_MainShader.SetUniform1f("alphaThreshold", 0.4);
+	m_MainShader.SetUniform1f("alphaThreshold", 0.0f);
 	//std::cout << m_ShadowSettings.shadowBias << "\n";
 	m_MainShader.SetUniform1f("shadowBias", m_ShadowRenderer.m_ShadowSettings.shadowBias);
 
 	m_MainShader.SetUniform1i("debugCascades", debug1);
 
-	m_MainShader.SetUniform1i("cascadeCount", m_ShadowRenderer.shadowCascadeLevels.size());
+	m_MainShader.SetUniform1i("cascadeCount", static_cast<int>(m_ShadowRenderer.shadowCascadeLevels.size()));
 
 	for (size_t i = 0; i < m_ShadowRenderer.shadowCascadeLevels.size(); ++i)
 	{
 		m_MainShader.SetUniform1f("cascadePlaneDistances[" + std::to_string(i) + "]", m_ShadowRenderer.shadowCascadeLevels[i]);
 	}
 
-	glActiveTexture(GL_TEXTURE0 + 64);
+	glActiveTexture(GL_TEXTURE10);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, m_ShadowRenderer.lightDepthMaps);
-	m_MainShader.SetUniform1i("shadowMap", 64);
+	m_MainShader.SetUniform1i("shadowMap", 10);
 
 	// Set material properties
 	m_MainShader.SetUniform1f("material.shininess", 32.0f);
@@ -177,6 +186,22 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 	}
 
 	m_MainShader.Unbind();
+}
+
+void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, Scene& scene, unsigned int targetFBO) {
+	std::vector<Light*> rawLights;
+	rawLights.reserve(scene.GetLights().size());
+	for (const auto& light : scene.GetLights()) {
+		if (light && light->IsActive()) rawLights.push_back(light.get());
+	}
+
+	std::vector<ModelEntity*> rawEntities;
+	rawEntities.reserve(scene.GetEntities().size());
+	for (const auto& entity : scene.GetEntities()) {
+		if (entity && entity->IsActive()) rawEntities.push_back(entity.get());
+	}
+
+	RenderScene(windowSize, camera, rawLights, rawEntities, targetFBO);
 }
 
 void Renderer::Cleanup() {

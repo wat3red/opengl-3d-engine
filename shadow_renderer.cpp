@@ -3,12 +3,16 @@
 #include <iostream>
 
 ShadowRenderer::ShadowRenderer(glm::ivec2* windowSize)
-	: m_WindowSize(windowSize),  lightFBO(0), lightDepthMaps(0), matricesUBO(0) {}
+	: m_WindowSize(windowSize), m_CurrentCamera(nullptr), lightFBO(0), lightDepthMaps(0), matricesUBO(0), m_ShadowSettings{} {}
 
 void ShadowRenderer::Initialize(Camera* camera, const ShadowQuality& settings) {
 	m_ShadowSettings = ShadowRenderer::GetShadowSettings(settings);
 
 	m_DirectionalShadowShader = Shader("shaders/DirectionalShadowsDepth.shader");
+	unsigned int shadowUBO = glGetUniformBlockIndex(m_DirectionalShadowShader.RendererID(), "LightSpaceMatrices");
+	if (shadowUBO != GL_INVALID_INDEX) {
+		glUniformBlockBinding(m_DirectionalShadowShader.RendererID(), shadowUBO, 0);
+	}
 	m_PointShadowShader = Shader("shaders/PointShadowsDepth.shader");
 	m_CurrentCamera = camera;
 	// Setup cascade and point light depth maps
@@ -114,15 +118,10 @@ void ShadowRenderer::SetupPointLightDepthMaps(int numPointLights) {
 }
 
 void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::vector<Light*>& lights, const std::vector<ModelEntity*>& entities) {
-	// Directional/Spot Lights Shadow Map
-	glViewport(0, 0, m_ShadowSettings.resolution, m_ShadowSettings.resolution);
-	glBindFramebuffer(GL_FRAMEBUFFER, m_DirDepthMapFBO);
-	glClear(GL_DEPTH_BUFFER_BIT);
-	
 	for (const Light* light : lights) {
 		if (light->GetType() == DIRECTIONAL) {
 			glm::vec3 lightDir = light->GetDirection();
-			cascadeLightSpaceMatrices = CalculateCascadeLightMatrices(-lightDir);
+			cascadeLightSpaceMatrices = CalculateCascadeLightMatrices(-lightDir, windowSize);
 
 			glBindBuffer(GL_UNIFORM_BUFFER, matricesUBO);
 			for (size_t i = 0; i < cascadeLightSpaceMatrices.size(); ++i)
@@ -143,11 +142,6 @@ void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::v
 			glCullFace(GL_BACK);
 			glDisable(GL_DEPTH_CLAMP);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-			// reset viewport
-			glViewport(0, 0, windowSize.x, windowSize.y);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 		}
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -277,14 +271,14 @@ glm::mat4 ShadowRenderer::GetLightSpaceMatrix(Camera camera, glm::ivec2 ws, glm:
 	return lightSpaceMatrix;
 }
 
-std::vector<glm::mat4> ShadowRenderer::CalculateCascadeLightMatrices(glm::vec3 lightDir) {
+std::vector<glm::mat4> ShadowRenderer::CalculateCascadeLightMatrices(glm::vec3 lightDir, const glm::ivec2& windowSize) {
 	std::vector<glm::mat4> matrices;
 
 	for (size_t i = 0; i < shadowCascadeLevels.size() + 1; ++i) {
 		float nearPlane = (i == 0) ? m_CurrentCamera->nearPlane : shadowCascadeLevels[i - 1];
 		float farPlane = (i < shadowCascadeLevels.size()) ? shadowCascadeLevels[i] : m_CurrentCamera->farPlane;
 
-		glm::mat4 lightMatrix = GetLightSpaceMatrix(*m_CurrentCamera, *m_WindowSize, lightDir, nearPlane, farPlane);
+		glm::mat4 lightMatrix = GetLightSpaceMatrix(*m_CurrentCamera, windowSize, lightDir, nearPlane, farPlane);
 		matrices.push_back(lightMatrix);
 	}
 

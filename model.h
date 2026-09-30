@@ -27,6 +27,9 @@ public:
 	// Get bounding volumes
 	const AABB& GetAABB() const { return aabb; }
 	const OBB& GetOBB() const { return obb; }
+	const std::vector<Mesh>& GetMeshes() const { return meshes; }
+	std::vector<Mesh>& GetMeshes() { return meshes; }
+	size_t GetMeshCount() const { return meshes.size(); }
 
 	void Draw(Shader& shader);
 private:

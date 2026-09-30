@@ -69,8 +69,6 @@ public:
 	GLuint GetLightDepthMaps() const;
 
 	std::vector<float> shadowCascadeLevels;
-
-	unsigned int m_DirDepthMapFBO, m_DirDepthMap;  // For directional and spotlight shadows
 	unsigned int lightDepthMaps;
 	unsigned int matricesUBO;
 	unsigned int lightFBO;
@@ -90,7 +88,7 @@ private:
 	Shader m_PointShadowShader;
 	
 	void SetupPointLightDepthMaps(int numPointLights);
-	std::vector<glm::mat4> CalculateCascadeLightMatrices(glm::vec3 lightDir);
+	std::vector<glm::mat4> CalculateCascadeLightMatrices(glm::vec3 lightDir, const glm::ivec2& windowSize);
 	glm::mat4 CalculateLightSpaceMatrix(const Camera& camera, glm::vec3 lightDir, float nearPlane, float farPlane);
 	std::vector<glm::mat4> CalculatePointLightMatrices(glm::vec3 lightPos, float nearPlane, float farPlane);
 };

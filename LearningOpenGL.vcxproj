@@ -115,7 +115,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>GLEW_STATIC;_ITERATOR_DEBUG_LEVEL=0;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>Default</LanguageStandard>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>vendor;</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
@@ -134,7 +134,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>GLEW_STATIC;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>Default</LanguageStandard>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>vendor;</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
@@ -147,7 +147,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="asset_manager.cpp" />
     <ClCompile Include="cubemap.cpp" />
+    <ClCompile Include="editor.cpp" />
+    <ClCompile Include="framebuffer.cpp" />
     <ClCompile Include="game.cpp" />
     <ClCompile Include="index_buffer.cpp" />
     <ClCompile Include="input_handler.cpp" />
@@ -156,6 +159,7 @@
     <ClCompile Include="model.cpp" />
     <ClCompile Include="physics\rigidbody.cpp" />
     <ClCompile Include="renderer.cpp" />
+    <ClCompile Include="scene.cpp" />
     <ClCompile Include="shader.cpp" />
     <ClCompile Include="shadow_renderer.cpp" />
     <ClCompile Include="vendor\glm\detail\glm.cpp" />
@@ -172,10 +176,13 @@
     <ClCompile Include="vertex_buffer_layout.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="asset_manager.h" />
     <ClInclude Include="camera.h" />
     <ClInclude Include="cubemap.h" />
+    <ClInclude Include="editor.h" />
     <ClInclude Include="entity.h" />
     <ClInclude Include="error_handler.h" />
+    <ClInclude Include="framebuffer.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="index_buffer.h" />
     <ClInclude Include="input_handler.h" />
@@ -185,8 +192,10 @@
     <ClInclude Include="model_entity.h" />
     <ClInclude Include="physics\rigidbody.h" />
     <ClInclude Include="renderer.h" />
+    <ClInclude Include="scene.h" />
     <ClInclude Include="shader.h" />
     <ClInclude Include="shadow_renderer.h" />
+    <ClInclude Include="transform.h" />
     <ClInclude Include="vendor\assimp\aabb.h" />
     <ClInclude Include="vendor\assimp\ai_assert.h" />
     <ClInclude Include="vendor\assimp\anim.h" />

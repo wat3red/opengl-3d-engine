@@ -61,38 +61,64 @@ public:
 	// render the mesh
 	void Draw(Shader& shader)
 	{
-		// bind appropriate textures
-		unsigned int diffuseNr = 1;
-		unsigned int specularNr = 1;
-		unsigned int normalNr = 1;
-		unsigned int heightNr = 1;
-		unsigned int shadowNr = 1;
-		for (unsigned int i = 0; i < textures.size(); i++)
+		// bind appropriate textures only if the shader uses material uniforms (skip for shadow/depth passes)
+		if (glGetUniformLocation(shader.RendererID(), "material.diffuse") != -1)
 		{
-			glActiveTexture(GL_TEXTURE0 + i); // active proper texture unit before binding
-			// retrieve texture number (the N in diffuse_textureN)
-			string number;
-			string name = textures[i].type;
-			if (name == "material.diffuse")
-				number = std::to_string(diffuseNr++);
-			else if (name == "material.specular")
-				number = std::to_string(specularNr++);
-			else if (name == "material.normal")
-				number = std::to_string(normalNr++);
-			else if (name == "material.height")
-				number = std::to_string(heightNr++);
-			else if (name == "material.shadow")
-				number = std::to_string(shadowNr++);
+			unsigned int diffuseNr = 1;
+			unsigned int specularNr = 1;
+			unsigned int normalNr = 1;
+			unsigned int heightNr = 1;
+			unsigned int shadowNr = 1;
+			if (textures.empty())
+			{
+				static unsigned int defaultWhiteTex = 0;
+				if (defaultWhiteTex == 0)
+				{
+					unsigned int white = 0xFFFFFFFF;
+					glGenTextures(1, &defaultWhiteTex);
+					glBindTexture(GL_TEXTURE_2D, defaultWhiteTex);
+					glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &white);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+				}
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, defaultWhiteTex);
+				shader.SetUniform1i("material.diffuse", 0);
+				shader.SetUniform1i("material.specular", 0);
+			}
+			else
+			{
+				for (unsigned int i = 0; i < textures.size(); i++)
+				{
+					glActiveTexture(GL_TEXTURE0 + i); // active proper texture unit before binding
+					// retrieve texture number (the N in diffuse_textureN)
+					string number;
+					string name = textures[i].type;
+					if (name == "material.diffuse")
+					{
+						if (diffuseNr == 1)
+							shader.SetUniform1i("material.diffuse", i);
+						number = std::to_string(diffuseNr++);
+					}
+					else if (name == "material.specular")
+					{
+						if (specularNr == 1)
+							shader.SetUniform1i("material.specular", i);
+						number = std::to_string(specularNr++);
+					}
+					else if (name == "material.normal")
+						number = std::to_string(normalNr++);
+					else if (name == "material.height")
+						number = std::to_string(heightNr++);
+					else if (name == "material.shadow")
+						number = std::to_string(shadowNr++);
 
-			// now set the sampler to the correct texture unit
-			shader.SetUniform1i(name + number, i);
-				/*glUniform1i(glGetUniformLocation(shader.RendererID(), (name + number).c_str()), i);
-				int location = glGetUniformLocation(shader.RendererID(), (name + number).c_str());
-				if (location != -1) {
-					glUniform1i(location, i);
-				} */
-			// and finally bind the texture
-			glBindTexture(GL_TEXTURE_2D, textures[i].id);
+					// now set the sampler to the correct texture unit
+					shader.SetUniform1i(name + number, i);
+					// and finally bind the texture
+					glBindTexture(GL_TEXTURE_2D, textures[i].id);
+				}
+			}
 		}
 
 		// draw mesh

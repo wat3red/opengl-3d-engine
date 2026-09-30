@@ -97,8 +97,6 @@ uniform float cascadePlaneDistances[16];
 uniform int cascadeCount;   // number of frusta
 uniform sampler2DArray shadowMap; // Cascaded shadow maps
 
-uniform float farPlane;
-
 // Alpha testing threshold
 uniform float alphaThreshold;
 
@@ -119,7 +117,7 @@ void main()
     float alpha = texture(material.diffuse, TexCoords).a;
 
     // Optional alpha testing
-    if (alpha < alphaThreshold) {
+    if (alphaThreshold > 0.0 && alpha < alphaThreshold) {
         discard;  // Discard fragments below the alpha threshold
     }
 
@@ -127,25 +125,45 @@ void main()
     vec3 viewDir = normalize(viewPos - FragPos);
 
     // Accumulate lighting
-    vec3 result;
+    vec3 result = vec3(0.0);
 
     for (int i = 0; i < NR_POINT_LIGHTS; i++) {
         result += CalcPointLight(pointLights[i], norm, FragPos, viewDir, alpha);
     }
 
-    //result += CalcSpotLight(spotLight, norm, FragPos, viewDir, alpha);
+    result += CalcSpotLight(spotLight, norm, FragPos, viewDir, alpha);
 
     result += CalcDirLight(dirLight, norm, viewDir, alpha);
     
-    if (debugCascades == 0) {
-        FragColor = vec4(result, alpha);
+    if (debugCascades == 1) {
+        vec4 fragPosViewSpace = view * vec4(FragPos, 1.0);
+        float depthValue = abs(fragPosViewSpace.z);
+        int layer = -1;
+        for (int i = 0; i < cascadeCount; ++i) {
+            if (depthValue < cascadePlaneDistances[i]) {
+                layer = i;
+                break;
+            }
+        }
+        if (layer == -1) layer = cascadeCount;
+        vec3 debugColor = vec3(1.0);
+        if (layer == 0) debugColor = vec3(1.0, 0.0, 0.0);
+        else if (layer == 1) debugColor = vec3(0.0, 1.0, 0.0);
+        else if (layer == 2) debugColor = vec3(0.0, 0.0, 1.0);
+        else if (layer == 3) debugColor = vec3(1.0, 0.0, 1.0);
+        else debugColor = vec3(1.0, 1.0, 0.0);
+        FragColor = vec4(debugColor, 1.0);
+    } else {
+        FragColor = vec4(result, 1.0);
     }
 }
 
 // Directional Light Calculation with Cascade Shadows
 vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir, float alpha)
 {
-    vec3 lightDir = normalize(-light.direction);
+    float lightLen = length(light.direction);
+    if (lightLen < 0.0001) return vec3(0.0);
+    vec3 lightDir = -light.direction / lightLen;
     float diff = max(dot(normal, lightDir), 0.0);
     vec3 reflectDir = reflect(-lightDir, normal);
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
@@ -179,11 +197,14 @@ float CalculateCascadeShadow(vec3 fragPosWorldSpace) {
     }
 
     vec4 fragPosLightSpace = lightSpaceMatrices[layer] * vec4(fragPosWorldSpace, 1.0);
+    if (abs(fragPosLightSpace.w) < 0.0001) {
+        return 0.0;
+    }
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
 
-    if (projCoords.z > 1.0) {
-        return 0.0; // Outside light's far plane
+    if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0) {
+        return 0.0; // Outside light's frustum
     }
 
     float shadow = 0.0;
@@ -220,19 +241,6 @@ float CalculateCascadeShadow(vec3 fragPosWorldSpace) {
     }
 
     shadow /= float(samples);
-
-    // Debug visualization
-    if (debugCascades == 1) {
-        vec3 debugColor = vec3(1.0);
-        if (layer == 0) debugColor = vec3(1.0, 0.0, 0.0); // Red for first cascade
-        else if (layer == 1) debugColor = vec3(0.0, 1.0, 0.0); // Green for second cascade
-        else if (layer == 2) debugColor = vec3(0.0, 0.0, 1.0); // Blue for third cascade
-        else if (layer == 3) debugColor = vec3(1.0, 0.0, 1.0); // Magenta for fourth cascade
-        else debugColor = vec3(1.0, 1.0, 0.0); // Yellow for remaining cascades
-        FragColor = vec4(debugColor, 1.0);
-
-        return 0.0;
-    }
 
     return shadow;
 }
@@ -275,8 +283,10 @@ vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir, flo
     float distance = length(light.position - fragPos);
     float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
 
-    float theta = dot(lightDir, normalize(-light.direction));
-    float epsilon = light.cutOff - light.outerCutOff;
+    float dirLen = length(light.direction);
+    if (dirLen < 0.0001) return vec3(0.0);
+    float theta = dot(lightDir, -light.direction / dirLen);
+    float epsilon = max(light.cutOff - light.outerCutOff, 0.0001);
     float intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
 
     vec4 diffuseTex = texture(material.diffuse, TexCoords);

@@ -2,43 +2,45 @@
 #pragma once
 
 #include "shader.h"
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
+#include "transform.h"
+#include <string>
 
 class Entity {
 public:
-	Entity() : position(0.0f), scale(1.0f), rotation(0.0f) {
-		UpdateModelMatrix();
-	}
+	Entity(const std::string& name = "Entity")
+		: m_Name(name), m_Active(true) {}
 
 	virtual ~Entity() = default;
 
+	virtual void Update(float deltaTime) {}
 	virtual void Draw(Shader& shader) = 0;
 
-	void SetPosition(const glm::vec3& pos) { position = pos; UpdateModelMatrix(); }
-	void SetScale(const glm::vec3& scl) { scale = scl; UpdateModelMatrix(); }
-	void SetRotation(const glm::vec3& rot) { rotation = rot; UpdateModelMatrix(); }
+	// Name
+	const std::string& GetName() const { return m_Name; }
+	void SetName(const std::string& name) { m_Name = name; }
 
-	glm::vec3 GetPosition() const { return position; }
-	glm::vec3 GetScale() const { return scale; }
-	glm::vec3 GetRotation() const { return rotation; }
-	glm::mat4 GetModelMatrix() const { return modelMatrix; }
-	
+	// Active State
+	bool IsActive() const { return m_Active; }
+	void SetActive(bool active) { m_Active = active; }
+
+	// Transform Access
+	Transform& GetTransform() { return m_Transform; }
+	const Transform& GetTransform() const { return m_Transform; }
+
+	// Convenience accessors
+	glm::vec3 GetPosition() const { return m_Transform.Position; }
+	void SetPosition(const glm::vec3& position) { m_Transform.Position = position; }
+
+	glm::vec3 GetRotation() const { return m_Transform.Rotation; }
+	void SetRotation(const glm::vec3& rotation) { m_Transform.Rotation = rotation; }
+
+	glm::vec3 GetScale() const { return m_Transform.Scale; }
+	void SetScale(const glm::vec3& scale) { m_Transform.Scale = scale; }
+
+	glm::mat4 GetModelMatrix() const { return m_Transform.GetMatrix(); }
+
 protected:
-	glm::mat4 modelMatrix;
-
-	void UpdateModelMatrix() {
-		modelMatrix = glm::mat4(1.0f);
-		modelMatrix = glm::translate(modelMatrix, position);
-		modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.x), glm::vec3(1, 0, 0));
-		modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.y), glm::vec3(0, 1, 0));
-		modelMatrix = glm::rotate(modelMatrix, glm::radians(rotation.z), glm::vec3(0, 0, 1));
-		modelMatrix = glm::scale(modelMatrix, scale);
-	}
-
-private:
-	glm::vec3 position;
-	glm::vec3 scale;
-	glm::vec3 rotation;
+	std::string m_Name;
+	Transform m_Transform;
+	bool m_Active;
 };

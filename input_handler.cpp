@@ -1,5 +1,6 @@
 #include "input_handler.h"
 #include <iostream>
+#include <imgui/imgui.h>
 
 InputHandler::InputHandler(Camera& camera, glm::ivec2* windowSize) :
 	camera(camera), 
@@ -16,6 +17,9 @@ void InputHandler::Update(GLFWwindow* window) {
 	// updating size
 	glfwGetFramebufferSize(window, &m_WindowSize->x, &m_WindowSize->y);
 	glViewport(0, 0, m_WindowSize->x, m_WindowSize->y);
+
+	if (ImGui::GetIO().WantCaptureKeyboard && !camera.isCapturingMovements)
+		return;
 
 #define IS_PRESSED(x) glfwGetKey(window, x) == GLFW_PRESS
 
@@ -45,14 +49,19 @@ void InputHandler::MouseButtonCallback(GLFWwindow* window, int button, int actio
 	if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
 		if (!camera.isCapturingMovements) {
 			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+			if (glfwRawMouseMotionSupported()) {
+				glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+			}
 
 			double xpos, ypos;
 			glfwGetCursorPos(window, &xpos, &ypos);
 			lastX = static_cast<float>(xpos);
 			lastY = static_cast<float>(ypos);
+			firstMouse = true;
 		}
 		else {
 			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+			firstMouse = true;
 		}
 		camera.isCapturingMovements = !camera.isCapturingMovements;
 	}
@@ -65,6 +74,12 @@ void InputHandler::MouseCallback(GLFWwindow* window, double xposIn, double yposI
 
 	float xpos = static_cast<float>(xposIn);
 	float ypos = static_cast<float>(yposIn);
+
+	if (firstMouse) {
+		lastX = xpos;
+		lastY = ypos;
+		firstMouse = false;
+	}
 
 	float xoffset = xpos - lastX;
 	float yoffset = lastY - ypos;

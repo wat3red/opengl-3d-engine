@@ -123,7 +123,7 @@ int Shader::CreateShader(ShaderSources shaderSources)
 
 	glAttachShader(program, vs);
 	glAttachShader(program, fs);
-	if (gs != -1)
+	if (gs != 0)
 		glAttachShader(program, gs);
 
 	glLinkProgram(program);
@@ -131,7 +131,7 @@ int Shader::CreateShader(ShaderSources shaderSources)
 
 	glDeleteShader(vs);
 	glDeleteShader(fs);
-	if (gs != -1)
+	if (gs != 0)
 		glDeleteShader(gs);
 
 	return program;
