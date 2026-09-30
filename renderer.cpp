@@ -13,11 +13,11 @@ Renderer::Renderer(glm::ivec2* windowSize)
 void Renderer::Initialize() {
 	m_ShadowRenderer.Initialize(&m_CurrentCamera, ShadowRenderer::ShadowQuality::ULTRA);
 
-	m_MainShader = Shader("D:/Desktop/LearningOpenGL/shaders/Main.shader");
-	m_LightShader = Shader("D:/Desktop/LearningOpenGL/shaders/Light.shader");
+	m_MainShader = Shader("shaders/Main.shader");
+	m_LightShader = Shader("shaders/Light.shader");
 
-	//m_PointLightShadowShader = Shader("D:/Desktop/LearningOpenGL/shaders/PointShadowsDepth.shader");
-	//m_DirectionalSpotShadowShader = Shader("D:/Desktop/LearningOpenGL/shaders/DirectionalSpotShadowsDepth.shader");
+	//m_PointLightShadowShader = Shader("shaders/PointShadowsDepth.shader");
+	//m_DirectionalSpotShadowShader = Shader("shaders/DirectionalSpotShadowsDepth.shader");
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);

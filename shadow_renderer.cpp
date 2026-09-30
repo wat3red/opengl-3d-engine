@@ -8,11 +8,10 @@ ShadowRenderer::ShadowRenderer(glm::ivec2* windowSize)
 void ShadowRenderer::Initialize(Camera* camera, const ShadowQuality& settings) {
 	m_ShadowSettings = ShadowRenderer::GetShadowSettings(settings);
 
-	m_DirectionalShadowShader = Shader("D:/Desktop/opengl-3d-engine/shaders/DirectionalShadowsDepth.shader");
-	m_PointShadowShader = Shader("D:/Desktop/opengl-3d-engine/shaders/PointShadowsDepth.shader");
+	m_DirectionalShadowShader = Shader("shaders/DirectionalShadowsDepth.shader");
+	m_PointShadowShader = Shader("shaders/PointShadowsDepth.shader");
 	m_CurrentCamera = camera;
 	// Setup cascade and point light depth maps
-	SetupCascadeDepthMaps();
 	SetupPointLightDepthMaps(2);
 
 	RecalculateShadowSettings();
@@ -64,7 +63,15 @@ void ShadowRenderer::SetupCascadeDepthMaps() {
 	int status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (status != GL_FRAMEBUFFER_COMPLETE)
 	{
-		std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!";
+		std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete! Status: 0x" << std::hex << status << std::dec << "\n";
+		std::cout << "GL Version: " << glGetString(GL_VERSION) << "\n";
+		std::cout << "GL Renderer: " << glGetString(GL_RENDERER) << "\n";
+		std::cout << "GL Vendor: " << glGetString(GL_VENDOR) << "\n";
+		std::cout << "Resolution: " << m_ShadowSettings.resolution << ", Layers: " << (int(shadowCascadeLevels.size()) + 1) << "\n";
+		GLenum err;
+		while ((err = glGetError()) != GL_NO_ERROR) {
+			std::cout << "GL Error: 0x" << std::hex << err << std::dec << "\n";
+		}
 		throw 0;
 	}
 

@@ -48,19 +48,24 @@ Game::Game() :
 
 	if (!glfwInit()) throw std::runtime_error("Failed to initialize GLFW");
 
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE); // necessarily before glfwCreateWindow 
 	
 	m_Window = glfwCreateWindow(m_WindowSize.x, m_WindowSize.y, "Game Window", NULL, NULL);
 	glfwMakeContextCurrent(m_Window);
+	glewExperimental = GL_TRUE;
 	glewInit();
 	glfwSwapInterval(1); // vsync
+
+	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+	glDebugMessageCallback(GLDebugMessageCallback, NULL);
 
 	m_Renderer.Initialize();
 	InitializeEntities();
 
 	m_InputHandler.SetCallbacks(m_Window); // Set the input callbacks
-	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-	glDebugMessageCallback(GLDebugMessageCallback, NULL);
 
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -71,18 +76,11 @@ Game::Game() :
 	ImGui::StyleColorsDark();
 	ImGui_ImplGlfw_InitForOpenGL(m_Window, true);
 	ImGui_ImplOpenGL3_Init();
-
-	//nord = Shader("D:/Desktop/opengl-3d-engine/shaders/nigger.shader");
 }
 
 void Game::InitializeEntities() {
 	// Initialize main entity (house model)
-	//ModelEntity* houseEntity = new ModelEntity("D:/Desktop/opengl-3d-engine/res/models/house/source/free_fire_maxx_new_clock_tower_map_download_free.glb");
-	//ModelEntity* houseEntity = new ModelEntity("D:/Desktop/opengl-3d-engine/res/models/city/scene.gltf");
-	//ModelEntity* houseEntity = new ModelEntity("D:/Desktop/opengl-3d-engine/res/models/sphere/source/office desk.fbx");
-	ModelEntity* houseEntity = new ModelEntity("D:/Desktop/opengl-3d-engine/res/models/dust2/source/CSS de_dust2/Generic_Item.obj");
-	
-	//ModelEntity* houseEntity = new ModelEntity("D:/Desktop/opengl-3d-engine/res/models/gat/source/model.obj");
+	ModelEntity* houseEntity = new ModelEntity("res/models/dust2/source/CSS de_dust2/Generic_Item.obj");
 	
 	houseEntity->SetRotation(rotationDelta);
 	//houseEntity->SetScale(glm::vec3(100));
@@ -123,10 +121,10 @@ void Game::Run() {
 		Update();
 
 		auto start = std::chrono::high_resolution_clock::now();
-		Render(); // Ваша функция рендера
+		Render();
 		auto end = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<float> duration = end - start;
-		renderTime = duration.count() * 1000.0f; // Время в миллисекундах
+		renderTime = duration.count() * 1000.0f; // Р’СЂРµРјСЏ РІ РјРёР»Р»РёСЃРµРєСѓРЅРґР°С…
 		
 
 

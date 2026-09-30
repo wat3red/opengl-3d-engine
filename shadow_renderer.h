@@ -43,13 +43,13 @@ public:
 		case ShadowQuality::LOW:
 			return { 512, 3, 0.5f, 4, 0.005f }; // Low quality
 		case ShadowQuality::MEDIUM:
-			return { 1024, 3, 0.6, 8, 0.002f }; // Medium quality
+			return { 1024, 3, 0.6f, 8, 0.002f }; // Medium quality
 		case ShadowQuality::HIGH:
-			return { 2048, 4, 0.8, 16, 0.001f }; // High quality
+			return { 2048, 4, 0.8f, 16, 0.001f }; // High quality
 		case ShadowQuality::ULTRA:
-			return { 4096, 4, 1, 32, 0.0005f }; // Ultra quality
-			// Default settings in case of invalid input
-		return { 1024, 4, 0.8f, 8, 0.002f };
+			return { 4096, 4, 1.0f, 32, 0.0005f }; // Ultra quality
+		default:
+			return { 1024, 4, 0.8f, 8, 0.002f };
 		}
 	}
 
