@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
-project(OpenGL3DEngine LANGUAGES CXX C)
+project(Ignis LANGUAGES CXX C)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Configure MSVC runtime library to static /MT
@@ -13,24 +13,40 @@ endif()
 
 # Source files
 set(ENGINE_SOURCES
-    asset_manager.cpp
-    cubemap.cpp
-    editor.cpp
-    framebuffer.cpp
-    game.cpp
-    index_buffer.cpp
-    input_handler.cpp
-    light.cpp
-    main.cpp
-    model.cpp
-    renderer.cpp
-    scene.cpp
-    shader.cpp
-    shadow_renderer.cpp
-    vertex_array.cpp
-    vertex_buffer.cpp
-    vertex_buffer_layout.cpp
-    physics/rigidbody.cpp
+    src/main.cpp
+
+    # Core
+    src/core/engine.cpp
+    src/core/window.cpp
+    src/core/input_handler.cpp
+
+    # Renderer
+    src/renderer/renderer.cpp
+    src/renderer/shadow_renderer.cpp
+    src/renderer/shader.cpp
+    src/renderer/texture.cpp
+    src/renderer/texture_cube.cpp
+    src/renderer/vertex_array.cpp
+    src/renderer/vertex_buffer.cpp
+    src/renderer/vertex_buffer_layout.cpp
+    src/renderer/index_buffer.cpp
+    src/renderer/framebuffer.cpp
+    src/renderer/model.cpp
+    src/renderer/primitive.cpp
+    src/renderer/skybox.cpp
+
+    # Scene
+    src/scene/scene.cpp
+    src/scene/light.cpp
+
+    # Assets
+    src/assets/asset_manager.cpp
+
+    # Physics
+    src/physics/rigidbody.cpp
+
+    # Editor
+    src/editor/editor.cpp
     
     # Vendor sources
     vendor/glm/detail/glm.cpp
@@ -46,33 +62,48 @@ set(ENGINE_SOURCES
 
 # Header files (for IDE visibility in Solution Explorer)
 set(ENGINE_HEADERS
-    asset_manager.h
-    camera.h
-    cubemap.h
-    editor.h
-    entity.h
-    error_handler.h
-    framebuffer.h
-    game.h
-    index_buffer.h
-    input_handler.h
-    light.h
-    mesh.h
-    model.h
-    model_entity.h
-    renderer.h
-    scene.h
-    shader.h
-    shadow_renderer.h
-    transform.h
-    vertex_array.h
-    vertex_buffer.h
-    vertex_buffer_layout.h
-    physics/rigidbody.h
+    # Core
+    src/core/engine.h
+    src/core/window.h
+    src/core/input_handler.h
+    src/core/error_handler.h
+
+    # Renderer
+    src/renderer/renderer.h
+    src/renderer/shadow_renderer.h
+    src/renderer/shader.h
+    src/renderer/texture.h
+    src/renderer/texture_cube.h
+    src/renderer/vertex_array.h
+    src/renderer/vertex_buffer.h
+    src/renderer/vertex_buffer_layout.h
+    src/renderer/index_buffer.h
+    src/renderer/framebuffer.h
+    src/renderer/camera.h
+    src/renderer/mesh.h
+    src/renderer/model.h
+    src/renderer/primitive.h
+    src/renderer/skybox.h
+
+    # Scene
+    src/scene/scene.h
+    src/scene/entity.h
+    src/scene/model_entity.h
+    src/scene/light.h
+    src/scene/transform.h
+
+    # Assets
+    src/assets/asset_manager.h
+
+    # Physics
+    src/physics/rigidbody.h
+
+    # Editor
+    src/editor/editor.h
 )
 
 # Define executable target
-add_executable(Engine
+add_executable(Ignis
     ${ENGINE_SOURCES}
     ${ENGINE_HEADERS}
 )
@@ -81,21 +112,27 @@ add_executable(Engine
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${ENGINE_SOURCES} ${ENGINE_HEADERS})
 
 # Include directories
-target_include_directories(Engine PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
+target_include_directories(Ignis PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/renderer
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/scene
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/assets
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/physics
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/editor
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/GLEW/include
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/GLFW/include
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor
 )
 
 # Preprocessor definitions
-target_compile_definitions(Engine PRIVATE
+target_compile_definitions(Ignis PRIVATE
     GLEW_STATIC
     $<$<CONFIG:Debug>:_ITERATOR_DEBUG_LEVEL=0>
 )
 
 # Link libraries
-target_link_libraries(Engine PRIVATE
+target_link_libraries(Ignis PRIVATE
     opengl32
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/GLEW/lib/Release/x64/glew32s.lib
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/GLFW/lib-vc2022/glfw3_mt.lib
@@ -104,6 +141,6 @@ target_link_libraries(Engine PRIVATE
 )
 
 # Set working directory for Visual Studio debugger so shaders & assets load properly
-set_target_properties(Engine PROPERTIES
+set_target_properties(Ignis PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 )

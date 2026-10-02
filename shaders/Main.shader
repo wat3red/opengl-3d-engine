@@ -122,6 +122,7 @@ void main()
     }
 
     vec3 norm = normalize(Normal);
+    if (!gl_FrontFacing) norm = -norm;
     vec3 viewDir = normalize(viewPos - FragPos);
 
     // Accumulate lighting
