@@ -20,12 +20,10 @@ public:
 		glm::mat3 orientation;
 	};
 
-	// Model data
-	std::vector<Texture> textures_loaded; // Stores all loaded textures to prevent duplication
-	std::wstring directory; // Changed to std::wstring for Unicode support
+	std::vector<Texture> textures_loaded;
+	std::wstring directory;
 	bool gammaCorrection;
 
-	// Get bounding volumes
 	const AABB& GetAABB() const { return aabb; }
 	const OBB& GetOBB() const { return obb; }
 	const std::vector<Mesh>& GetMeshes() const { return meshes; }
@@ -34,7 +32,6 @@ public:
 
 	void Draw(Shader& shader);
 private:
-	// Loads a model with supported ASSIMP extensions from file
 	void loadModel(const std::string& path, bool flipUVs = false);
 	void processNode(aiNode* node, const aiScene* scene);
 	Mesh processMesh(aiMesh* mesh, const aiScene* scene);

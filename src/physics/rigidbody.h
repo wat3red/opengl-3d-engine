@@ -1,4 +1,3 @@
-// Rigidbody.h
 #pragma once
 #include <glm/glm.hpp>
 
@@ -11,10 +10,7 @@ public:
 	void ApplyForce(const glm::vec3& force);
 	void Update(float deltaTime);
 
-	// Collision detection
 	bool CheckCollision(const Rigidbody& other) const;
-
-	// Collision response
 	void ResolveCollision(Rigidbody& other);
 
 	glm::vec3 GetPosition() const { return position; }

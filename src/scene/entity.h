@@ -1,4 +1,3 @@
-// entity.h
 #pragma once
 
 #include "shader.h"
@@ -15,19 +14,15 @@ public:
 	virtual void Update(float deltaTime) {}
 	virtual void Draw(Shader& shader) = 0;
 
-	// Name
 	const std::string& GetName() const { return m_Name; }
 	void SetName(const std::string& name) { m_Name = name; }
 
-	// Active State
 	bool IsActive() const { return m_Active; }
 	void SetActive(bool active) { m_Active = active; }
 
-	// Transform Access
 	Transform& GetTransform() { return m_Transform; }
 	const Transform& GetTransform() const { return m_Transform; }
 
-	// Convenience accessors
 	glm::vec3 GetPosition() const { return m_Transform.Position; }
 	void SetPosition(const glm::vec3& position) { m_Transform.Position = position; }
 

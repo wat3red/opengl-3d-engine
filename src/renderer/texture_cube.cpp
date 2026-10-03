@@ -1,8 +1,7 @@
-// texture_cube.cpp
 #include "texture_cube.h"
 #include <GL/glew.h>
 #include <std_image/stb_image.h>
-#include <iostream>
+#include <print>
 #include <utility>
 
 TextureCube::TextureCube(const std::vector<std::string>& facePaths)
@@ -10,8 +9,8 @@ TextureCube::TextureCube(const std::vector<std::string>& facePaths)
 {
 	if (facePaths.size() < 6)
 	{
-		std::cerr << "ERROR::TEXTURE_CUBE:: Exactly 6 face paths are required to construct a cubemap, got "
-		          << facePaths.size() << std::endl;
+		std::println(stderr, "ERROR::TEXTURE_CUBE:: Exactly 6 face paths are required to construct a cubemap, got {}",
+		             facePaths.size());
 		return;
 	}
 
@@ -42,7 +41,7 @@ TextureCube::TextureCube(const std::vector<std::string>& facePaths)
 		}
 		else
 		{
-			std::cerr << "ERROR::TEXTURE_CUBE:: Failed to load cubemap face: " << facePaths[i] << std::endl;
+			std::println(stderr, "ERROR::TEXTURE_CUBE:: Failed to load cubemap face: {}", facePaths[i]);
 		}
 	}
 

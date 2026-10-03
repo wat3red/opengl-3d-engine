@@ -1,4 +1,3 @@
-// shadow_renderer.h
 #pragma once
 
 #include <vector>

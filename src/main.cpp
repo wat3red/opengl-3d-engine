@@ -1,6 +1,5 @@
-// main.cpp
 #include "engine.h"
-#include <iostream>
+#include <print>
 #include <exception>
 #include <cstdlib>
 
@@ -13,12 +12,12 @@ int main()
 	}
 	catch (const std::exception& ex)
 	{
-		std::cerr << "[Ignis Fatal Error] " << ex.what() << std::endl;
+		std::println(stderr, "[Ignis Fatal Error] {}", ex.what());
 		return EXIT_FAILURE;
 	}
 	catch (...)
 	{
-		std::cerr << "[Ignis Fatal Error] An unhandled unknown exception occurred." << std::endl;
+		std::println(stderr, "[Ignis Fatal Error] An unhandled unknown exception occurred.");
 		return EXIT_FAILURE;
 	}
 

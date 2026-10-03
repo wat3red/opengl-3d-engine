@@ -1,4 +1,3 @@
-// texture_cube.h
 #pragma once
 
 #include <string>

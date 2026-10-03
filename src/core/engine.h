@@ -1,4 +1,3 @@
-// engine.h
 #pragma once
 
 #include "window.h"

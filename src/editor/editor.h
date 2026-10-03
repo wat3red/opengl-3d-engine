@@ -1,4 +1,3 @@
-// editor.h
 #pragma once
 
 #include "scene.h"

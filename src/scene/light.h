@@ -1,4 +1,3 @@
-// light.h
 #pragma once
 
 #include "entity.h"
@@ -54,7 +53,6 @@ protected:
 	float m_Intensity;
 };
 
-// Directional Light
 class DirectionalLight : public Light {
 public:
 	DirectionalLight(const std::string& name, const glm::vec3& direction, const glm::vec3& color = glm::vec3(1.0f), float intensity = 1.0f)
@@ -70,7 +68,6 @@ private:
 	glm::vec3 m_Direction;
 };
 
-// Point Light
 class PointLight : public Light {
 public:
 	PointLight(const std::string& name, const glm::vec3& position, const glm::vec3& color = glm::vec3(1.0f), float intensity = 1.0f, float range = 25.0f)
@@ -96,7 +93,6 @@ private:
 	float m_Quadratic;
 };
 
-// Spotlight
 class SpotLight : public Light {
 public:
 	SpotLight(const std::string& name, const glm::vec3& position, const glm::vec3& direction, const glm::vec3& color = glm::vec3(1.0f), float intensity = 1.0f, float innerCutoff = 12.5f, float outerCutoff = 17.5f)

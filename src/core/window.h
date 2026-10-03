@@ -1,4 +1,3 @@
-// window.h
 #pragma once
 
 #include <string>

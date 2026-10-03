@@ -1,6 +1,6 @@
 #include "shadow_renderer.h"
 #include <glm/gtx/string_cast.hpp>
-#include <iostream>
+#include <print>
 
 ShadowRenderer::ShadowRenderer(glm::ivec2* windowSize)
 	: m_WindowSize(windowSize), m_CurrentCamera(nullptr), m_LightFBO(0), m_LightDepthMaps(0), m_MatricesUBO(0), m_ShadowSettings{} {}
@@ -15,7 +15,6 @@ void ShadowRenderer::Initialize(Camera* camera, const ShadowQuality& settings) {
 	}
 	m_PointShadowShader = Shader("shaders/PointShadowsDepth.shader");
 	m_CurrentCamera = camera;
-	// Setup cascade and point light depth maps
 	SetupPointLightDepthMaps(2);
 
 	RecalculateShadowSettings();
@@ -66,22 +65,20 @@ void ShadowRenderer::SetupCascadeDepthMaps() {
 
 	int status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (status != GL_FRAMEBUFFER_COMPLETE) {
-		std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete! Status: 0x" << std::hex << status << std::dec << "\n";
-		std::cout << "GL Version: " << glGetString(GL_VERSION) << "\n";
-		std::cout << "GL Renderer: " << glGetString(GL_RENDERER) << "\n";
-		std::cout << "GL Vendor: " << glGetString(GL_VENDOR) << "\n";
-		std::cout << "Resolution: " << m_ShadowSettings.resolution << ", Layers: " << (int(m_ShadowCascadeLevels.size()) + 1) << "\n";
+		std::println(stderr, "ERROR::FRAMEBUFFER:: Framebuffer is not complete! Status: 0x{:x}", status);
+		std::println(stderr, "GL Version: {}", reinterpret_cast<const char*>(glGetString(GL_VERSION)));
+		std::println(stderr, "GL Renderer: {}", reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
+		std::println(stderr, "GL Vendor: {}", reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
+		std::println(stderr, "Resolution: {}, Layers: {}", m_ShadowSettings.resolution, m_ShadowCascadeLevels.size() + 1);
 		GLenum err;
 		while ((err = glGetError()) != GL_NO_ERROR) {
-			std::cout << "GL Error: 0x" << std::hex << err << std::dec << "\n";
+			std::println(stderr, "GL Error: 0x{:x}", err);
 		}
 		throw 0;
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	// configure UBO
-	// --------------------
 	glGenBuffers(1, &m_MatricesUBO);
 	glBindBuffer(GL_UNIFORM_BUFFER, m_MatricesUBO);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(glm::mat4x4) * 16, nullptr, GL_STATIC_DRAW);
@@ -134,7 +131,7 @@ void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::v
 			glBindFramebuffer(GL_FRAMEBUFFER, m_LightFBO);
 			glViewport(0, 0, m_ShadowSettings.resolution, m_ShadowSettings.resolution);
 			glClear(GL_DEPTH_BUFFER_BIT);
-			glCullFace(GL_FRONT);  // peter panning
+			glCullFace(GL_FRONT); // Front-face culling to mitigate shadow acne
 			glEnable(GL_DEPTH_CLAMP);
 			for (Entity* entity : entities) {
 				entity->Draw(m_DirectionalShadowShader);
@@ -147,7 +144,6 @@ void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::v
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	glViewport(0, 0, POINT_SHADOW_WIDTH, POINT_SHADOW_HEIGHT);
-	// Point Lights Shadow Map
 	m_PointShadowShader.Bind();
 	int pointLightIndex = 0;
 	for (const Light* light : lights) {
@@ -163,7 +159,6 @@ void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::v
 			float farPlane = 25.0f;
 			m_PointShadowShader.SetUniform1f("farPlane", farPlane);
 
-			// Create projection matrix
 			glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), 1.0f, nearPlane, farPlane);
 
 			// Shadow transforms for all six faces
@@ -194,7 +189,7 @@ void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::v
 	glViewport(0, 0, windowSize.x, windowSize.y);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	glCullFace(GL_BACK); // don't forget to reset original culling face
+	glCullFace(GL_BACK);
 }
 
 std::vector<glm::vec4> getFrustumCornersWorldSpace(const glm::mat4& projview) {
@@ -242,23 +237,18 @@ glm::mat4 ShadowRenderer::GetLightSpaceMatrix(Camera camera, glm::ivec2 ws, glm:
 		radius = glm::max(radius, glm::length(glm::vec3(v) - center));
 	}
 
-	// Align radius to texel boundaries
+	// Align radius to texel boundaries to prevent edge shimmering
 	radius = std::ceil(radius * 16.0f) / 16.0f;
 
 	// Orthographic projection bounds
 	glm::vec3 min = glm::vec3(-radius);
 	glm::vec3 max = glm::vec3(radius);
 
-	// Compute the orthographic projection
 	glm::mat4 lightProjection = glm::ortho(min.x, max.x, min.y, max.y, -radius, radius);
-
-	// Compute the light's view matrix
 	glm::mat4 lightView = glm::lookAt(center + lightDir, center, glm::vec3(0.0f, 1.0f, 0.0f));
-
-	// Combine the matrices
 	glm::mat4 lightSpaceMatrix = lightProjection * lightView;
 
-	// Snapping to texel alignment
+	// Texel snapping: round shadow origin to eliminate sub-pixel crawling
 	glm::vec4 shadowOrigin = lightSpaceMatrix * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
 	shadowOrigin *= m_ShadowSettings.resolution / 2.0f;
 
@@ -295,7 +285,6 @@ void ShadowRenderer::Cleanup() {
 	}
 }
 
-// wip 
 std::vector<float> ShadowRenderer::CalculateCascadeSplits(int numCascades, float lambda) {
 	std::vector<float> cascadeSplits(numCascades);
 

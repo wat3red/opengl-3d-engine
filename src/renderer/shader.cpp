@@ -1,7 +1,6 @@
 #include <GL/glew.h>
 
 #include <fstream>
-#include <iostream>
 #include <string>
 #include <sstream>
 #include <print>
@@ -12,33 +11,37 @@ ShaderSources Shader::ParseShaders(std::string filename) {
 	std::ifstream filestream(filename);
 	std::string line;
 	ShaderSources output;
-	// 0 for none, 1 for vertex, 2 for fragment and 3 for geometry
-	char currentShaderType;
+
+	enum class ShaderType { None, Vertex, Fragment, Geometry };
+	ShaderType currentShaderType = ShaderType::None;
+
 	while (getline(filestream, line)) {
 		if (line.find("#shader") != std::string::npos) {
 			if (line.find("vertex") != std::string::npos) {
-				currentShaderType = 1;
+				currentShaderType = ShaderType::Vertex;
 				continue;
 			}
 			else if (line.find("fragment") != std::string::npos) {
-				currentShaderType = 2;
+				currentShaderType = ShaderType::Fragment;
 				continue;
 			}
 			else if (line.find("geometry") != std::string::npos) {
-				currentShaderType = 3;
+				currentShaderType = ShaderType::Geometry;
 				continue;
 			}
 		}
 		else {
 			switch (currentShaderType) {
-			case 1:
+			case ShaderType::Vertex:
 				output.VertexShader += line + "\n";
 				break;
-			case 2:
+			case ShaderType::Fragment:
 				output.FragmentShader += line + "\n";
 				break;
-			case 3:
+			case ShaderType::Geometry:
 				output.GeometryShader += line + "\n";
+				break;
+			case ShaderType::None:
 				break;
 			}
 		}

@@ -1,6 +1,6 @@
 #include "texture.h"
 
-#include <iostream>
+#include <print>
 #include <GL/glew.h>
 #include <std_image/stb_image.h>
 
@@ -11,7 +11,7 @@ Texture2D::Texture2D(const std::string& filePath) :
 	stbi_set_flip_vertically_on_load(1);
 	m_LocalBuffer = stbi_load(filePath.c_str(), &m_Width, &m_Height, &m_BPP, 4);
 	if (m_LocalBuffer == nullptr)
-		std::cout << "m_LocalBuffer null\n";
+		std::println(stderr, "Failed to load texture from '{}': buffer is null", filePath);
 
 	glGenTextures(1, &m_RendererID);
 	glBindTexture(GL_TEXTURE_2D, m_RendererID);
@@ -33,7 +33,7 @@ Texture2D::~Texture2D()
 	glDeleteTextures(1, &m_RendererID);
 }
 
-void Texture2D::Bind(unsigned int slot /*= 0*/) const
+void Texture2D::Bind(unsigned int slot) const
 {
 	glActiveTexture(GL_TEXTURE0 + slot);
 	glBindTexture(GL_TEXTURE_2D, m_RendererID);

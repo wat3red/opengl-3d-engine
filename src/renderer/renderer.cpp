@@ -1,10 +1,8 @@
-//renderer.cpp
 #include "renderer.h"
 #include "scene.h"
 #include "light.h"
 #include "primitive.h"
 #include "skybox.h"
-#include <iostream>
 #include <format>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
@@ -27,9 +25,6 @@ void Renderer::Initialize() {
 		glUniformBlockBinding(m_MainShader.RendererID(), mainUBO, 0);
 	}
 	m_LightShader = Shader("shaders/Light.shader");
-
-	//m_PointLightShadowShader = Shader("shaders/PointShadowsDepth.shader");
-	//m_DirectionalSpotShadowShader = Shader("shaders/DirectionalSpotShadowsDepth.shader");
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
@@ -55,7 +50,6 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 	m_MainShader.SetUniform3f("viewPos", camera.Position);
 
 	m_MainShader.SetUniform1f("alphaThreshold", m_AlphaThreshold);
-	//std::cout << m_ShadowSettings.shadowBias << "\n";
 	m_MainShader.SetUniform1f("shadowBias", m_ShadowRenderer.GetShadowSettings().shadowBias);
 
 	m_MainShader.SetUniform1i("debugCascades", m_DebugCascades);
@@ -72,7 +66,6 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 	glBindTexture(GL_TEXTURE_2D_ARRAY, m_ShadowRenderer.GetLightDepthMaps());
 	m_MainShader.SetUniform1i("shadowMap", 10);
 
-	// Set material properties
 	m_MainShader.SetUniform1f("material.shininess", 32.0f);
 
 	int pointLightCount = 0;
@@ -124,7 +117,6 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 		m_MainShader.SetUniform1i(uniformName, static_cast<int>(6 + i));
 	}
 
-	// Render all entities in the scene
 	for (Entity* entity : entities) {
 		entity->Draw(m_MainShader);
 	}

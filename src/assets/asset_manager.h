@@ -1,4 +1,3 @@
-// asset_manager.h
 #pragma once
 
 #include "shader.h"

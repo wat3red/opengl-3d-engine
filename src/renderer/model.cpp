@@ -7,7 +7,7 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
-#include <iostream>
+#include <print>
 
 #include "mesh.h"
 #include "model.h"
@@ -19,7 +19,6 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-// Helper function to convert std::string to std::wstring
 std::wstring stringToWString(const std::string& str) {
 	if (str.empty()) return std::wstring();
 	int size = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), static_cast<int>(str.size()), nullptr, 0);
@@ -28,7 +27,6 @@ std::wstring stringToWString(const std::string& str) {
 	return result;
 }
 
-// Helper function to convert std::wstring to UTF-8 std::string
 std::string wstringToUtf8(const std::wstring& wstr) {
 	if (wstr.empty()) return std::string();
 	int size = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), static_cast<int>(wstr.size()), nullptr, 0, nullptr, nullptr);
@@ -37,10 +35,9 @@ std::string wstringToUtf8(const std::wstring& wstr) {
 	return result;
 }
 
-// Function to load textures from file (external) with Unicode path support
 unsigned int TextureFromFile(const std::wstring& path, const std::wstring& directory, bool gamma = false) {
 	std::wstring filename = directory + L'/' + path;
-	std::cout << "Loading texture from file: " << wstringToUtf8(filename) << std::endl;
+	std::println("Loading texture from file: {}", wstringToUtf8(filename));
 
 	std::string filenameUtf8 = wstringToUtf8(filename);
 
@@ -65,17 +62,16 @@ unsigned int TextureFromFile(const std::wstring& path, const std::wstring& direc
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 		stbi_image_free(data);
-		std::cout << "Successfully loaded external texture with ID: " << textureID << std::endl;
+		std::println("Successfully loaded external texture with ID: {}", textureID);
 	}
 	else {
-		std::cerr << "Failed to load texture from file: " << filenameUtf8 << std::endl;
+		std::println(stderr, "Failed to load texture from file: {}", filenameUtf8);
 		stbi_image_free(data);
 	}
 
 	return textureID;
 }
 
-// Function to load textures from memory
 unsigned int TextureFromMemory(const aiTexture* texture, bool gamma = false) {
 	unsigned int textureID;
 	glGenTextures(1, &textureID);
@@ -107,10 +103,10 @@ unsigned int TextureFromMemory(const aiTexture* texture, bool gamma = false) {
 		if (texture->mHeight == 0)
 			stbi_image_free(data);
 
-		std::cout << "Successfully loaded embedded texture with ID: " << textureID << std::endl;
+		std::println("Successfully loaded embedded texture with ID: {}", textureID);
 	}
 	else
-		std::cerr << "Failed to load embedded texture" << std::endl;
+		std::println(stderr, "Failed to load embedded texture");
 
 
 	return textureID;
@@ -118,7 +114,7 @@ unsigned int TextureFromMemory(const aiTexture* texture, bool gamma = false) {
 
 
 Model::Model(const std::string& path, bool gamma, bool flipUVs) : gammaCorrection(gamma) {
-		std::cout << "Loading model: " << path << std::endl;
+		std::println("Loading model: {}", path);
 		loadModel(path, flipUVs);
 		CalculateBoundingVolumes();
 }
@@ -135,10 +131,9 @@ void Model::Draw(Shader& shader) {
 	}
 }
 
-// Loads a model with supported ASSIMP extensions from file
 void Model::loadModel(const std::string& path, bool flipUVs) {
 	Assimp::Importer importer;
-	std::cout << "Starting Assimp import..." << std::endl;
+	std::println("Starting Assimp import...");
 
 	int sceneParams = aiProcess_Triangulate |
 		aiProcess_GenSmoothNormals |
@@ -154,22 +149,21 @@ void Model::loadModel(const std::string& path, bool flipUVs) {
 	);
 
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-		std::cerr << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
+		std::println(stderr, "ERROR::ASSIMP::{}", importer.GetErrorString());
 		return;
 	}
 
-	// Convert directory to wstring for Unicode compatibility
 	directory = stringToWString(path.substr(0, path.find_last_of('/')));
-	std::cout << "Model directory set to: " << wstringToUtf8(directory) << std::endl;
+	std::println("Model directory set to: {}", wstringToUtf8(directory));
 
-	std::cout << "Processing root node..." << std::endl;
+	std::println("Processing root node...");
 	processNode(scene->mRootNode, scene);
 }
 
 void Model::processNode(aiNode* node, const aiScene* scene) {
-	std::cout << "Processing node: " << node->mName.C_Str() << std::endl;
-	std::cout << "Number of meshes in this node: " << node->mNumMeshes << std::endl;
-	std::cout << "Number of child nodes: " << node->mNumChildren << std::endl;
+	std::println("Processing node: {}", node->mName.C_Str());
+	std::println("Number of meshes in this node: {}", node->mNumMeshes);
+	std::println("Number of child nodes: {}", node->mNumChildren);
 
 	for (unsigned int i = 0; i < node->mNumMeshes; i++) {
 		aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
@@ -182,12 +176,10 @@ void Model::processNode(aiNode* node, const aiScene* scene) {
 }
 
 Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
-	//std::cout << "Processing mesh: " << mesh->mName.C_Str() << std::endl;
 	std::vector<Vertex> vertices;
 	std::vector<unsigned int> indices;
 	std::vector<Texture> textures;
 
-	// Process vertices
 	for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
 		Vertex vertex;
 		vertex.Position = glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z);
@@ -206,7 +198,6 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 		vertices.push_back(vertex);
 	}
 
-	// Process indices
 	for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
 		aiFace face = mesh->mFaces[i];
 		for (unsigned int j = 0; j < face.mNumIndices; j++)
@@ -214,7 +205,6 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 
 	}
 
-	// Process material
 	aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 	std::vector<Texture> diffuseMaps = loadMaterialTextures(scene, material, aiTextureType_DIFFUSE, "material.diffuse");
 
@@ -233,7 +223,7 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 					if (otherMat->Get(AI_MATKEY_NAME, otherName) == AI_SUCCESS) {
 						std::string otherStr = otherName.C_Str();
 						if (otherStr.rfind(prefix, 0) == 0 && otherMat->GetTextureCount(aiTextureType_DIFFUSE) > 0) {
-							std::cout << "[Model] Material '" << nameStr << "' has no diffuse texture; falling back to sibling '" << otherStr << "'" << std::endl;
+							std::println("[Model] Material '{}' has no diffuse texture; falling back to sibling '{}'", nameStr, otherStr);
 							diffuseMaps = loadMaterialTextures(scene, otherMat, aiTextureType_DIFFUSE, "material.diffuse");
 							break;
 						}
@@ -254,7 +244,7 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 std::vector<Texture> Model::loadMaterialTextures(const aiScene* scene, aiMaterial* mat, aiTextureType type, const std::string& typeName) {
 	std::vector<Texture> textures;
 	unsigned int textureCount = mat->GetTextureCount(type);
-	std::cout << "Loading " << textureCount << " " << typeName << " textures." << std::endl;
+	std::println("Loading {} {} textures.", textureCount, typeName);
 
 	for (unsigned int i = 0; i < textureCount; i++) {
 		aiString str;
@@ -276,7 +266,7 @@ std::vector<Texture> Model::loadMaterialTextures(const aiScene* scene, aiMateria
 			if (!skip) {
 				const aiTexture* texture = scene->mTextures[textureIndex];
 				if (texture) {
-					std::cout << "Found embedded texture: " << str.C_Str() << " (Index: " << textureIndex << ")" << std::endl;
+					std::println("Found embedded texture: {} (Index: {})", str.C_Str(), textureIndex);
 					Texture embeddedTexture;
 					embeddedTexture.id = TextureFromMemory(texture, gammaCorrection);
 					embeddedTexture.type = typeName;
@@ -285,11 +275,10 @@ std::vector<Texture> Model::loadMaterialTextures(const aiScene* scene, aiMateria
 					textures_loaded.push_back(embeddedTexture);
 				}
 				else
-					std::cerr << "Error: Embedded texture " << str.C_Str() << " not found." << std::endl;
+					std::println(stderr, "Error: Embedded texture {} not found.", str.C_Str());
 			}
 		}
 		else {
-			// Convert the path to std::wstring and use the new TextureFromFile
 			std::wstring texturePath = stringToWString(str.C_Str());
 			bool skip = false;
 
@@ -302,7 +291,7 @@ std::vector<Texture> Model::loadMaterialTextures(const aiScene* scene, aiMateria
 			}
 
 			if (!skip) {
-				std::cout << "Loading external texture: " << str.C_Str() << std::endl;
+				std::println("Loading external texture: {}", str.C_Str());
 				Texture texture;
 				texture.id = TextureFromFile(texturePath, directory);
 				texture.type = typeName;
@@ -320,7 +309,6 @@ void Model::CalculateBoundingVolumes()
 	glm::vec3 minCoords(std::numeric_limits<float>::max());
 	glm::vec3 maxCoords(std::numeric_limits<float>::lowest());
 
-	// Calculate AABB by finding min and max vertices across all meshes
 	for (const auto& mesh : meshes) {
 		for (const auto& vertex : mesh.vertices) {
 			minCoords = glm::min(minCoords, vertex.Position);
@@ -328,12 +316,10 @@ void Model::CalculateBoundingVolumes()
 		}
 	}
 
-	// Define AABB min and max from computed extents
 	aabb.min = minCoords;
 	aabb.max = maxCoords;
 
-	// Define OBB based on the AABB, center it, and set orientation to identity
 	obb.center = (aabb.min + aabb.max) * 0.5f;
 	obb.extents = (aabb.max - aabb.min) * 0.5f;
-	obb.orientation = glm::mat3(1.0f);  // Identity matrix for orientation
+	obb.orientation = glm::mat3(1.0f);
 }

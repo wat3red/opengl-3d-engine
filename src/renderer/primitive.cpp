@@ -1,4 +1,3 @@
-// primitive.cpp
 #include "primitive.h"
 #include <glm/gtc/constants.hpp>
 #include <cmath>

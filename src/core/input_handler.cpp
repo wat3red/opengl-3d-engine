@@ -1,6 +1,4 @@
-// input_handler.cpp
 #include "input_handler.h"
-#include <iostream>
 #include <imgui/imgui.h>
 
 InputHandler::InputHandler(Camera& camera)

@@ -1,4 +1,3 @@
-// primitive.h
 #pragma once
 
 #include "mesh.h"

@@ -1,4 +1,3 @@
-// skybox.h
 #pragma once
 
 #include "texture_cube.h"

@@ -1,4 +1,3 @@
-// renderer.h
 #pragma once
 
 #include "camera.h"

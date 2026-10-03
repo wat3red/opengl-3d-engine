@@ -1,4 +1,3 @@
-// input_handler.h
 #pragma once
 
 #include <GLFW/glfw3.h>

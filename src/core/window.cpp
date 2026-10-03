@@ -1,11 +1,9 @@
-// window.cpp
 #include "window.h"
 #include "error_handler.h"
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <stdexcept>
-#include <iostream>
 
 int Window::s_GLFWWindowCount = 0;
 

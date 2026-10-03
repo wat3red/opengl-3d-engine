@@ -1,4 +1,3 @@
-// scene.h
 #pragma once
 
 #include "model_entity.h"

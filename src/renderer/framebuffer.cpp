@@ -1,6 +1,5 @@
-// framebuffer.cpp
 #include "framebuffer.h"
-#include <iostream>
+#include <print>
 
 Framebuffer::Framebuffer(const FramebufferSpecification& specification)
 	: m_Specification(specification)
@@ -36,7 +35,6 @@ void Framebuffer::Invalidate()
 	glGenFramebuffers(1, &m_RendererID);
 	glBindFramebuffer(GL_FRAMEBUFFER, m_RendererID);
 
-	// Color attachment
 	glGenTextures(1, &m_ColorAttachment);
 	glBindTexture(GL_TEXTURE_2D, m_ColorAttachment);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_Specification.Width, m_Specification.Height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
@@ -46,7 +44,6 @@ void Framebuffer::Invalidate()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_ColorAttachment, 0);
 
-	// Depth and stencil attachment
 	glGenRenderbuffers(1, &m_DepthAttachment);
 	glBindRenderbuffer(GL_RENDERBUFFER, m_DepthAttachment);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, m_Specification.Width, m_Specification.Height);
@@ -54,7 +51,7 @@ void Framebuffer::Invalidate()
 
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 	{
-		std::cerr << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+		std::println(stderr, "ERROR::FRAMEBUFFER:: Framebuffer is not complete!");
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);

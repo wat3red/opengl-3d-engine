@@ -1,4 +1,3 @@
-// scene.cpp
 #include "scene.h"
 
 Scene::Scene()

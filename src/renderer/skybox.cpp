@@ -1,4 +1,3 @@
-// skybox.cpp
 #include "skybox.h"
 #include "primitive.h"
 #include <GL/glew.h>

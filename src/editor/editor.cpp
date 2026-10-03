@@ -1,4 +1,3 @@
-// editor.cpp
 #include "editor.h"
 #include "skybox.h"
 
@@ -7,7 +6,6 @@
 #include <imgui/imgui_impl_opengl3.h>
 
 #include <chrono>
-#include <iostream>
 
 Editor::Editor(Scene& scene, Renderer& renderer)
 	: m_Scene(scene),
@@ -28,7 +26,6 @@ void Editor::Initialize(GLFWwindow* window)
 	m_Framebuffer = std::make_unique<Framebuffer>(FramebufferSpecification{ 1280, 720 });
 	m_InputHandler.SetCallbacks(window);
 
-	// Setup Dear ImGui
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
@@ -36,7 +33,6 @@ void Editor::Initialize(GLFWwindow* window)
 
 	ImGui::StyleColorsDark();
 
-	// Visual theme styling
 	ImGuiStyle& style = ImGui::GetStyle();
 	style.WindowRounding = 5.0f;
 	style.FrameRounding = 4.0f;
@@ -75,10 +71,8 @@ void Editor::RenderSceneViewport()
 
 	if (m_ViewportSize.x > 0 && m_ViewportSize.y > 0)
 	{
-		// 1. Render Scene into Off-screen Framebuffer
 		m_Renderer.RenderScene(m_ViewportSize, m_Camera, m_Scene, m_Framebuffer->GetRendererID());
 
-		// 2. Render small light visualizer cubes in the offscreen scene
 		Shader& lightShader = m_Renderer.GetLightShader();
 		lightShader.Bind();
 
@@ -227,7 +221,6 @@ void Editor::DrawEntityInspectorPanel()
 		return;
 	}
 
-	// Name Input
 	char nameBuffer[128];
 	strncpy_s(nameBuffer, selectedEntity->GetName().c_str(), sizeof(nameBuffer));
 	if (ImGui::InputText("Name", nameBuffer, sizeof(nameBuffer)))
@@ -235,7 +228,6 @@ void Editor::DrawEntityInspectorPanel()
 		selectedEntity->SetName(std::string(nameBuffer));
 	}
 
-	// Active Checkbox
 	bool active = selectedEntity->IsActive();
 	if (ImGui::Checkbox("Active", &active))
 	{
@@ -244,7 +236,6 @@ void Editor::DrawEntityInspectorPanel()
 
 	ImGui::Separator();
 
-	// Transform Component
 	if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		glm::vec3 pos = selectedEntity->GetPosition();
@@ -266,7 +257,6 @@ void Editor::DrawEntityInspectorPanel()
 		}
 	}
 
-	// Light Properties (if selected entity is a Light)
 	auto light = std::dynamic_pointer_cast<Light>(selectedEntity);
 	if (light)
 	{

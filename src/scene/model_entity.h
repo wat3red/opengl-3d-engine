@@ -1,4 +1,3 @@
-// model_entity.h
 #pragma once
 
 #include "entity.h"
@@ -32,7 +31,6 @@ public:
 		if (m_Rigidbody && deltaTime > 0.0f)
 		{
 			m_Rigidbody->Update(deltaTime);
-			// Update position from physics if velocity is active
 			if (glm::length(m_Rigidbody->GetVelocity()) > 0.0001f)
 			{
 				m_Transform.Position = m_Rigidbody->GetPosition();
