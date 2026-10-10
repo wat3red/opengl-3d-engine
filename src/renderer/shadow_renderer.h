@@ -1,13 +1,11 @@
 #pragma once
 
 #include <vector>
+#include <GL/glew.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include "light.h"
 #include "camera.h"
 #include "shader.h"
-#include "entity.h"
-#include "model_entity.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 
@@ -29,6 +27,8 @@ struct ShadowSettings {
 	int filteringQuality;              // Filtering method (e.g., PCF kernel size)
 	float shadowBias;                  // Global shadow bias
 };
+
+class Scene;
 
 class ShadowRenderer {
 public:
@@ -63,7 +63,7 @@ public:
 	void SetupCascadeDepthMaps();
 	void Cleanup();
 	std::vector<float> CalculateCascadeSplits(int numCascades, float lambda);
-	void RenderShadowMaps(const glm::ivec2& windowSize, const std::vector<Light*>& lights, const std::vector<ModelEntity*>& entities);
+	void RenderShadowMaps(const glm::ivec2& windowSize, Scene& scene);
 
 	glm::mat4 GetLightSpaceMatrix(Camera camera, glm::ivec2 ws, glm::vec3 lightDir, float nearPlane, float farPlane);
 	void RecalculateShadowSettings();

@@ -1,4 +1,5 @@
 #include "shadow_renderer.h"
+#include "scene.h"
 #include <glm/gtx/string_cast.hpp>
 #include <print>
 
@@ -141,10 +142,19 @@ void ShadowRenderer::SetupSpotLightDepthMaps(int numSpotLights) {
 	}
 }
 
-void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::vector<Light*>& lights, const std::vector<ModelEntity*>& entities) {
-	for (const Light* light : lights) {
-		if (light->GetType() == DIRECTIONAL) {
-			glm::vec3 lightDir = light->GetDirection();
+void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, Scene& scene) {
+	auto& registry = scene.GetRegistry();
+
+	// 1. Cascaded Directional Shadows
+	auto dirLightView = registry.view<TagComponent, LightComponent, TransformComponent>();
+	for (auto [entityHandle, tag, light, transform] : dirLightView.each()) {
+		if (tag.Active && light.Type == LightType::Directional && light.CastsShadow) {
+			glm::vec3 lightDir = light.Direction;
+			if (glm::length(lightDir) < 0.001f)
+				lightDir = glm::vec3(0.0f, -1.0f, 0.0f);
+			else
+				lightDir = glm::normalize(lightDir);
+
 			m_CascadeLightSpaceMatrices = CalculateCascadeLightMatrices(-lightDir, windowSize);
 
 			glBindBuffer(GL_UNIFORM_BUFFER, m_MatricesUBO);
@@ -161,37 +171,42 @@ void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::v
 			glClear(GL_DEPTH_BUFFER_BIT);
 			glCullFace(GL_FRONT); // Front-face culling to mitigate shadow acne
 			glEnable(GL_DEPTH_CLAMP);
-			for (Entity* entity : entities) {
-				if (entity && entity->CastsShadow()) {
-					entity->Draw(m_DirectionalShadowShader);
+
+			auto meshView = registry.view<TagComponent, TransformComponent, MeshComponent>();
+			for (auto [meshHandle, meshTag, meshTransform, mesh] : meshView.each()) {
+				if (meshTag.Active && mesh.CastsShadow && mesh.ModelAsset) {
+					mesh.Draw(m_DirectionalShadowShader, meshTransform.GetMatrix());
 				}
 			}
+
 			glCullFace(GL_BACK);
 			glDisable(GL_DEPTH_CLAMP);
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			break; // Support 1 primary directional sun cascade
 		}
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+	// 2. Point Light Omnidirectional Shadows
 	glViewport(0, 0, POINT_SHADOW_WIDTH, POINT_SHADOW_HEIGHT);
 	m_PointShadowShader.Bind();
 	int pointLightIndex = 0;
-	for (const Light* light : lights) {
-		if (light->GetType() == POINT && pointLightIndex < m_PointLightShadows.size()) {
+	auto pointLightView = registry.view<TagComponent, LightComponent, TransformComponent>();
+	for (auto [entityHandle, tag, light, transform] : pointLightView.each()) {
+		if (tag.Active && light.Type == LightType::Point && light.CastsShadow && pointLightIndex < static_cast<int>(m_PointLightShadows.size())) {
 			const auto& shadowData = m_PointLightShadows[pointLightIndex];
 			glBindFramebuffer(GL_FRAMEBUFFER, shadowData.fbo);
 			glClear(GL_DEPTH_BUFFER_BIT);
 
-			glm::vec3 lightPos = light->GetPosition();
+			glm::vec3 lightPos = transform.Position;
 			m_PointShadowShader.SetUniform3f("lightPos", lightPos);
 
 			float nearPlane = 0.1f;
-			float farPlane = light->GetRange();
+			float farPlane = std::max(light.Range, 1.0f);
 			m_PointShadowShader.SetUniform1f("farPlane", farPlane);
 
 			glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), 1.0f, nearPlane, farPlane);
 
-			// Shadow transforms for all six faces
 			std::vector<glm::mat4> shadowTransforms = {
 				shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(1, 0, 0), glm::vec3(0, -1, 0)),
 				shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(-1, 0, 0), glm::vec3(0, -1, 0)),
@@ -205,9 +220,10 @@ void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::v
 				m_PointShadowShader.SetUniformMat4f("shadowMatrices[" + std::to_string(i) + "]", shadowTransforms[i]);
 			}
 
-			for (Entity* entity : entities) {
-				if (entity && entity->CastsShadow()) {
-					entity->Draw(m_PointShadowShader);
+			auto meshView = registry.view<TagComponent, TransformComponent, MeshComponent>();
+			for (auto [meshHandle, meshTag, meshTransform, mesh] : meshView.each()) {
+				if (meshTag.Active && mesh.CastsShadow && mesh.ModelAsset) {
+					mesh.Draw(m_PointShadowShader, meshTransform.GetMatrix());
 				}
 			}
 
@@ -216,25 +232,27 @@ void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::v
 	}
 	m_PointShadowShader.Unbind();
 
+	// 3. Spotlight Shadows
 	glViewport(0, 0, SPOT_SHADOW_WIDTH, SPOT_SHADOW_HEIGHT);
 	m_SpotShadowShader.Bind();
 	int spotLightIndex = 0;
-	for (const Light* light : lights) {
-		if (light && light->IsActive() && light->GetType() == LightType::Spotlight && spotLightIndex < static_cast<int>(m_SpotLightShadows.size())) {
+	auto spotLightView = registry.view<TagComponent, LightComponent, TransformComponent>();
+	for (auto [entityHandle, tag, light, transform] : spotLightView.each()) {
+		if (tag.Active && light.Type == LightType::Spotlight && light.CastsShadow && spotLightIndex < static_cast<int>(m_SpotLightShadows.size())) {
 			auto& shadowData = m_SpotLightShadows[spotLightIndex];
 			glBindFramebuffer(GL_FRAMEBUFFER, shadowData.fbo);
 			glClear(GL_DEPTH_BUFFER_BIT);
 
-			glm::vec3 lightPos = light->GetPosition();
-			glm::vec3 lightDir = light->GetDirection();
+			glm::vec3 lightPos = transform.Position;
+			glm::vec3 lightDir = light.Direction;
 			if (glm::length(lightDir) < 0.001f)
 				lightDir = glm::vec3(0.0f, -1.0f, 0.0f);
 			else
 				lightDir = glm::normalize(lightDir);
 
-			float fov = glm::radians(std::min(light->GetOuterCutoff() * 2.0f, 175.0f));
+			float fov = glm::radians(std::min(light.OuterCutoff * 2.0f, 175.0f));
 			float nearPlane = 0.1f;
-			float farPlane = std::max(light->GetRange(), 1.0f);
+			float farPlane = std::max(light.Range, 1.0f);
 			glm::mat4 lightProj = glm::perspective(fov, 1.0f, nearPlane, farPlane);
 
 			glm::vec3 up = (std::abs(lightDir.y) > 0.99f) ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(0.0f, 1.0f, 0.0f);
@@ -244,9 +262,10 @@ void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::v
 			m_SpotShadowShader.SetUniformMat4f("lightSpaceMatrix", shadowData.lightSpaceMatrix);
 
 			glCullFace(GL_FRONT);
-			for (Entity* entity : entities) {
-				if (entity && entity->CastsShadow()) {
-					entity->Draw(m_SpotShadowShader);
+			auto meshView = registry.view<TagComponent, TransformComponent, MeshComponent>();
+			for (auto [meshHandle, meshTag, meshTransform, mesh] : meshView.each()) {
+				if (meshTag.Active && mesh.CastsShadow && mesh.ModelAsset) {
+					mesh.Draw(m_SpotShadowShader, meshTransform.GetMatrix());
 				}
 			}
 			glCullFace(GL_BACK);
@@ -258,7 +277,6 @@ void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::v
 
 	glViewport(0, 0, windowSize.x, windowSize.y);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
 	glCullFace(GL_BACK);
 }
 

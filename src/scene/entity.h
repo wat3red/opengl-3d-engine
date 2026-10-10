@@ -1,45 +1,76 @@
 #pragma once
 
-#include "shader.h"
-#include "transform.h"
+#include <entt/entt.hpp>
 #include <string>
+#include <cassert>
+#include "components.h"
+
+class Scene;
 
 class Entity {
 public:
-	Entity(const std::string& name = "Entity")
-		: m_Name(name), m_Active(true), m_CastsShadow(true) {}
+	Entity() = default;
+	Entity(entt::entity handle, Scene* scene)
+		: m_EntityHandle(handle), m_Scene(scene) {}
+	Entity(const Entity& other) = default;
 
-	virtual ~Entity() = default;
+	template<typename T, typename... Args>
+	T& AddComponent(Args&&... args);
 
-	virtual void Update(float deltaTime) {}
-	virtual void Draw(Shader& shader) = 0;
+	template<typename T, typename... Args>
+	T& AddOrReplaceComponent(Args&&... args);
 
-	const std::string& GetName() const { return m_Name; }
-	void SetName(const std::string& name) { m_Name = name; }
+	template<typename T>
+	T& GetComponent();
 
-	bool IsActive() const { return m_Active; }
-	void SetActive(bool active) { m_Active = active; }
+	template<typename T>
+	const T& GetComponent() const;
 
-	bool CastsShadow() const { return m_CastsShadow; }
-	void SetCastsShadow(bool castsShadow) { m_CastsShadow = castsShadow; }
+	template<typename T>
+	bool HasComponent() const;
 
-	Transform& GetTransform() { return m_Transform; }
-	const Transform& GetTransform() const { return m_Transform; }
+	template<typename T>
+	void RemoveComponent();
 
-	glm::vec3 GetPosition() const { return m_Transform.Position; }
-	virtual void SetPosition(const glm::vec3& position) { m_Transform.Position = position; }
+	operator bool() const { return m_EntityHandle != entt::null && m_Scene != nullptr; }
+	operator entt::entity() const { return m_EntityHandle; }
+	operator uint32_t() const { return static_cast<uint32_t>(m_EntityHandle); }
 
-	glm::vec3 GetRotation() const { return m_Transform.Rotation; }
-	virtual void SetRotation(const glm::vec3& rotation) { m_Transform.Rotation = rotation; }
+	entt::entity GetHandle() const { return m_EntityHandle; }
+	Scene* GetScene() const { return m_Scene; }
 
-	glm::vec3 GetScale() const { return m_Transform.Scale; }
-	virtual void SetScale(const glm::vec3& scale) { m_Transform.Scale = scale; }
+	bool operator==(const Entity& other) const
+	{
+		return m_EntityHandle == other.m_EntityHandle && m_Scene == other.m_Scene;
+	}
 
-	glm::mat4 GetModelMatrix() const { return m_Transform.GetMatrix(); }
+	bool operator!=(const Entity& other) const
+	{
+		return !(*this == other);
+	}
 
-protected:
-	std::string m_Name;
-	Transform m_Transform;
-	bool m_Active;
-	bool m_CastsShadow = true;
+	// High-level ergonomic convenience helpers
+	const std::string& GetName() const;
+	void SetName(const std::string& name);
+
+	bool IsActive() const;
+	void SetActive(bool active);
+
+	TransformComponent& GetTransform();
+	const TransformComponent& GetTransform() const;
+
+	glm::mat4 GetModelMatrix() const;
+
+	glm::vec3 GetPosition() const;
+	void SetPosition(const glm::vec3& position);
+
+	glm::vec3 GetRotation() const;
+	void SetRotation(const glm::vec3& rotation);
+
+	glm::vec3 GetScale() const;
+	void SetScale(const glm::vec3& scale);
+
+private:
+	entt::entity m_EntityHandle{ entt::null };
+	Scene* m_Scene{ nullptr };
 };

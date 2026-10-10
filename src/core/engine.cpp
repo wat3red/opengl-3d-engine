@@ -1,6 +1,7 @@
 #include "engine.h"
 #include "asset_manager.h"
 #include "skybox.h"
+#include "light.h"
 
 #include <std_image/stb_image.h>
 #include <imgui/imgui.h>
@@ -76,50 +77,45 @@ void Engine::Shutdown()
 
 void Engine::InitializeScene()
 {
-	auto houseEntity = std::make_shared<ModelEntity>(
+	auto houseEntity = m_Scene.CreateModelEntity(
 		"Clock Tower Map",
 		"res/models/house/source/free_fire_maxx_new_clock_tower_map_download_free.glb"
 	);
-	houseEntity->SetScale(glm::vec3(100.0f, 100.0f, 100.0f));
-	m_Scene.AddEntity(houseEntity);
+	houseEntity.SetScale(glm::vec3(100.0f, 100.0f, 100.0f));
 
-	auto sun = std::make_shared<DirectionalLight>(
+	m_Scene.CreateDirectionalLight(
 		"Sun",
 		glm::vec3(-0.2f, -1.0f, -0.3f),
 		glm::vec3(1.0f, 1.0f, 0.95f),
 		2.5f
 	);
-	
-	m_Scene.AddLight(sun);
 
-	auto lamp1 = std::make_shared<PointLight>(
+	m_Scene.CreatePointLight(
 		"Courtyard Lamp",
 		glm::vec3(0.0f, 6.0f, 0.0f),
 		glm::vec3(1.0f, 0.85f, 0.6f),
 		2.0f,
 		35.0f
 	);
-	m_Scene.AddLight(lamp1);
 
-	auto lamp2 = std::make_shared<PointLight>(
+	m_Scene.CreatePointLight(
 		"Tower Lamp",
 		glm::vec3(0.0f, 18.0f, 0.0f),
 		glm::vec3(0.4f, 0.7f, 1.0f),
 		1.5f,
 		25.0f
 	);
-	m_Scene.AddLight(lamp2);
 
-	auto flashlight = std::make_shared<SpotLight>(
+	m_Scene.CreateSpotLight(
 		"Flashlight",
 		glm::vec3(0.0f, 15.0f, 60.0f),
 		glm::vec3(0.0f, 0.0f, -1.0f),
 		glm::vec3(1.0f, 1.0f, 1.0f),
 		0.0f,
 		12.5f,
-		17.5f
+		17.5f,
+		35.0f
 	);
-	m_Scene.AddLight(flashlight);
 
 	auto skyDomeShader = AssetManager::Get().LoadShader("skydome", "shaders/SkyDome.shader");
 	if (skyDomeShader)
@@ -139,10 +135,12 @@ void Engine::ProcessInput(float deltaTime)
 		// Align sun with editor camera view on pressing B
 		if (glfwGetKey(m_Window->GetNativeWindow(), GLFW_KEY_B) == GLFW_PRESS)
 		{
-			auto sun = m_Scene.GetSunLight();
-			if (sun)
+			Entity sun = m_Scene.GetSunLight();
+			if (sun && sun.HasComponent<LightComponent>())
 			{
-				sun->SetDirection(m_Editor->GetCamera().Front);
+				auto& lc = sun.GetComponent<LightComponent>();
+				lc.Direction = m_Editor->GetCamera().Front;
+				sun.SetRotation(EulerFromDirection(m_Editor->GetCamera().Front));
 			}
 		}
 
@@ -151,14 +149,15 @@ void Engine::ProcessInput(float deltaTime)
 		bool fPressed = (glfwGetKey(m_Window->GetNativeWindow(), GLFW_KEY_F) == GLFW_PRESS);
 		if (fPressed && !s_FKeyWasPressed && !ImGui::GetIO().WantTextInput)
 		{
-			for (auto& light : m_Scene.GetLights())
+			auto view = m_Scene.GetRegistry().view<TagComponent, LightComponent>();
+			for (auto [handle, tag, light] : view.each())
 			{
-				if (light && light->GetType() == LightType::Spotlight && light->GetName() == "Flashlight")
+				if (light.Type == LightType::Spotlight && tag.Tag == "Flashlight")
 				{
-					if (light->GetIntensity() > 0.001f)
-						light->SetIntensity(0.0f);
+					if (light.Intensity > 0.001f)
+						light.Intensity = 0.0f;
 					else
-						light->SetIntensity(2.5f);
+						light.Intensity = 2.5f;
 				}
 			}
 		}
@@ -173,12 +172,14 @@ void Engine::Update(float deltaTime)
 	// Synchronize flashlight with editor camera
 	if (m_Editor)
 	{
-		for (auto& light : m_Scene.GetLights())
+		auto view = m_Scene.GetRegistry().view<TagComponent, TransformComponent, LightComponent>();
+		for (auto [handle, tag, tc, light] : view.each())
 		{
-			if (light && light->GetType() == LightType::Spotlight && light->GetName() == "Flashlight")
+			if (light.Type == LightType::Spotlight && tag.Tag == "Flashlight")
 			{
-				light->SetPosition(m_Editor->GetCamera().Position);
-				light->SetDirection(m_Editor->GetCamera().Front);
+				tc.Position = m_Editor->GetCamera().Position;
+				light.Direction = m_Editor->GetCamera().Front;
+				tc.Rotation = EulerFromDirection(m_Editor->GetCamera().Front);
 			}
 		}
 	}

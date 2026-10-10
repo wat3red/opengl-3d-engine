@@ -2,8 +2,6 @@
 
 #include "camera.h"
 #include "shader.h"
-#include "light.h"
-#include "model_entity.h"
 #include "shadow_renderer.h"
 #include "frustum.h"
 #include <vector>
@@ -35,7 +33,6 @@ public:
 	explicit Renderer(glm::ivec2* windowSize);
 
 	void Initialize();
-	void RenderScene(const glm::ivec2& windowSize, const Camera& camera, const std::vector<Light*>& lights, const std::vector<ModelEntity*>& entities, unsigned int targetFBO = 0);
 	void RenderScene(const glm::ivec2& windowSize, const Camera& camera, Scene& scene, unsigned int targetFBO = 0);
 
 	void Cleanup();

@@ -32,36 +32,44 @@ void Renderer::Initialize() {
 	glEnable(GL_DEPTH_CLAMP);
 }
 
-void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, const std::vector<Light*>& lights, const std::vector<ModelEntity*>& entities, unsigned int targetFBO) {
+void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, Scene& scene, unsigned int targetFBO) {
 	m_CurrentCamera = camera;
 
-	m_ShadowRenderer.RenderShadowMaps(windowSize, lights, entities);
+	m_ShadowRenderer.RenderShadowMaps(windowSize, scene);
+
+	auto& registry = scene.GetRegistry();
 
 	// Frustum Culling
-	m_Stats.totalEntities = entities.size();
+	auto meshView = registry.view<TagComponent, TransformComponent, MeshComponent>();
+	m_Stats.totalEntities = meshView.size_hint();
 	m_Stats.renderedEntities = 0;
 	m_Stats.culledEntities = 0;
 
 	glm::mat4 viewProj = camera.GetProjectionMatrix(windowSize) * camera.GetViewMatrix();
 	Frustum cameraFrustum = Frustum::FromViewProjection(viewProj);
 
-	std::vector<ModelEntity*> visibleEntities;
-	visibleEntities.reserve(entities.size());
+	struct RenderItem {
+		MeshComponent* mesh;
+		glm::mat4 transform;
+	};
+	std::vector<RenderItem> visibleItems;
+	visibleItems.reserve(meshView.size_hint());
 
-	for (ModelEntity* entity : entities) {
-		if (!entity || !entity->IsActive()) continue;
+	for (auto [entityHandle, tag, tc, mesh] : meshView.each()) {
+		if (!tag.Active || !mesh.ModelAsset) continue;
 
+		glm::mat4 modelMat = tc.GetMatrix();
 		if (m_FrustumCullingEnabled) {
 			glm::vec3 bmin, bmax;
-			entity->GetWorldAABB(bmin, bmax);
+			mesh.GetWorldAABB(modelMat, bmin, bmax);
 			if (cameraFrustum.IsAABBVisible(bmin, bmax)) {
-				visibleEntities.push_back(entity);
+				visibleItems.push_back({ &mesh, modelMat });
 				m_Stats.renderedEntities++;
 			} else {
 				m_Stats.culledEntities++;
 			}
 		} else {
-			visibleEntities.push_back(entity);
+			visibleItems.push_back({ &mesh, modelMat });
 			m_Stats.renderedEntities++;
 		}
 	}
@@ -107,48 +115,56 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 	int pointLightCount = 0;
 	int spotLightCount = 0;
 
-	for (const Light* light : lights) {
-		if (!light || !light->IsActive()) continue;
+	auto lightView = registry.view<TagComponent, LightComponent, TransformComponent>();
+	for (auto [entityHandle, tag, light, tc] : lightView.each()) {
+		if (!tag.Active) continue;
 
-		switch (light->GetType()) {
-		case DIRECTIONAL: {
+		switch (light.Type) {
+		case LightType::Directional: {
 			if (!hasDirLight) {
-				m_MainShader.SetUniform3f("dirLight.direction", light->GetDirection());
-				m_MainShader.SetUniform3f("dirLight.color", light->GetColor());
-				m_MainShader.SetUniform1f("dirLight.intensity", light->GetIntensity());
+				glm::vec3 dir = light.Direction;
+				if (glm::length(dir) < 0.001f) dir = glm::vec3(0.0f, -1.0f, 0.0f);
+				else dir = glm::normalize(dir);
+
+				m_MainShader.SetUniform3f("dirLight.direction", dir);
+				m_MainShader.SetUniform3f("dirLight.color", light.Color);
+				m_MainShader.SetUniform1f("dirLight.intensity", light.Intensity);
 				hasDirLight = true;
 			}
 			break;
 		}
-		case POINT: {
+		case LightType::Point: {
 			if (pointLightCount < 4) {
 				std::string uniformName = std::format("pointLights[{}]", pointLightCount);
-				m_MainShader.SetUniform3f(uniformName + ".position", light->GetPosition());
-				m_MainShader.SetUniform3f(uniformName + ".color", light->GetColor());
-				m_MainShader.SetUniform1f(uniformName + ".intensity", light->GetIntensity());
-				m_MainShader.SetUniform1f(uniformName + ".constant", light->GetConstant());
-				m_MainShader.SetUniform1f(uniformName + ".linear", light->GetLinear());
-				m_MainShader.SetUniform1f(uniformName + ".quadratic", light->GetQuadratic());
+				m_MainShader.SetUniform3f(uniformName + ".position", tc.Position);
+				m_MainShader.SetUniform3f(uniformName + ".color", light.Color);
+				m_MainShader.SetUniform1f(uniformName + ".intensity", light.Intensity);
+				m_MainShader.SetUniform1f(uniformName + ".constant", light.Constant);
+				m_MainShader.SetUniform1f(uniformName + ".linear", light.Linear);
+				m_MainShader.SetUniform1f(uniformName + ".quadratic", light.Quadratic);
 				m_MainShader.SetUniform1i(uniformName + ".shadowMap", 6 + pointLightCount);
-				m_MainShader.SetUniform1f(uniformName + ".farPlane", light->GetRange());
+				m_MainShader.SetUniform1f(uniformName + ".farPlane", light.Range);
 				++pointLightCount;
 			}
 			break;
 		}
-
-		case SPOTLIGHT: {
+		case LightType::Spotlight: {
 			if (spotLightCount < 4) {
+				glm::vec3 dir = light.Direction;
+				if (glm::length(dir) < 0.001f) dir = glm::vec3(0.0f, -1.0f, 0.0f);
+				else dir = glm::normalize(dir);
+
 				std::string uniformName = std::format("spotLights[{}]", spotLightCount);
-				m_MainShader.SetUniform3f(uniformName + ".position", light->GetPosition());
-				m_MainShader.SetUniform3f(uniformName + ".direction", light->GetDirection());
-				m_MainShader.SetUniform3f(uniformName + ".color", light->GetColor());
-				m_MainShader.SetUniform1f(uniformName + ".intensity", light->GetIntensity());
-				m_MainShader.SetUniform1f(uniformName + ".range", light->GetRange());
-				m_MainShader.SetUniform1f(uniformName + ".constant", light->GetConstant());
-				m_MainShader.SetUniform1f(uniformName + ".linear", light->GetLinear());
-				m_MainShader.SetUniform1f(uniformName + ".quadratic", light->GetQuadratic());
-				m_MainShader.SetUniform1f(uniformName + ".cutOff", glm::cos(glm::radians(light->GetInnerCutoff())));
-				m_MainShader.SetUniform1f(uniformName + ".outerCutOff", glm::cos(glm::radians(light->GetOuterCutoff())));
+				m_MainShader.SetUniform3f(uniformName + ".position", tc.Position);
+				m_MainShader.SetUniform3f(uniformName + ".direction", dir);
+				m_MainShader.SetUniform3f(uniformName + ".color", light.Color);
+				m_MainShader.SetUniform1f(uniformName + ".intensity", light.Intensity);
+				m_MainShader.SetUniform1f(uniformName + ".range", light.Range);
+				m_MainShader.SetUniform1f(uniformName + ".constant", light.Constant);
+				m_MainShader.SetUniform1f(uniformName + ".linear", light.Linear);
+				m_MainShader.SetUniform1f(uniformName + ".quadratic", light.Quadratic);
+				m_MainShader.SetUniform1f(uniformName + ".cutOff", glm::cos(glm::radians(light.InnerCutoff)));
+				m_MainShader.SetUniform1f(uniformName + ".outerCutOff", glm::cos(glm::radians(light.OuterCutoff)));
 				++spotLightCount;
 			}
 			break;
@@ -186,27 +202,11 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 		m_MainShader.SetUniform1i(uniformName + ".hasShadow", (i < spotLightCount) ? 1 : 0);
 	}
 
-	for (ModelEntity* entity : visibleEntities) {
-		entity->Draw(m_MainShader);
+	for (const auto& item : visibleItems) {
+		item.mesh->Draw(m_MainShader, item.transform);
 	}
 
 	m_MainShader.Unbind();
-}
-
-void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, Scene& scene, unsigned int targetFBO) {
-	std::vector<Light*> rawLights;
-	rawLights.reserve(scene.GetLights().size());
-	for (const auto& light : scene.GetLights()) {
-		if (light && light->IsActive()) rawLights.push_back(light.get());
-	}
-
-	std::vector<ModelEntity*> rawEntities;
-	rawEntities.reserve(scene.GetEntities().size());
-	for (const auto& entity : scene.GetEntities()) {
-		if (entity && entity->IsActive()) rawEntities.push_back(entity.get());
-	}
-
-	RenderScene(windowSize, camera, rawLights, rawEntities, targetFBO);
 
 	if (scene.GetSkybox() && scene.GetSkybox()->IsActive()) {
 		scene.GetSkybox()->SetFog(m_FogSettings.enabled, m_FogSettings.color);

@@ -1,6 +1,7 @@
 #include "editor.h"
 #include "skybox.h"
 #include "primitive.h"
+#include "light.h"
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
@@ -135,29 +136,30 @@ void Editor::RenderSceneViewport()
 		Shader& lightShader = m_Renderer.GetLightShader();
 		lightShader.Bind();
 
-		for (const auto& light : m_Scene.GetLights())
+		auto lightView = m_Scene.GetRegistry().view<TagComponent, LightComponent, TransformComponent>();
+		for (auto [handle, tag, light, tc] : lightView.each())
 		{
-			if (!light || !light->IsActive())
+			if (!tag.Active)
 				continue;
 
 			// Do not render debug icon if light is closer than 0.5m to camera to avoid camera clipping
-			if (glm::distance(light->GetPosition(), m_Camera.Position) < 0.5f)
+			if (glm::distance(tc.Position, m_Camera.Position) < 0.5f)
 				continue;
 
-			lightShader.SetUniform4f("objectColor", glm::vec4(light->GetColor(), 1.0f));
+			lightShader.SetUniform4f("objectColor", glm::vec4(light.Color, 1.0f));
 
-			if (light->GetType() == LightType::Point)
+			if (light.Type == LightType::Point)
 			{
-				glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), light->GetPosition());
+				glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), tc.Position);
 				modelMatrix = glm::scale(modelMatrix, glm::vec3(0.2f));
 				lightShader.SetUniformMat4f("model", modelMatrix);
 				lightShader.SetUniformMat4f("view", m_Camera.GetViewMatrix());
 				lightShader.SetUniformMat4f("projection", m_Camera.GetProjectionMatrix(m_ViewportSize));
 				m_Renderer.RenderCube();
 			}
-			else if (light->GetType() == LightType::Spotlight)
+			else if (light.Type == LightType::Spotlight)
 			{
-				glm::mat4 modelMatrix = light->GetModelMatrix();
+				glm::mat4 modelMatrix = tc.GetMatrix();
 				modelMatrix = glm::scale(modelMatrix, glm::vec3(0.15f, 0.15f, 0.4f));
 				lightShader.SetUniformMat4f("model", modelMatrix);
 				lightShader.SetUniformMat4f("view", m_Camera.GetViewMatrix());
@@ -288,31 +290,33 @@ void Editor::DrawViewportPanel()
 		ImVec2 imageSize = ImGui::GetItemRectSize();
 
 		// 3D Viewport Gizmos
-		auto selectedEntity = m_Scene.GetSelectedEntity();
-		if (selectedEntity && m_GizmoType != -1)
+		Entity selectedEntity = m_Scene.GetSelectedEntity();
+		if (selectedEntity && selectedEntity.HasComponent<TransformComponent>() && m_GizmoType != -1)
 		{
 			ImGuizmo::SetOrthographic(false);
 			ImGuizmo::SetDrawlist();
 			ImGuizmo::SetRect(imagePos.x, imagePos.y, imageSize.x, imageSize.y);
-			ImGuizmo::PushID(selectedEntity.get());
+			ImGuizmo::PushID(static_cast<int>(selectedEntity.GetHandle()));
 
 			glm::mat4 cameraView = m_Camera.GetViewMatrix();
 			glm::mat4 cameraProj = m_Camera.GetProjectionMatrix(m_ViewportSize);
-			glm::mat4 modelMatrix = selectedEntity->GetModelMatrix();
+			auto& tc = selectedEntity.GetComponent<TransformComponent>();
+			glm::mat4 modelMatrix = tc.GetMatrix();
 
-			auto light = std::dynamic_pointer_cast<Light>(selectedEntity);
 			ImGuizmo::OPERATION operation = static_cast<ImGuizmo::OPERATION>(m_GizmoType);
-			if (light)
+			bool isLight = selectedEntity.HasComponent<LightComponent>();
+			if (isLight)
 			{
-				if (light->GetType() == LightType::Point)
+				const auto& light = selectedEntity.GetComponent<LightComponent>();
+				if (light.Type == LightType::Point)
 				{
 					operation = ImGuizmo::TRANSLATE;
 				}
-				else if (light->GetType() == LightType::Directional && operation != ImGuizmo::ROTATE)
+				else if (light.Type == LightType::Directional && operation != ImGuizmo::ROTATE)
 				{
 					operation = ImGuizmo::ROTATE;
 				}
-				else if (light->GetType() == LightType::Spotlight && operation == ImGuizmo::SCALE)
+				else if (light.Type == LightType::Spotlight && operation == ImGuizmo::SCALE)
 				{
 					operation = ImGuizmo::TRANSLATE;
 				}
@@ -338,15 +342,23 @@ void Editor::DrawViewportPanel()
 				float translation[3], rotation[3], scale[3];
 				ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(modelMatrix), translation, rotation, scale);
 
-				selectedEntity->SetPosition(glm::vec3(translation[0], translation[1], translation[2]));
+				tc.Position = glm::vec3(translation[0], translation[1], translation[2]);
 
 				if (operation == ImGuizmo::ROTATE)
 				{
-					selectedEntity->SetRotation(glm::vec3(rotation[0], rotation[1], rotation[2]));
+					tc.Rotation = glm::vec3(rotation[0], rotation[1], rotation[2]);
+					if (isLight)
+					{
+						auto& lc = selectedEntity.GetComponent<LightComponent>();
+						if (lc.Type == LightType::Directional || lc.Type == LightType::Spotlight)
+						{
+							lc.Direction = DirectionFromEuler(tc.Rotation);
+						}
+					}
 				}
-				else if (operation == ImGuizmo::SCALE && !light)
+				else if (operation == ImGuizmo::SCALE && !isLight)
 				{
-					selectedEntity->SetScale(glm::vec3(scale[0], scale[1], scale[2]));
+					tc.Scale = glm::vec3(scale[0], scale[1], scale[2]);
 				}
 			}
 
@@ -368,72 +380,52 @@ void Editor::DrawSceneHierarchyPanel()
 
 	ImGui::Begin("Scene Hierarchy");
 
-	if (ImGui::CollapsingHeader("Entities", ImGuiTreeNodeFlags_DefaultOpen))
+	auto view = m_Scene.GetRegistry().view<TagComponent>();
+	for (auto entityHandle : view)
 	{
-		auto& entities = m_Scene.GetEntities();
-		for (size_t i = 0; i < entities.size(); ++i)
+		Entity entity = { entityHandle, &m_Scene };
+		const auto& tag = entity.GetComponent<TagComponent>();
+
+		ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
+		if (m_Scene.GetSelectedEntity() == entity)
 		{
-			auto& entity = entities[i];
-			if (!entity) continue;
-
-			ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-			if (m_Scene.GetSelectedEntity() == entity)
-			{
-				flags |= ImGuiTreeNodeFlags_Selected;
-			}
-
-			std::string label = entity->GetName() + "##Entity" + std::to_string(i);
-			ImGui::TreeNodeEx(label.c_str(), flags);
-
-			if (ImGui::IsItemClicked())
-			{
-				m_Scene.SetSelectedEntity(entity);
-			}
+			flags |= ImGuiTreeNodeFlags_Selected;
 		}
-	}
 
-	if (ImGui::CollapsingHeader("Lights", ImGuiTreeNodeFlags_DefaultOpen))
-	{
-		auto& lights = m_Scene.GetLights();
-		for (size_t i = 0; i < lights.size(); ++i)
+		std::string componentBadges = "";
+		if (entity.HasComponent<MeshComponent>()) componentBadges += "[Mesh] ";
+		if (entity.HasComponent<LightComponent>()) componentBadges += "[Light] ";
+		if (entity.HasComponent<CameraComponent>()) componentBadges += "[Camera] ";
+
+		std::string label = tag.Tag + " " + componentBadges + "##Entity" + std::to_string(static_cast<uint32_t>(entityHandle));
+		ImGui::TreeNodeEx(label.c_str(), flags);
+
+		if (ImGui::IsItemClicked())
 		{
-			auto& light = lights[i];
-			if (!light) continue;
-
-			ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-			if (m_Scene.GetSelectedEntity() == light)
-			{
-				flags |= ImGuiTreeNodeFlags_Selected;
-			}
-
-			std::string label = light->GetName() + "##Light" + std::to_string(i);
-			ImGui::TreeNodeEx(label.c_str(), flags);
-
-			if (ImGui::IsItemClicked())
-			{
-				m_Scene.SetSelectedEntity(light);
-			}
+			m_Scene.SetSelectedEntity(entity);
 		}
 	}
 
 	if (ImGui::BeginPopupContextWindow("HierarchyContext", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
 	{
+		if (ImGui::MenuItem("Create Empty Entity"))
+		{
+			Entity e = m_Scene.CreateEntity("New Entity");
+			m_Scene.SetSelectedEntity(e);
+		}
 		if (ImGui::MenuItem("Add Directional Light"))
 		{
-			auto light = std::make_shared<DirectionalLight>("Directional Light", glm::vec3(-0.2f, -1.0f, -0.3f), glm::vec3(1.0f), 1.0f);
-			m_Scene.AddLight(light);
+			Entity light = m_Scene.CreateDirectionalLight("Directional Light", glm::vec3(-0.2f, -1.0f, -0.3f), glm::vec3(1.0f), 1.0f);
 			m_Scene.SetSelectedEntity(light);
 		}
 		if (ImGui::MenuItem("Add Point Light"))
 		{
-			auto light = std::make_shared<PointLight>("Point Light", m_Camera.Position + m_Camera.Front * 5.0f, glm::vec3(1.0f, 0.9f, 0.7f), 3.0f, 25.0f);
-			m_Scene.AddLight(light);
+			Entity light = m_Scene.CreatePointLight("Point Light", m_Camera.Position + m_Camera.Front * 5.0f, glm::vec3(1.0f, 0.9f, 0.7f), 3.0f, 25.0f);
 			m_Scene.SetSelectedEntity(light);
 		}
 		if (ImGui::MenuItem("Add Spotlight"))
 		{
-			auto light = std::make_shared<SpotLight>("Spotlight", m_Camera.Position + m_Camera.Front * 5.0f, m_Camera.Front, glm::vec3(1.0f), 2.0f, 12.5f, 17.5f, 35.0f);
-			m_Scene.AddLight(light);
+			Entity light = m_Scene.CreateSpotLight("Spotlight", m_Camera.Position + m_Camera.Front * 5.0f, m_Camera.Front, glm::vec3(1.0f), 2.0f, 12.5f, 17.5f, 35.0f);
 			m_Scene.SetSelectedEntity(light);
 		}
 		ImGui::EndPopup();
@@ -452,7 +444,7 @@ void Editor::DrawEntityInspectorPanel()
 
 	ImGui::Begin("Entity Inspector");
 
-	auto selectedEntity = m_Scene.GetSelectedEntity();
+	Entity selectedEntity = m_Scene.GetSelectedEntity();
 	if (!selectedEntity)
 	{
 		ImGui::TextDisabled("No entity selected in hierarchy.");
@@ -460,146 +452,232 @@ void Editor::DrawEntityInspectorPanel()
 		return;
 	}
 
-	char nameBuffer[128];
-	strncpy_s(nameBuffer, selectedEntity->GetName().c_str(), sizeof(nameBuffer));
-	if (ImGui::InputText("Name", nameBuffer, sizeof(nameBuffer)))
+	// Tag Component
+	if (selectedEntity.HasComponent<TagComponent>())
 	{
-		selectedEntity->SetName(std::string(nameBuffer));
-	}
+		auto& tag = selectedEntity.GetComponent<TagComponent>();
+		char nameBuffer[128];
+		strncpy_s(nameBuffer, tag.Tag.c_str(), sizeof(nameBuffer));
+		if (ImGui::InputText("Name", nameBuffer, sizeof(nameBuffer)))
+		{
+			tag.Tag = std::string(nameBuffer);
+		}
 
-	bool active = selectedEntity->IsActive();
-	if (ImGui::Checkbox("Active", &active))
-	{
-		selectedEntity->SetActive(active);
+		ImGui::Checkbox("Active", &tag.Active);
 	}
 
 	ImGui::Separator();
 
-	if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
+	// Transform Component
+	if (selectedEntity.HasComponent<TransformComponent>())
 	{
-		ImGui::Text("Gizmo (W/E/R/Q):");
-		if (ImGui::RadioButton("Translate##G", m_GizmoType == ImGuizmo::TRANSLATE)) m_GizmoType = ImGuizmo::TRANSLATE;
-		ImGui::SameLine();
-		if (ImGui::RadioButton("Rotate##G", m_GizmoType == ImGuizmo::ROTATE)) m_GizmoType = ImGuizmo::ROTATE;
-		ImGui::SameLine();
-		if (ImGui::RadioButton("Scale##G", m_GizmoType == ImGuizmo::SCALE)) m_GizmoType = ImGuizmo::SCALE;
-		ImGui::SameLine();
-		if (ImGui::RadioButton("Hide##G", m_GizmoType == -1)) m_GizmoType = -1;
-
-		if (m_GizmoType != -1)
+		if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			const char* modeNames[] = { "Local", "World" };
-			ImGui::Combo("Coord Space", &m_GizmoMode, modeNames, IM_ARRAYSIZE(modeNames));
-			ImGui::Checkbox("Snap", &m_GizmoSnap);
-			if (m_GizmoSnap)
+			ImGui::Text("Gizmo (W/E/R/Q):");
+			if (ImGui::RadioButton("Translate##G", m_GizmoType == ImGuizmo::TRANSLATE)) m_GizmoType = ImGuizmo::TRANSLATE;
+			ImGui::SameLine();
+			if (ImGui::RadioButton("Rotate##G", m_GizmoType == ImGuizmo::ROTATE)) m_GizmoType = ImGuizmo::ROTATE;
+			ImGui::SameLine();
+			if (ImGui::RadioButton("Scale##G", m_GizmoType == ImGuizmo::SCALE)) m_GizmoType = ImGuizmo::SCALE;
+			ImGui::SameLine();
+			if (ImGui::RadioButton("Hide##G", m_GizmoType == -1)) m_GizmoType = -1;
+
+			if (m_GizmoType != -1)
 			{
-				ImGui::SameLine();
-				if (m_GizmoType == ImGuizmo::ROTATE)
-					ImGui::DragFloat("Angle", &m_GizmoSnapRotation, 1.0f, 1.0f, 90.0f, "%.0f deg");
-				else if (m_GizmoType == ImGuizmo::SCALE)
-					ImGui::DragFloat("Scale Step", &m_GizmoSnapScale, 0.05f, 0.01f, 2.0f, "%.2f");
-				else
-					ImGui::DragFloat("Grid Step", &m_GizmoSnapTranslation, 0.1f, 0.01f, 10.0f, "%.2f m");
+				const char* modeNames[] = { "Local", "World" };
+				ImGui::Combo("Coord Space", &m_GizmoMode, modeNames, IM_ARRAYSIZE(modeNames));
+				ImGui::Checkbox("Snap", &m_GizmoSnap);
+				if (m_GizmoSnap)
+				{
+					ImGui::SameLine();
+					if (m_GizmoType == ImGuizmo::ROTATE)
+						ImGui::DragFloat("Angle", &m_GizmoSnapRotation, 1.0f, 1.0f, 90.0f, "%.0f deg");
+					else if (m_GizmoType == ImGuizmo::SCALE)
+						ImGui::DragFloat("Scale Step", &m_GizmoSnapScale, 0.05f, 0.01f, 2.0f, "%.2f");
+					else
+						ImGui::DragFloat("Grid Step", &m_GizmoSnapTranslation, 0.1f, 0.01f, 10.0f, "%.2f m");
+				}
 			}
-		}
 
-		ImGui::Separator();
+			ImGui::Separator();
 
-		glm::vec3 pos = selectedEntity->GetPosition();
-		if (ImGui::DragFloat3("Position", &pos.x, 0.1f))
-		{
-			selectedEntity->SetPosition(pos);
-		}
-
-		glm::vec3 rot = selectedEntity->GetRotation();
-		if (ImGui::DragFloat3("Rotation", &rot.x, 0.5f))
-		{
-			selectedEntity->SetRotation(rot);
-		}
-
-		glm::vec3 scale = selectedEntity->GetScale();
-		if (ImGui::DragFloat3("Scale", &scale.x, 0.05f, 0.001f, 100.0f))
-		{
-			selectedEntity->SetScale(scale);
+			auto& tc = selectedEntity.GetComponent<TransformComponent>();
+			ImGui::DragFloat3("Position", &tc.Position.x, 0.1f);
+			if (ImGui::DragFloat3("Rotation", &tc.Rotation.x, 0.5f))
+			{
+				if (selectedEntity.HasComponent<LightComponent>())
+				{
+					auto& lc = selectedEntity.GetComponent<LightComponent>();
+					if (lc.Type == LightType::Directional || lc.Type == LightType::Spotlight)
+					{
+						lc.Direction = DirectionFromEuler(tc.Rotation);
+					}
+				}
+			}
+			ImGui::DragFloat3("Scale", &tc.Scale.x, 0.05f, 0.001f, 100.0f);
 		}
 	}
 
-	auto light = std::dynamic_pointer_cast<Light>(selectedEntity);
-	if (light)
+	// Mesh Component
+	if (selectedEntity.HasComponent<MeshComponent>())
+	{
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("Mesh Component", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			auto& mc = selectedEntity.GetComponent<MeshComponent>();
+			ImGui::TextWrapped("Model: %s", mc.ModelPath.c_str());
+			ImGui::Checkbox("Casts Shadow##Mesh", &mc.CastsShadow);
+			if (ImGui::Button("Reload Model"))
+			{
+				mc.LoadModel(mc.ModelPath, mc.FlipUVs);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Remove Mesh"))
+			{
+				selectedEntity.RemoveComponent<MeshComponent>();
+			}
+		}
+	}
+
+	// Light Component
+	if (selectedEntity.HasComponent<LightComponent>())
 	{
 		ImGui::Separator();
 		if (ImGui::CollapsingHeader("Light Component", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			glm::vec3 color = light->GetColor();
-			if (ImGui::ColorEdit3("Color", &color.x))
+			auto& lc = selectedEntity.GetComponent<LightComponent>();
+			const char* lightTypeNames[] = { "Directional", "Point", "Spotlight" };
+			int currentType = static_cast<int>(lc.Type);
+			if (ImGui::Combo("Light Type", &currentType, lightTypeNames, IM_ARRAYSIZE(lightTypeNames)))
 			{
-				light->SetColor(color);
+				lc.Type = static_cast<LightType>(currentType);
 			}
 
-			float intensity = light->GetIntensity();
-			if (ImGui::SliderFloat("Intensity", &intensity, 0.0f, 20.0f))
-			{
-				light->SetIntensity(intensity);
-			}
+			ImGui::ColorEdit3("Color", &lc.Color.x);
+			ImGui::SliderFloat("Intensity", &lc.Intensity, 0.0f, 20.0f);
+			ImGui::Checkbox("Casts Shadow##Light", &lc.CastsShadow);
 
-			if (light->GetType() == LightType::Directional)
+			if (lc.Type == LightType::Directional)
 			{
-				glm::vec3 dir = light->GetDirection();
-				if (ImGui::DragFloat3("Direction", &dir.x, 0.01f, -1.0f, 1.0f))
+				if (ImGui::DragFloat3("Direction", &lc.Direction.x, 0.01f, -1.0f, 1.0f))
 				{
-					if (glm::length(dir) > 0.001f)
-						light->SetDirection(glm::normalize(dir));
-				}
-			}
-			else if (light->GetType() == LightType::Point)
-			{
-				float range = light->GetRange();
-				if (ImGui::SliderFloat("Range", &range, 1.0f, 100.0f))
-				{
-					light->SetRange(range);
+					if (glm::length(lc.Direction) > 0.001f)
+					{
+						lc.Direction = glm::normalize(lc.Direction);
+						selectedEntity.SetRotation(EulerFromDirection(lc.Direction));
+					}
 				}
 			}
-			else if (light->GetType() == LightType::Spotlight)
+			else if (lc.Type == LightType::Point)
 			{
-				glm::vec3 dir = light->GetDirection();
-				if (ImGui::DragFloat3("Direction", &dir.x, 0.01f, -1.0f, 1.0f))
+				ImGui::SliderFloat("Range", &lc.Range, 1.0f, 100.0f);
+			}
+			else if (lc.Type == LightType::Spotlight)
+			{
+				if (ImGui::DragFloat3("Direction", &lc.Direction.x, 0.01f, -1.0f, 1.0f))
 				{
-					if (glm::length(dir) > 0.001f)
-						light->SetDirection(glm::normalize(dir));
+					if (glm::length(lc.Direction) > 0.001f)
+					{
+						lc.Direction = glm::normalize(lc.Direction);
+						selectedEntity.SetRotation(EulerFromDirection(lc.Direction));
+					}
 				}
+				ImGui::SliderFloat("Range", &lc.Range, 1.0f, 150.0f);
+				if (ImGui::SliderFloat("Inner Cutoff", &lc.InnerCutoff, 0.0f, 89.0f))
+				{
+					if (lc.InnerCutoff > lc.OuterCutoff) lc.OuterCutoff = lc.InnerCutoff;
+				}
+				if (ImGui::SliderFloat("Outer Cutoff", &lc.OuterCutoff, lc.InnerCutoff, 89.0f))
+				{
+				}
+			}
 
-				float range = light->GetRange();
-				if (ImGui::SliderFloat("Range", &range, 1.0f, 150.0f))
-				{
-					light->SetRange(range);
-				}
-
-				float inner = light->GetInnerCutoff();
-				float outer = light->GetOuterCutoff();
-				if (ImGui::SliderFloat("Inner Cutoff", &inner, 0.0f, 89.0f))
-				{
-					if (inner > outer) outer = inner;
-					light->SetInnerCutoff(inner);
-					light->SetOuterCutoff(outer);
-				}
-				if (ImGui::SliderFloat("Outer Cutoff", &outer, inner, 89.0f))
-				{
-					light->SetOuterCutoff(outer);
-				}
+			if (ImGui::Button("Remove Light"))
+			{
+				selectedEntity.RemoveComponent<LightComponent>();
 			}
 		}
+	}
+
+	// Rigidbody Component
+	if (selectedEntity.HasComponent<RigidbodyComponent>())
+	{
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("Rigidbody Component", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			auto& rc = selectedEntity.GetComponent<RigidbodyComponent>();
+			ImGui::DragFloat("Mass", &rc.Mass, 0.1f, 0.01f, 1000.0f);
+			ImGui::DragFloat3("Velocity", &rc.Velocity.x, 0.1f);
+			ImGui::Checkbox("Use Gravity", &rc.UseGravity);
+
+			if (ImGui::Button("Remove Rigidbody"))
+			{
+				selectedEntity.RemoveComponent<RigidbodyComponent>();
+			}
+		}
+	}
+
+	// Camera Component
+	if (selectedEntity.HasComponent<CameraComponent>())
+	{
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("Camera Component", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			auto& cc = selectedEntity.GetComponent<CameraComponent>();
+			ImGui::Checkbox("Primary Camera", &cc.Primary);
+
+			if (ImGui::Button("Remove Camera"))
+			{
+				selectedEntity.RemoveComponent<CameraComponent>();
+			}
+		}
+	}
+
+	// Add Component Button
+	ImGui::Separator();
+	if (ImGui::Button("Add Component...", ImVec2(-1.0f, 0.0f)))
+	{
+		ImGui::OpenPopup("AddComponentPopup");
+	}
+
+	if (ImGui::BeginPopup("AddComponentPopup"))
+	{
+		if (!selectedEntity.HasComponent<MeshComponent>())
+		{
+			if (ImGui::MenuItem("Mesh Component"))
+			{
+				selectedEntity.AddComponent<MeshComponent>();
+			}
+		}
+		if (!selectedEntity.HasComponent<LightComponent>())
+		{
+			if (ImGui::MenuItem("Light Component"))
+			{
+				selectedEntity.AddComponent<LightComponent>();
+			}
+		}
+		if (!selectedEntity.HasComponent<RigidbodyComponent>())
+		{
+			if (ImGui::MenuItem("Rigidbody Component"))
+			{
+				selectedEntity.AddComponent<RigidbodyComponent>();
+			}
+		}
+		if (!selectedEntity.HasComponent<CameraComponent>())
+		{
+			if (ImGui::MenuItem("Camera Component"))
+			{
+				selectedEntity.AddComponent<CameraComponent>();
+			}
+		}
+		ImGui::EndPopup();
 	}
 
 	ImGui::Separator();
 	if (ImGui::Button("Delete Selected Entity", ImVec2(-1.0f, 0.0f)))
 	{
-		auto& ents = m_Scene.GetEntities();
-		ents.erase(std::remove_if(ents.begin(), ents.end(), [&](const auto& e) { return e == selectedEntity; }), ents.end());
-
-		auto& lights = m_Scene.GetLights();
-		lights.erase(std::remove_if(lights.begin(), lights.end(), [&](const auto& l) { return l == selectedEntity; }), lights.end());
-
-		m_Scene.SetSelectedEntity(nullptr);
+		m_Scene.DestroyEntity(selectedEntity);
+		m_Scene.SetSelectedEntity({});
 		ImGui::End();
 		return;
 	}
@@ -617,28 +695,32 @@ void Editor::DrawEnvironmentPanel()
 
 	ImGui::Begin("Lighting & Environment");
 
-	auto sun = m_Scene.GetSunLight();
-	if (sun)
+	Entity sun = m_Scene.GetSunLight();
+	if (sun && sun.HasComponent<LightComponent>())
 	{
 		if (ImGui::CollapsingHeader("Sun Light", ImGuiTreeNodeFlags_DefaultOpen))
 		{
-			glm::vec3 dir = sun->GetDirection();
+			auto& light = sun.GetComponent<LightComponent>();
+			glm::vec3 dir = light.Direction;
 			if (ImGui::DragFloat3("Sun Direction", &dir.x, 0.01f, -1.0f, 1.0f))
 			{
 				if (glm::length(dir) > 0.001f)
-					sun->SetDirection(glm::normalize(dir));
+				{
+					light.Direction = glm::normalize(dir);
+					sun.SetRotation(EulerFromDirection(light.Direction));
+				}
 			}
 
-			glm::vec3 color = sun->GetColor();
+			glm::vec3 color = light.Color;
 			if (ImGui::ColorEdit3("Sun Color", &color.x))
 			{
-				sun->SetColor(color);
+				light.Color = color;
 			}
 
-			float intensity = sun->GetIntensity();
+			float intensity = light.Intensity;
 			if (ImGui::SliderFloat("Sun Intensity", &intensity, 0.0f, 5.0f))
 			{
-				sun->SetIntensity(intensity);
+				light.Intensity = intensity;
 			}
 		}
 	}
@@ -745,10 +827,10 @@ void Editor::DrawMetricsPanel(float deltaTime)
 
 	ImGui::Separator();
 	ImGui::Text("Viewport: %d x %d", m_ViewportSize.x, m_ViewportSize.y);
-	ImGui::Text("Entities: %zu", m_Scene.GetEntities().size());
+	ImGui::Text("Entities: %zu", m_Scene.GetRegistry().view<TagComponent>().size());
 	const auto& stats = m_Renderer.GetStats();
 	ImGui::Text("Visible / Culled: %zu / %zu", stats.renderedEntities, stats.culledEntities);
-	ImGui::Text("Lights: %zu", m_Scene.GetLights().size());
+	ImGui::Text("Lights: %zu", m_Scene.GetRegistry().view<LightComponent>().size());
 
 	ImGui::End();
 }
@@ -820,22 +902,24 @@ void Editor::DrawMainMenuBar()
 
 		if (ImGui::BeginMenu("Add"))
 		{
+			if (ImGui::MenuItem("Create Empty Entity"))
+			{
+				Entity e = m_Scene.CreateEntity("New Entity");
+				m_Scene.SetSelectedEntity(e);
+			}
 			if (ImGui::MenuItem("Directional Light"))
 			{
-				auto sun = std::make_shared<DirectionalLight>("Directional Light", glm::vec3(-0.2f, -1.0f, -0.3f), glm::vec3(1.0f), 1.0f);
-				m_Scene.AddLight(sun);
+				Entity sun = m_Scene.CreateDirectionalLight("Directional Light", glm::vec3(-0.2f, -1.0f, -0.3f), glm::vec3(1.0f), 1.0f);
 				m_Scene.SetSelectedEntity(sun);
 			}
 			if (ImGui::MenuItem("Point Light"))
 			{
-				auto lamp = std::make_shared<PointLight>("Point Light", m_Camera.Position + m_Camera.Front * 5.0f, glm::vec3(1.0f, 0.9f, 0.7f), 3.0f, 25.0f);
-				m_Scene.AddLight(lamp);
+				Entity lamp = m_Scene.CreatePointLight("Point Light", m_Camera.Position + m_Camera.Front * 5.0f, glm::vec3(1.0f, 0.9f, 0.7f), 3.0f, 25.0f);
 				m_Scene.SetSelectedEntity(lamp);
 			}
 			if (ImGui::MenuItem("Spotlight"))
 			{
-				auto spot = std::make_shared<SpotLight>("Spotlight", m_Camera.Position + m_Camera.Front * 5.0f, m_Camera.Front, glm::vec3(1.0f), 2.0f, 12.5f, 17.5f, 35.0f);
-				m_Scene.AddLight(spot);
+				Entity spot = m_Scene.CreateSpotLight("Spotlight", m_Camera.Position + m_Camera.Front * 5.0f, m_Camera.Front, glm::vec3(1.0f), 2.0f, 12.5f, 17.5f, 35.0f);
 				m_Scene.SetSelectedEntity(spot);
 			}
 			ImGui::EndMenu();

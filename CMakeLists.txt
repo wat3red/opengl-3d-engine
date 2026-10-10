@@ -91,6 +91,7 @@ set(ENGINE_HEADERS
     # Scene
     src/scene/scene.h
     src/scene/entity.h
+    src/scene/components.h
     src/scene/model_entity.h
     src/scene/light.h
     src/scene/transform.h

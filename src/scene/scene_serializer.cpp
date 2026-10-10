@@ -240,55 +240,56 @@ bool SceneSerializer::Serialize(const std::string& filepath)
 	}
 	out << "\t},\n";
 
-	// Entities
+	// Entities with Components
 	out << "\t\"Entities\": [\n";
-	const auto& entities = m_Scene.GetEntities();
-	for (size_t i = 0; i < entities.size(); ++i)
+	auto view = m_Scene.GetRegistry().view<TagComponent>();
+	size_t entityIdx = 0;
+	size_t totalEntities = view.size();
+	for (auto entityHandle : view)
 	{
-		const auto& entity = entities[i];
-		if (!entity) continue;
+		Entity entity = { entityHandle, &m_Scene };
+		const auto& tag = entity.GetComponent<TagComponent>();
 
 		out << "\t\t{\n";
-		out << "\t\t\t\"Name\": \"" << entity->GetName() << "\",\n";
-		out << "\t\t\t\"ModelPath\": \"" << entity->GetModelPath() << "\",\n";
-		out << "\t\t\t\"Active\": " << (entity->IsActive() ? "true" : "false") << ",\n";
-		out << "\t\t\t\"CastsShadow\": " << (entity->CastsShadow() ? "true" : "false") << ",\n";
-		glm::vec3 pos = entity->GetPosition();
-		glm::vec3 rot = entity->GetRotation();
-		glm::vec3 scale = entity->GetScale();
-		out << "\t\t\t\"Position\": [" << pos.x << ", " << pos.y << ", " << pos.z << "],\n";
-		out << "\t\t\t\"Rotation\": [" << rot.x << ", " << rot.y << ", " << rot.z << "],\n";
-		out << "\t\t\t\"Scale\": [" << scale.x << ", " << scale.y << ", " << scale.z << "]\n";
-		out << "\t\t}" << (i + 1 < entities.size() ? "," : "") << "\n";
-	}
-	out << "\t],\n";
+		out << "\t\t\t\"Name\": \"" << tag.Tag << "\",\n";
+		out << "\t\t\t\"Active\": " << (tag.Active ? "true" : "false");
 
-	// Lights
-	out << "\t\"Lights\": [\n";
-	const auto& lights = m_Scene.GetLights();
-	for (size_t i = 0; i < lights.size(); ++i)
-	{
-		const auto& light = lights[i];
-		if (!light) continue;
+		if (entity.HasComponent<TransformComponent>())
+		{
+			const auto& tc = entity.GetComponent<TransformComponent>();
+			out << ",\n";
+			out << "\t\t\t\"Position\": [" << tc.Position.x << ", " << tc.Position.y << ", " << tc.Position.z << "],\n";
+			out << "\t\t\t\"Rotation\": [" << tc.Rotation.x << ", " << tc.Rotation.y << ", " << tc.Rotation.z << "],\n";
+			out << "\t\t\t\"Scale\": [" << tc.Scale.x << ", " << tc.Scale.y << ", " << tc.Scale.z << "]";
+		}
 
-		out << "\t\t{\n";
-		out << "\t\t\t\"Name\": \"" << light->GetName() << "\",\n";
-		std::string typeStr = "Point";
-		if (light->GetType() == LightType::Directional) typeStr = "Directional";
-		else if (light->GetType() == LightType::Spotlight) typeStr = "Spotlight";
-		out << "\t\t\t\"Type\": \"" << typeStr << "\",\n";
-		out << "\t\t\t\"Active\": " << (light->IsActive() ? "true" : "false") << ",\n";
-		glm::vec3 col = light->GetColor();
-		out << "\t\t\t\"Color\": [" << col.r << ", " << col.g << ", " << col.b << "],\n";
-		out << "\t\t\t\"Intensity\": " << light->GetIntensity() << ",\n";
-		glm::vec3 pos = light->GetPosition();
-		out << "\t\t\t\"Position\": [" << pos.x << ", " << pos.y << ", " << pos.z << "],\n";
-		glm::vec3 dir = light->GetDirection();
-		out << "\t\t\t\"Direction\": [" << dir.x << ", " << dir.y << ", " << dir.z << "],\n";
-		out << "\t\t\t\"Range\": " << light->GetRange() << ",\n";
-		out << "\t\t\t\"InnerCutoff\": " << light->GetInnerCutoff() << ",\n";
-		out << "\t\t\t\"OuterCutoff\": " << light->GetOuterCutoff() << "\n";
-		out << "\t\t}" << (i + 1 < lights.size() ? "," : "") << "\n";
+		if (entity.HasComponent<MeshComponent>())
+		{
+			const auto& mc = entity.GetComponent<MeshComponent>();
+			out << ",\n";
+			out << "\t\t\t\"ModelPath\": \"" << mc.ModelPath << "\",\n";
+			out << "\t\t\t\"CastsShadow\": " << (mc.CastsShadow ? "true" : "false") << ",\n";
+			out << "\t\t\t\"FlipUVs\": " << (mc.FlipUVs ? "true" : "false");
+		}
+
+		if (entity.HasComponent<LightComponent>())
+		{
+			const auto& lc = entity.GetComponent<LightComponent>();
+			out << ",\n";
+			std::string typeStr = "Point";
+			if (lc.Type == LightType::Directional) typeStr = "Directional";
+			else if (lc.Type == LightType::Spotlight) typeStr = "Spotlight";
+			out << "\t\t\t\"LightType\": \"" << typeStr << "\",\n";
+			out << "\t\t\t\"Color\": [" << lc.Color.r << ", " << lc.Color.g << ", " << lc.Color.b << "],\n";
+			out << "\t\t\t\"Intensity\": " << lc.Intensity << ",\n";
+			out << "\t\t\t\"Direction\": [" << lc.Direction.x << ", " << lc.Direction.y << ", " << lc.Direction.z << "],\n";
+			out << "\t\t\t\"Range\": " << lc.Range << ",\n";
+			out << "\t\t\t\"InnerCutoff\": " << lc.InnerCutoff << ",\n";
+			out << "\t\t\t\"OuterCutoff\": " << lc.OuterCutoff;
+		}
+
+		out << "\n\t\t}" << (entityIdx + 1 < totalEntities ? "," : "") << "\n";
+		entityIdx++;
 	}
 	out << "\t]\n";
 
@@ -355,26 +356,60 @@ bool SceneSerializer::Deserialize(const std::string& filepath)
 		const auto& entitiesArr = root.Get("Entities");
 		for (const auto& entVal : entitiesArr.arrVal) {
 			std::string name = entVal.Get("Name").AsString("Entity");
-			std::string path = entVal.Get("ModelPath").AsString();
 			bool active = entVal.Get("Active").AsBool(true);
-			bool castsShadow = entVal.Get("CastsShadow").AsBool(true);
-			glm::vec3 pos = entVal.Get("Position").AsVec3();
-			glm::vec3 rot = entVal.Get("Rotation").AsVec3();
-			glm::vec3 scale = entVal.Get("Scale").AsVec3(glm::vec3(1.0f));
 
-			if (!path.empty()) {
-				auto entity = std::make_shared<ModelEntity>(name, path);
-				entity->SetPosition(pos);
-				entity->SetRotation(rot);
-				entity->SetScale(scale);
-				entity->SetActive(active);
-				entity->SetCastsShadow(castsShadow);
-				m_Scene.AddEntity(entity);
+			Entity entity = m_Scene.CreateEntity(name);
+			entity.SetActive(active);
+
+			if (entVal.Has("Position")) {
+				entity.SetPosition(entVal.Get("Position").AsVec3());
+			}
+			if (entVal.Has("Rotation")) {
+				entity.SetRotation(entVal.Get("Rotation").AsVec3());
+			}
+			if (entVal.Has("Scale")) {
+				entity.SetScale(entVal.Get("Scale").AsVec3(glm::vec3(1.0f)));
+			}
+
+			if (entVal.Has("ModelPath")) {
+				std::string path = entVal.Get("ModelPath").AsString();
+				if (!path.empty()) {
+					bool flip = entVal.Get("FlipUVs").AsBool(false);
+					bool castsShadow = entVal.Get("CastsShadow").AsBool(true);
+					auto& mesh = entity.AddComponent<MeshComponent>(path, flip, castsShadow);
+					if (mesh.ModelAsset) {
+						entity.AddComponent<RigidbodyComponent>(mesh.ModelAsset.get());
+					}
+				}
+			}
+
+			if (entVal.Has("LightType") || entVal.Has("Type")) {
+				std::string type = entVal.Has("LightType") ? entVal.Get("LightType").AsString() : entVal.Get("Type").AsString();
+				glm::vec3 color = entVal.Get("Color").AsVec3(glm::vec3(1.0f));
+				float intensity = entVal.Get("Intensity").AsFloat(1.0f);
+				glm::vec3 dir = entVal.Get("Direction").AsVec3(glm::vec3(0.0f, -1.0f, 0.0f));
+				float range = entVal.Get("Range").AsFloat(25.0f);
+				float inner = entVal.Get("InnerCutoff").AsFloat(12.5f);
+				float outer = entVal.Get("OuterCutoff").AsFloat(17.5f);
+
+				LightType lt = LightType::Point;
+				if (type == "Directional") lt = LightType::Directional;
+				else if (type == "Spotlight") lt = LightType::Spotlight;
+
+				LightComponent lc;
+				lc.Type = lt;
+				lc.Color = color;
+				lc.Intensity = intensity;
+				lc.Direction = dir;
+				lc.Range = range;
+				lc.InnerCutoff = inner;
+				lc.OuterCutoff = outer;
+				entity.AddComponent<LightComponent>(lc);
 			}
 		}
 	}
 
-	// Lights
+	// Backwards compatibility: Legacy "Lights" list in older scene saves
 	if (root.Has("Lights")) {
 		const auto& lightsArr = root.Get("Lights");
 		for (const auto& lightVal : lightsArr.arrVal) {
@@ -390,25 +425,21 @@ bool SceneSerializer::Deserialize(const std::string& filepath)
 			float outerCut = lightVal.Get("OuterCutoff").AsFloat(17.5f);
 
 			if (type == "Directional") {
-				auto light = std::make_shared<DirectionalLight>(name, dir, color, intensity);
-				light->SetActive(active);
-				m_Scene.AddLight(light);
+				auto light = m_Scene.CreateDirectionalLight(name, dir, color, intensity);
+				light.SetActive(active);
 			} else if (type == "Spotlight") {
-				auto light = std::make_shared<SpotLight>(name, pos, dir, color, intensity, innerCut, outerCut, range);
-				light->SetActive(active);
-				m_Scene.AddLight(light);
+				auto light = m_Scene.CreateSpotLight(name, pos, dir, color, intensity, innerCut, outerCut, range);
+				light.SetActive(active);
 			} else {
-				auto light = std::make_shared<PointLight>(name, pos, color, intensity, range);
-				light->SetActive(active);
-				m_Scene.AddLight(light);
+				auto light = m_Scene.CreatePointLight(name, pos, color, intensity, range);
+				light.SetActive(active);
 			}
 		}
 	}
 
-	if (!m_Scene.GetEntities().empty()) {
-		m_Scene.SetSelectedEntity(m_Scene.GetEntities()[0]);
-	} else if (!m_Scene.GetLights().empty()) {
-		m_Scene.SetSelectedEntity(m_Scene.GetLights()[0]);
+	auto allEnts = m_Scene.GetRegistry().view<TagComponent>();
+	if (!allEnts.empty()) {
+		m_Scene.SetSelectedEntity({ allEnts.front(), &m_Scene });
 	}
 
 	return true;
