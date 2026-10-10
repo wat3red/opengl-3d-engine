@@ -16,14 +16,8 @@
 
 ## 🎬 Showcase
 
-<!-- ================================================================================= -->
-<!-- DEMO / SHOWCASE MEDIA PLACEHOLDER                                                 -->
-<!-- Place your demonstration GIF or video recording at: docs/showcase.gif             -->
-<!-- You can also link an external URL (e.g. hosted on GitHub Releases, Imgur, etc.)   -->
-<!-- ================================================================================= -->
-
 <p align="center">
-  <img src="docs/showcase.gif" alt="Ignis Engine Real-Time PBR & Editor Showcase" width="90%" />
+  <img src="docs/2.png" alt="Ignis Engine Real-Time PBR & Editor Showcase" width="95%" />
 </p>
 <p align="center">
   <em>Real-time Cook-Torrance PBR shading, dynamic shadows, and interactive scene editing in Ignis.</em>
@@ -34,11 +28,9 @@
 <br>
 
 <p align="center">
-  <!-- Secondary preview placeholder: Replace docs/editor_viewport.png with your screenshot -->
-  <img src="docs/editor_viewport.png" alt="Ignis Editor & Hierarchy" width="48%" />
+  <img src="docs/1.png" alt="Ignis Viewport & Lighting" width="48%" />
   &nbsp;
-  <!-- Secondary preview placeholder: Replace docs/shadows_csm.png with your screenshot -->
-  <img src="docs/shadows_csm.png" alt="Cascaded Shadow Mapping Debug View" width="48%" />
+  <img src="docs/3.png" alt="Ignis Scene Hierarchy & Inspector" width="48%" />
 </p>
 
 </details>
@@ -62,13 +54,23 @@
   - Dynamic scalar factors (`baseColorFactor`, `metallicFactor`, `roughnessFactor`)
 - **Smart Fallback Texture Architecture**: Automated 1x1 default textures (White albedo, flat normal, standard metallic-roughness, white AO) guaranteeing valid texture units across all draw passes.
 
-### 🌈 HDR Floating-Point Pipeline & Filmic Tone Mapping
+### 🌈 HDR Floating-Point Pipeline, Bloom & Filmic Tone Mapping
 - **16-bit Float Framebuffer (`GL_RGBA16F`)**: Preserves radiant light intensities $> 1.0$ without clamping or banding.
-- **Post-Processing Pass**:
-  - **ACES Filmic Curve**: Standard academy filmic color curve with natural highlight roll-off and deep contrast.
-  - **Reinhard Operator**: Alternative classic tone reproduction.
-  - **Real-Time Camera Exposure**: Interactive scalar exposure control ($0.01\times$ to $10.0\times$).
-  - **Gamma Correction**: Accurate sRGB display conversion ($pow(\text{color}, 1.0 / 2.2)$).
+- **Multi-Scale Dual-Filter HDR Bloom**:
+  - Progressive 5-mip downsample chain with 13-tap Karis box filter and partial-karis firefly suppression.
+  - Smooth knee brightness thresholding to avoid harsh step artifacts.
+  - Progressive 9-tap tent filter upsampling with additive blending.
+  - Composite pass with configurable bloom intensity, radius, and threshold.
+- **ACES Filmic Tone Mapping**:
+  - Standard academy filmic color curve with natural highlight roll-off and deep contrast.
+  - Reinhard Operator & raw clamp fallback modes.
+  - Real-time camera exposure slider ($0.01\times$ to $10.0\times$) and gamma correction ($2.2$).
+
+### 🌫️ Atmospheric Fog & Horizon Blending
+- **Distance & Height-Fog**: Exponential squared distance attenuation blended with linear range falloff.
+- **Altitude / Height Gradient**: Fog naturally settles thicker in low-lying terrain and valleys.
+- **Directional Sun In-Scattering**: Atmospheric halo and warm glow when looking towards the sun.
+- **Seamless Skybox Horizon Blending**: Panoramic skydome and cubemap horizon automatically blend into fog color to eliminate abrupt background clipping.
 
 ### 🌑 Dynamic Shadow Mapping Subsystem
 - **Cascaded Shadow Mapping (CSM)**:
@@ -78,21 +80,30 @@
   - **Frustum Debug Mode**: Color-coded visualization of cascade levels in real time.
 - **Omnidirectional Point Light Shadows**:
   - Dynamic cubemap depth rendering (`GL_TEXTURE_CUBE_MAP`).
-  - Distance attenuation with far-plane depth comparison.
+  - **20-Sample Spherical Poisson PCF**: Smooth, jitter-free shadow borders.
+  - **Karis Windowed Attenuation**: Unreal-style smooth quadratic cutoff $(1 - (d/R)^2)^2$ eliminating hard light circular borders.
 - **Spotlights**: Realistic dual-cone angle cutoffs and smooth penumbra falloff.
 
-### 🛠️ Integrated Scene Editor (Dear ImGui)
-- **Scene Viewport**: Off-screen framebuffer target with interactive aspect ratio preservation and dynamic window resizing.
-- **Scene Hierarchy**: Interactive tree view of all loaded entities and lights.
-- **Entity Inspector**: Real-time manipulation of:
-  - Transform components (Position, Rotation, Scale).
-  - Light parameters (Color, Intensity, Direction, Attenuation, Cutoffs).
-- **Lighting & Atmosphere Controls**:
-  - Directional Sun orientation, color, and radiant intensity.
-  - Skybox cubemap toggle.
-  - Shadow resolution quality presets (Very Low to Ultra).
-  - Post-processing tonemapping operators, exposure, and gamma sliders.
-- **Performance Telemetry**: Live FPS, CPU frame time (ms), and GPU render time (ms).
+### ⚡ Performance & Culling
+- **Camera Frustum Culling**:
+  - Gribb-Hartmann view-projection matrix extraction of 6 frustum planes.
+  - World-space transformed 8-corner AABB bounding box visibility test against positive half-spaces.
+  - Real-time performance telemetry reporting rendered vs culled entity counts.
+
+### 🛠️ Integrated Scene Editor & Workflow (Dear ImGui & ImGuizmo)
+- **Interactive 3D Viewport Transform Gizmos**:
+  - 3D translation arrows, rotation rings, and scale cubes directly inside the viewport.
+  - Quick hotkeys: `W` (Translate), `E` (Rotate), `R` (Scale), `Q` (Hide).
+  - Local vs World coordinate space modes.
+  - Grid and angle snapping support.
+- **Scene Serialization & JSON Persistence**:
+  - Main menu bar with `File` (`New Scene`, `Open Scene...`, `Save Scene`, `Save Scene As...`).
+  - Keyboard shortcuts (`Ctrl+S`, `Ctrl+O`, `Ctrl+N`).
+  - Saves entities, models, transforms, lights, skybox, bloom, fog, and exposure into human-readable `.scene` JSON files.
+- **Scene Hierarchy & Entity Inspector**:
+  - Tree view with entity selection, addition (`Directional Light`, `Point Light`, `Spotlight`), and deletion.
+  - Full inspector controls for materials, light properties, and transforms.
+- **Performance Telemetry**: Live FPS, CPU frame time (ms), GPU render time (ms), and culling statistics.
 - **Fly Camera**: Smooth 6-DoF editor navigation with configurable movement speed and field-of-view (FoV).
 
 ---
