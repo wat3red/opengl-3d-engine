@@ -39,6 +39,7 @@ set(ENGINE_SOURCES
     # Scene
     src/scene/scene.cpp
     src/scene/light.cpp
+    src/scene/scene_serializer.cpp
 
     # Assets
     src/assets/asset_manager.cpp
@@ -93,6 +94,7 @@ set(ENGINE_HEADERS
     src/scene/model_entity.h
     src/scene/light.h
     src/scene/transform.h
+    src/scene/scene_serializer.h
 
     # Assets
     src/assets/asset_manager.h

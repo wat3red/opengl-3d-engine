@@ -167,6 +167,7 @@
     <ClCompile Include="src\renderer\vertex_buffer_layout.cpp" />
     <ClCompile Include="src\scene\light.cpp" />
     <ClCompile Include="src\scene\scene.cpp" />
+    <ClCompile Include="src\scene\scene_serializer.cpp" />
     <ClCompile Include="src\assets\asset_manager.cpp" />
     <ClCompile Include="src\physics\rigidbody.cpp" />
     <ClCompile Include="src\editor\editor.cpp" />
@@ -208,6 +209,7 @@
     <ClInclude Include="src\scene\model_entity.h" />
     <ClInclude Include="src\scene\scene.h" />
     <ClInclude Include="src\scene\transform.h" />
+    <ClInclude Include="src\scene\scene_serializer.h" />
     <ClInclude Include="src\assets\asset_manager.h" />
     <ClInclude Include="src\physics\rigidbody.h" />
     <ClInclude Include="src\editor\editor.h" />

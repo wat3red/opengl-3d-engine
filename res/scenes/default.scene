@@ -1,0 +1,83 @@
+{
+	"Scene": "IgnisScene",
+	"Skybox": {
+		"Active": true,
+		"Path": "res/models/skybox/source/basic_skybox_3d.fbx"
+	},
+	"Environment": {
+		"Exposure": 1.0,
+		"ToneMappingOperator": 0,
+		"Gamma": 2.2,
+		"BloomEnabled": true,
+		"BloomIntensity": 0.8,
+		"BloomThreshold": 1.0,
+		"BloomRadius": 0.005,
+		"FogEnabled": false,
+		"FogColor": [0.65, 0.75, 0.85],
+		"FogDensity": 0.015,
+		"FogStart": 10.0,
+		"FogEnd": 120.0,
+		"FogHeightFalloff": 0.02
+	},
+	"Entities": [
+		{
+			"Name": "Clock Tower Map",
+			"ModelPath": "res/models/house/source/free_fire_maxx_new_clock_tower_map_download_free.glb",
+			"Active": true,
+			"CastsShadow": true,
+			"Position": [0.0, 0.0, 0.0],
+			"Rotation": [0.0, 0.0, 0.0],
+			"Scale": [100.0, 100.0, 100.0]
+		}
+	],
+	"Lights": [
+		{
+			"Name": "Sun",
+			"Type": "Directional",
+			"Active": true,
+			"Color": [1.0, 1.0, 0.95],
+			"Intensity": 0.8,
+			"Position": [0.0, 0.0, 0.0],
+			"Direction": [-0.2, -1.0, -0.3],
+			"Range": 25.0,
+			"InnerCutoff": 12.5,
+			"OuterCutoff": 17.5
+		},
+		{
+			"Name": "Courtyard Lamp",
+			"Type": "Point",
+			"Active": true,
+			"Color": [1.0, 0.85, 0.6],
+			"Intensity": 2.0,
+			"Position": [0.0, 6.0, 0.0],
+			"Direction": [0.0, -1.0, 0.0],
+			"Range": 35.0,
+			"InnerCutoff": 12.5,
+			"OuterCutoff": 17.5
+		},
+		{
+			"Name": "Tower Lamp",
+			"Type": "Point",
+			"Active": true,
+			"Color": [0.4, 0.7, 1.0],
+			"Intensity": 1.5,
+			"Position": [0.0, 18.0, 0.0],
+			"Direction": [0.0, -1.0, 0.0],
+			"Range": 25.0,
+			"InnerCutoff": 12.5,
+			"OuterCutoff": 17.5
+		},
+		{
+			"Name": "Flashlight",
+			"Type": "Spotlight",
+			"Active": true,
+			"Color": [1.0, 1.0, 1.0],
+			"Intensity": 0.0,
+			"Position": [0.0, 15.0, 60.0],
+			"Direction": [0.0, 0.0, -1.0],
+			"Range": 25.0,
+			"InnerCutoff": 12.5,
+			"OuterCutoff": 17.5
+		}
+	]
+}

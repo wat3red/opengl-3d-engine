@@ -7,8 +7,10 @@
 #include <imgui/imgui_impl_opengl3.h>
 #include <imgui/ImGuizmo.h>
 #include <glm/gtc/type_ptr.hpp>
+#include "scene_serializer.h"
 
 #include <chrono>
+#include <algorithm>
 
 Editor::Editor(Scene& scene, Renderer& renderer)
 	: m_Scene(scene),
@@ -78,8 +80,31 @@ void Editor::ProcessInput(GLFWwindow* window, float deltaTime)
 {
 	m_InputHandler.Update(window, deltaTime);
 
+	// Shortcuts for Save, Open, New (Ctrl+S, Ctrl+O, Ctrl+N)
+	bool ctrl = (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS);
+	if (ctrl && !ImGui::GetIO().WantTextInput)
+	{
+		static bool s_CtrlActionFired = false;
+		if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+		{
+			if (!s_CtrlActionFired) { SaveScene(m_CurrentScenePath); s_CtrlActionFired = true; }
+		}
+		else if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
+		{
+			if (!s_CtrlActionFired) { m_ShowOpenModal = true; s_CtrlActionFired = true; }
+		}
+		else if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS)
+		{
+			if (!s_CtrlActionFired) { NewScene(); s_CtrlActionFired = true; }
+		}
+		else
+		{
+			s_CtrlActionFired = false;
+		}
+	}
+
 	// Gizmo shortcuts (W: Translate, E: Rotate, R: Scale, Q: None)
-	if (!m_Camera.isCapturingMovements && !ImGui::GetIO().WantTextInput)
+	if (!m_Camera.isCapturingMovements && !ImGui::GetIO().WantTextInput && !ctrl)
 	{
 		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
 			m_GizmoType = ImGuizmo::TRANSLATE;
@@ -170,11 +195,16 @@ void Editor::RenderSceneViewport()
 
 void Editor::RenderUI(float deltaTime)
 {
+	if (m_StatusTimer > 0.0f)
+		m_StatusTimer -= deltaTime;
+
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 	ImGuizmo::BeginFrame();
 
+	DrawMainMenuBar();
+	DrawModals();
 	DrawViewportPanel();
 	DrawSceneHierarchyPanel();
 	DrawEntityInspectorPanel();
@@ -319,6 +349,29 @@ void Editor::DrawSceneHierarchyPanel()
 		}
 	}
 
+	if (ImGui::BeginPopupContextWindow("HierarchyContext", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+	{
+		if (ImGui::MenuItem("Add Directional Light"))
+		{
+			auto light = std::make_shared<DirectionalLight>("Directional Light", glm::vec3(-0.2f, -1.0f, -0.3f), glm::vec3(1.0f), 1.0f);
+			m_Scene.AddLight(light);
+			m_Scene.SetSelectedEntity(light);
+		}
+		if (ImGui::MenuItem("Add Point Light"))
+		{
+			auto light = std::make_shared<PointLight>("Point Light", m_Camera.Position + m_Camera.Front * 5.0f, glm::vec3(1.0f, 0.9f, 0.7f), 3.0f, 25.0f);
+			m_Scene.AddLight(light);
+			m_Scene.SetSelectedEntity(light);
+		}
+		if (ImGui::MenuItem("Add Spotlight"))
+		{
+			auto light = std::make_shared<SpotLight>("Spotlight", m_Camera.Position, m_Camera.Front, glm::vec3(1.0f), 2.0f, 12.5f, 17.5f);
+			m_Scene.AddLight(light);
+			m_Scene.SetSelectedEntity(light);
+		}
+		ImGui::EndPopup();
+	}
+
 	ImGui::End();
 }
 
@@ -456,6 +509,20 @@ void Editor::DrawEntityInspectorPanel()
 		}
 	}
 
+	ImGui::Separator();
+	if (ImGui::Button("Delete Selected Entity", ImVec2(-1.0f, 0.0f)))
+	{
+		auto& ents = m_Scene.GetEntities();
+		ents.erase(std::remove_if(ents.begin(), ents.end(), [&](const auto& e) { return e == selectedEntity; }), ents.end());
+
+		auto& lights = m_Scene.GetLights();
+		lights.erase(std::remove_if(lights.begin(), lights.end(), [&](const auto& l) { return l == selectedEntity; }), lights.end());
+
+		m_Scene.SetSelectedEntity(nullptr);
+		ImGui::End();
+		return;
+	}
+
 	ImGui::End();
 }
 
@@ -591,4 +658,153 @@ void Editor::DrawMetricsPanel(float deltaTime)
 	ImGui::Text("Lights: %zu", m_Scene.GetLights().size());
 
 	ImGui::End();
+}
+
+void Editor::SaveScene(const std::string& filepath)
+{
+	SceneSerializer serializer(m_Scene, &m_Renderer, this);
+	if (serializer.Serialize(filepath))
+	{
+		m_CurrentScenePath = filepath;
+		m_StatusMessage = "Scene saved: " + filepath;
+		m_StatusTimer = 3.5f;
+	}
+	else
+	{
+		m_StatusMessage = "Failed to save scene: " + filepath;
+		m_StatusTimer = 4.0f;
+	}
+}
+
+void Editor::LoadScene(const std::string& filepath)
+{
+	SceneSerializer serializer(m_Scene, &m_Renderer, this);
+	if (serializer.Deserialize(filepath))
+	{
+		m_CurrentScenePath = filepath;
+		m_StatusMessage = "Scene loaded: " + filepath;
+		m_StatusTimer = 3.5f;
+	}
+	else
+	{
+		m_StatusMessage = "Failed to load scene: " + filepath;
+		m_StatusTimer = 4.0f;
+	}
+}
+
+void Editor::NewScene()
+{
+	m_Scene.Clear();
+	m_CurrentScenePath = "res/scenes/untitled.scene";
+	m_StatusMessage = "New empty scene created";
+	m_StatusTimer = 3.0f;
+}
+
+void Editor::DrawMainMenuBar()
+{
+	if (ImGui::BeginMainMenuBar())
+	{
+		if (ImGui::BeginMenu("File"))
+		{
+			if (ImGui::MenuItem("New Scene", "Ctrl+N"))
+			{
+				NewScene();
+			}
+			if (ImGui::MenuItem("Open Scene...", "Ctrl+O"))
+			{
+				m_ShowOpenModal = true;
+			}
+			if (ImGui::MenuItem("Save Scene", "Ctrl+S"))
+			{
+				SaveScene(m_CurrentScenePath);
+			}
+			if (ImGui::MenuItem("Save Scene As..."))
+			{
+				m_ShowSaveAsModal = true;
+			}
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("Add"))
+		{
+			if (ImGui::MenuItem("Directional Light"))
+			{
+				auto sun = std::make_shared<DirectionalLight>("Directional Light", glm::vec3(-0.2f, -1.0f, -0.3f), glm::vec3(1.0f), 1.0f);
+				m_Scene.AddLight(sun);
+				m_Scene.SetSelectedEntity(sun);
+			}
+			if (ImGui::MenuItem("Point Light"))
+			{
+				auto lamp = std::make_shared<PointLight>("Point Light", m_Camera.Position + m_Camera.Front * 5.0f, glm::vec3(1.0f, 0.9f, 0.7f), 3.0f, 25.0f);
+				m_Scene.AddLight(lamp);
+				m_Scene.SetSelectedEntity(lamp);
+			}
+			if (ImGui::MenuItem("Spotlight"))
+			{
+				auto spot = std::make_shared<SpotLight>("Spotlight", m_Camera.Position, m_Camera.Front, glm::vec3(1.0f), 2.0f, 12.5f, 17.5f);
+				m_Scene.AddLight(spot);
+				m_Scene.SetSelectedEntity(spot);
+			}
+			ImGui::EndMenu();
+		}
+
+		if (m_StatusTimer > 0.0f)
+		{
+			ImGui::SameLine(ImGui::GetWindowWidth() - 320.0f);
+			ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "%s", m_StatusMessage.c_str());
+		}
+
+		ImGui::EndMainMenuBar();
+	}
+}
+
+void Editor::DrawModals()
+{
+	if (m_ShowSaveAsModal)
+	{
+		ImGui::OpenPopup("Save Scene As");
+		m_ShowSaveAsModal = false;
+	}
+
+	if (ImGui::BeginPopupModal("Save Scene As", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		ImGui::Text("Enter target scene file path:");
+		ImGui::InputText("##SaveAsPath", m_ScenePathBuffer, sizeof(m_ScenePathBuffer));
+
+		if (ImGui::Button("Save", ImVec2(120, 0)))
+		{
+			SaveScene(std::string(m_ScenePathBuffer));
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel", ImVec2(120, 0)))
+		{
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+
+	if (m_ShowOpenModal)
+	{
+		ImGui::OpenPopup("Open Scene");
+		m_ShowOpenModal = false;
+	}
+
+	if (ImGui::BeginPopupModal("Open Scene", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		ImGui::Text("Enter scene file path to open:");
+		ImGui::InputText("##OpenPath", m_ScenePathBuffer, sizeof(m_ScenePathBuffer));
+
+		if (ImGui::Button("Open", ImVec2(120, 0)))
+		{
+			LoadScene(std::string(m_ScenePathBuffer));
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel", ImVec2(120, 0)))
+		{
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
 }
