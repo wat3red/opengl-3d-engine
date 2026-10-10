@@ -16,6 +16,12 @@ struct PointLightShadowData {
 	GLuint fbo;
 };
 
+struct SpotLightShadowData {
+	GLuint depthMap = 0;
+	GLuint fbo = 0;
+	glm::mat4 lightSpaceMatrix{ 1.0f };
+};
+
 struct ShadowSettings {
 	int resolution;                     // Shadow map resolution
 	int numCascades;                   // Number of cascades
@@ -73,8 +79,10 @@ public:
 	const ShadowSettings& GetShadowSettings() const { return m_ShadowSettings; }
 
 	const std::vector<PointLightShadowData>& GetPointLightShadows() const { return m_PointLightShadows; }
+	const std::vector<SpotLightShadowData>& GetSpotLightShadows() const { return m_SpotLightShadows; }
 
 	static constexpr unsigned int POINT_SHADOW_WIDTH = 1024, POINT_SHADOW_HEIGHT = 1024;
+	static constexpr unsigned int SPOT_SHADOW_WIDTH = 1024, SPOT_SHADOW_HEIGHT = 1024;
 
 private:
 	std::vector<float> m_ShadowCascadeLevels;
@@ -83,6 +91,7 @@ private:
 	unsigned int m_LightFBO = 0;
 
 	std::vector<PointLightShadowData> m_PointLightShadows;
+	std::vector<SpotLightShadowData> m_SpotLightShadows;
 	ShadowSettings m_ShadowSettings{};
 
 	glm::ivec2* m_WindowSize = nullptr;
@@ -92,8 +101,10 @@ private:
 
 	Shader m_DirectionalShadowShader;
 	Shader m_PointShadowShader;
+	Shader m_SpotShadowShader;
 	
 	void SetupPointLightDepthMaps(int numPointLights);
+	void SetupSpotLightDepthMaps(int numSpotLights);
 	std::vector<glm::mat4> CalculateCascadeLightMatrices(glm::vec3 lightDir, const glm::ivec2& windowSize);
 	glm::mat4 CalculateLightSpaceMatrix(const Camera& camera, glm::vec3 lightDir, float nearPlane, float farPlane);
 	std::vector<glm::mat4> CalculatePointLightMatrices(glm::vec3 lightPos, float nearPlane, float farPlane);

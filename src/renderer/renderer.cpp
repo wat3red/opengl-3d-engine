@@ -176,6 +176,16 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 		m_MainShader.SetUniform1i(uniformName, static_cast<int>(6 + i));
 	}
 
+	const auto& spotShadows = m_ShadowRenderer.GetSpotLightShadows();
+	for (size_t i = 0; i < spotShadows.size(); ++i) {
+		glActiveTexture(GL_TEXTURE11 + static_cast<GLenum>(i));
+		glBindTexture(GL_TEXTURE_2D, spotShadows[i].depthMap);
+		std::string uniformName = std::format("spotLights[{}]", i);
+		m_MainShader.SetUniform1i(uniformName + ".shadowMap", static_cast<int>(11 + i));
+		m_MainShader.SetUniformMat4f(uniformName + ".lightSpaceMatrix", spotShadows[i].lightSpaceMatrix);
+		m_MainShader.SetUniform1i(uniformName + ".hasShadow", (i < spotLightCount) ? 1 : 0);
+	}
+
 	for (ModelEntity* entity : visibleEntities) {
 		entity->Draw(m_MainShader);
 	}

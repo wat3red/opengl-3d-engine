@@ -103,6 +103,9 @@ struct SpotLight {
     float constant;
     float linear;
     float quadratic;
+    sampler2D shadowMap;
+    mat4 lightSpaceMatrix;
+    int hasShadow;
 };
 
 #define NR_POINT_LIGHTS 4
@@ -305,6 +308,34 @@ float CalculatePointShadow(vec3 fragPos, vec3 lightPos, vec3 normal, samplerCube
     return shadow / float(samples);
 }
 
+float CalculateSpotShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir, sampler2D shadowMap)
+{
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+
+    if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
+    {
+        return 0.0;
+    }
+
+    float currentDepth = projCoords.z;
+    float cosTheta = max(dot(normal, lightDir), 0.0);
+    float bias = max(0.003 * (1.0 - cosTheta), 0.0005);
+
+    float shadow = 0.0;
+    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+    for (int x = -1; x <= 1; ++x)
+    {
+        for (int y = -1; y <= 1; ++y)
+        {
+            float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
+            shadow += (currentDepth - bias > pcfDepth) ? 1.0 : 0.0;
+        }
+    }
+
+    return shadow / 9.0;
+}
+
 // ---------------- Main Shader -----------------
 
 void main()
@@ -435,7 +466,14 @@ void main()
         float attenuation = 1.0 / denom;
         vec3 radiance = spotLights[i].color * spotLights[i].intensity * attenuation * spotIntensity * window;
 
-        Lo += CalcPBRLight(L, radiance, N, V, albedo, roughness, metallic, F0);
+        float shadow = 0.0;
+        if (spotLights[i].hasShadow == 1)
+        {
+            vec4 fragPosLightSpace = spotLights[i].lightSpaceMatrix * vec4(FragPos, 1.0);
+            shadow = CalculateSpotShadow(fragPosLightSpace, N, L, spotLights[i].shadowMap);
+        }
+
+        Lo += (1.0 - shadow) * CalcPBRLight(L, radiance, N, V, albedo, roughness, metallic, F0);
     }
 
     // Ambient Lighting (soft ambient scaled by AO)

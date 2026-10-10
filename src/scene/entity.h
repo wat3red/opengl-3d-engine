@@ -27,13 +27,13 @@ public:
 	const Transform& GetTransform() const { return m_Transform; }
 
 	glm::vec3 GetPosition() const { return m_Transform.Position; }
-	void SetPosition(const glm::vec3& position) { m_Transform.Position = position; }
+	virtual void SetPosition(const glm::vec3& position) { m_Transform.Position = position; }
 
 	glm::vec3 GetRotation() const { return m_Transform.Rotation; }
-	void SetRotation(const glm::vec3& rotation) { m_Transform.Rotation = rotation; }
+	virtual void SetRotation(const glm::vec3& rotation) { m_Transform.Rotation = rotation; }
 
 	glm::vec3 GetScale() const { return m_Transform.Scale; }
-	void SetScale(const glm::vec3& scale) { m_Transform.Scale = scale; }
+	virtual void SetScale(const glm::vec3& scale) { m_Transform.Scale = scale; }
 
 	glm::mat4 GetModelMatrix() const { return m_Transform.GetMatrix(); }
 

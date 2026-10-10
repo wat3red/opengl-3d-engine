@@ -137,22 +137,33 @@ void Editor::RenderSceneViewport()
 
 		for (const auto& light : m_Scene.GetLights())
 		{
-			if (!light || !light->IsActive() || light->GetType() != LightType::Point)
+			if (!light || !light->IsActive())
 				continue;
 
-			// Do not render debug cube if light is closer than 0.5m to camera to avoid camera clipping
+			// Do not render debug icon if light is closer than 0.5m to camera to avoid camera clipping
 			if (glm::distance(light->GetPosition(), m_Camera.Position) < 0.5f)
 				continue;
 
 			lightShader.SetUniform4f("objectColor", glm::vec4(light->GetColor(), 1.0f));
 
-			glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), light->GetPosition());
-			modelMatrix = glm::scale(modelMatrix, glm::vec3(0.2f));
-			lightShader.SetUniformMat4f("model", modelMatrix);
-			lightShader.SetUniformMat4f("view", m_Camera.GetViewMatrix());
-			lightShader.SetUniformMat4f("projection", m_Camera.GetProjectionMatrix(m_ViewportSize));
-
-			m_Renderer.RenderCube();
+			if (light->GetType() == LightType::Point)
+			{
+				glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), light->GetPosition());
+				modelMatrix = glm::scale(modelMatrix, glm::vec3(0.2f));
+				lightShader.SetUniformMat4f("model", modelMatrix);
+				lightShader.SetUniformMat4f("view", m_Camera.GetViewMatrix());
+				lightShader.SetUniformMat4f("projection", m_Camera.GetProjectionMatrix(m_ViewportSize));
+				m_Renderer.RenderCube();
+			}
+			else if (light->GetType() == LightType::Spotlight)
+			{
+				glm::mat4 modelMatrix = light->GetModelMatrix();
+				modelMatrix = glm::scale(modelMatrix, glm::vec3(0.15f, 0.15f, 0.4f));
+				lightShader.SetUniformMat4f("model", modelMatrix);
+				lightShader.SetUniformMat4f("view", m_Camera.GetViewMatrix());
+				lightShader.SetUniformMat4f("projection", m_Camera.GetProjectionMatrix(m_ViewportSize));
+				m_Renderer.RenderCube();
+			}
 		}
 
 		lightShader.Unbind();
@@ -327,20 +338,14 @@ void Editor::DrawViewportPanel()
 				ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(modelMatrix), translation, rotation, scale);
 
 				selectedEntity->SetPosition(glm::vec3(translation[0], translation[1], translation[2]));
-				selectedEntity->SetRotation(glm::vec3(rotation[0], rotation[1], rotation[2]));
-				selectedEntity->SetScale(glm::vec3(scale[0], scale[1], scale[2]));
 
-				if (light)
+				if (operation == ImGuizmo::ROTATE)
 				{
-					if (light->GetType() == LightType::Directional || light->GetType() == LightType::Spotlight)
-					{
-						glm::mat4 rotMatrix = glm::mat4(1.0f);
-						rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation[0]), glm::vec3(1.0f, 0.0f, 0.0f));
-						rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation[1]), glm::vec3(0.0f, 1.0f, 0.0f));
-						rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation[2]), glm::vec3(0.0f, 0.0f, 1.0f));
-						glm::vec3 newDir = glm::normalize(glm::vec3(rotMatrix * glm::vec4(0.0f, -1.0f, 0.0f, 0.0f)));
-						light->SetDirection(newDir);
-					}
+					selectedEntity->SetRotation(glm::vec3(rotation[0], rotation[1], rotation[2]));
+				}
+				else if (operation == ImGuizmo::SCALE && !light)
+				{
+					selectedEntity->SetScale(glm::vec3(scale[0], scale[1], scale[2]));
 				}
 			}
 		}

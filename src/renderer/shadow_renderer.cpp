@@ -14,8 +14,10 @@ void ShadowRenderer::Initialize(Camera* camera, const ShadowQuality& settings) {
 		glUniformBlockBinding(m_DirectionalShadowShader.RendererID(), shadowUBO, 0);
 	}
 	m_PointShadowShader = Shader("shaders/PointShadowsDepth.shader");
+	m_SpotShadowShader = Shader("shaders/SpotShadowsDepth.shader");
 	m_CurrentCamera = camera;
 	SetupPointLightDepthMaps(4);
+	SetupSpotLightDepthMaps(4);
 
 	RecalculateShadowSettings();
 }
@@ -113,6 +115,32 @@ void ShadowRenderer::SetupPointLightDepthMaps(int numPointLights) {
 	}
 }
 
+void ShadowRenderer::SetupSpotLightDepthMaps(int numSpotLights) {
+	for (int i = 0; i < numSpotLights; ++i) {
+		SpotLightShadowData shadowData;
+		glGenTextures(1, &shadowData.depthMap);
+		glBindTexture(GL_TEXTURE_2D, shadowData.depthMap);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F,
+			SPOT_SHADOW_WIDTH, SPOT_SHADOW_HEIGHT, 0,
+			GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+		glGenFramebuffers(1, &shadowData.fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, shadowData.fbo);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowData.depthMap, 0);
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		m_SpotLightShadows.push_back(shadowData);
+	}
+}
+
 void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::vector<Light*>& lights, const std::vector<ModelEntity*>& entities) {
 	for (const Light* light : lights) {
 		if (light->GetType() == DIRECTIONAL) {
@@ -187,6 +215,46 @@ void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::v
 		}
 	}
 	m_PointShadowShader.Unbind();
+
+	glViewport(0, 0, SPOT_SHADOW_WIDTH, SPOT_SHADOW_HEIGHT);
+	m_SpotShadowShader.Bind();
+	int spotLightIndex = 0;
+	for (const Light* light : lights) {
+		if (light && light->IsActive() && light->GetType() == LightType::Spotlight && spotLightIndex < static_cast<int>(m_SpotLightShadows.size())) {
+			auto& shadowData = m_SpotLightShadows[spotLightIndex];
+			glBindFramebuffer(GL_FRAMEBUFFER, shadowData.fbo);
+			glClear(GL_DEPTH_BUFFER_BIT);
+
+			glm::vec3 lightPos = light->GetPosition();
+			glm::vec3 lightDir = light->GetDirection();
+			if (glm::length(lightDir) < 0.001f)
+				lightDir = glm::vec3(0.0f, -1.0f, 0.0f);
+			else
+				lightDir = glm::normalize(lightDir);
+
+			float fov = glm::radians(std::min(light->GetOuterCutoff() * 2.0f, 175.0f));
+			float nearPlane = 0.1f;
+			float farPlane = std::max(light->GetRange(), 1.0f);
+			glm::mat4 lightProj = glm::perspective(fov, 1.0f, nearPlane, farPlane);
+
+			glm::vec3 up = (std::abs(lightDir.y) > 0.99f) ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(0.0f, 1.0f, 0.0f);
+			glm::mat4 lightView = glm::lookAt(lightPos, lightPos + lightDir, up);
+			shadowData.lightSpaceMatrix = lightProj * lightView;
+
+			m_SpotShadowShader.SetUniformMat4f("lightSpaceMatrix", shadowData.lightSpaceMatrix);
+
+			glCullFace(GL_FRONT);
+			for (Entity* entity : entities) {
+				if (entity && entity->CastsShadow()) {
+					entity->Draw(m_SpotShadowShader);
+				}
+			}
+			glCullFace(GL_BACK);
+
+			++spotLightIndex;
+		}
+	}
+	m_SpotShadowShader.Unbind();
 
 	glViewport(0, 0, windowSize.x, windowSize.y);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -285,6 +353,13 @@ void ShadowRenderer::Cleanup() {
 		glDeleteFramebuffers(1, &shadowData.fbo);
 		glDeleteTextures(1, &shadowData.depthCubemap);
 	}
+	m_PointLightShadows.clear();
+
+	for (auto& shadowData : m_SpotLightShadows) {
+		glDeleteFramebuffers(1, &shadowData.fbo);
+		glDeleteTextures(1, &shadowData.depthMap);
+	}
+	m_SpotLightShadows.clear();
 }
 
 std::vector<float> ShadowRenderer::CalculateCascadeSplits(int numCascades, float lambda) {
