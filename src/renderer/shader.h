@@ -44,6 +44,7 @@ public:
 	bool SetUniform1i(const std::string& name, int value);
 	bool SetUniform1f(const std::string& name, float value);
 	bool SetUniform2f(const std::string& name, float value1, float value2);
+	bool SetUniform2f(const std::string& name, glm::vec2 value);
 	bool SetUniformMat4f(const std::string& name, glm::mat4 matrix);
 	inline unsigned int RendererID() const { return m_RendererID; }
 };

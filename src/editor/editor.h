@@ -5,6 +5,7 @@
 #include "renderer.h"
 #include "framebuffer.h"
 #include "input_handler.h"
+#include "bloom_renderer.h"
 #include <glm/glm.hpp>
 #include <memory>
 
@@ -45,6 +46,11 @@ public:
 	int& GetToneMappingOperator() { return m_ToneMappingOperator; }
 	int GetToneMappingOperator() const { return m_ToneMappingOperator; }
 
+	bool& GetBloomEnabled() { return m_BloomEnabled; }
+	float& GetBloomIntensity() { return m_BloomIntensity; }
+	float& GetBloomThreshold() { return m_BloomThreshold; }
+	float& GetBloomFilterRadius() { return m_BloomFilterRadius; }
+
 private:
 	Scene& m_Scene;
 	Renderer& m_Renderer;
@@ -54,10 +60,16 @@ private:
 	std::unique_ptr<Framebuffer> m_HDRFramebuffer;
 	std::unique_ptr<Framebuffer> m_LDRFramebuffer;
 	Shader m_ToneMapShader;
+	BloomRenderer m_BloomRenderer;
 
 	float m_Exposure = 1.0f;
 	int m_ToneMappingOperator = 0;
 	float m_Gamma = 2.2f;
+
+	bool m_BloomEnabled = true;
+	float m_BloomThreshold = 1.0f;
+	float m_BloomIntensity = 0.8f;
+	float m_BloomFilterRadius = 0.005f;
 
 	bool m_IsViewportFocused = false;
 	bool m_IsViewportHovered = false;

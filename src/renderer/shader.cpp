@@ -229,6 +229,15 @@ bool Shader::SetUniform2f(const std::string& name, float value1, float value2)
 	return true;
 }
 
+bool Shader::SetUniform2f(const std::string& name, glm::vec2 value)
+{
+	int location = GetUniformLocation(name);
+	if (location == -1)
+		return false;
+	glUniform2f(location, value[0], value[1]);
+	return true;
+}
+
 
 
 bool Shader::SetUniformMat4f(const std::string& name, glm::mat4 matrix)

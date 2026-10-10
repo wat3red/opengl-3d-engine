@@ -34,6 +34,7 @@ set(ENGINE_SOURCES
     src/renderer/model.cpp
     src/renderer/primitive.cpp
     src/renderer/skybox.cpp
+    src/renderer/bloom_renderer.cpp
 
     # Scene
     src/scene/scene.cpp

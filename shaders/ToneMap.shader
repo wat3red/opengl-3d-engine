@@ -19,9 +19,12 @@ in vec2 TexCoords;
 out vec4 FragColor;
 
 uniform sampler2D hdrBuffer;
+uniform sampler2D bloomBuffer;
 uniform float exposure;
 uniform int toneMappingOperator;
 uniform float gamma;
+uniform int enableBloom;
+uniform float bloomIntensity;
 
 vec3 ACESFilm(vec3 x)
 {
@@ -41,6 +44,12 @@ vec3 Reinhard(vec3 x)
 void main()
 {
     vec3 hdrColor = texture(hdrBuffer, TexCoords).rgb;
+
+    if (enableBloom == 1)
+    {
+        vec3 bloomColor = texture(bloomBuffer, TexCoords).rgb;
+        hdrColor += bloomColor * max(bloomIntensity, 0.0);
+    }
 
     vec3 mapped = hdrColor * max(exposure, 0.001);
 

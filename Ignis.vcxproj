@@ -153,6 +153,7 @@
     <ClCompile Include="src\core\window.cpp" />
     <ClCompile Include="src\renderer\framebuffer.cpp" />
     <ClCompile Include="src\renderer\index_buffer.cpp" />
+    <ClCompile Include="src\renderer\bloom_renderer.cpp" />
     <ClCompile Include="src\renderer\model.cpp" />
     <ClCompile Include="src\renderer\primitive.cpp" />
     <ClCompile Include="src\renderer\renderer.cpp" />
@@ -187,6 +188,8 @@
     <ClInclude Include="src\renderer\camera.h" />
     <ClInclude Include="src\renderer\framebuffer.h" />
     <ClInclude Include="src\renderer\index_buffer.h" />
+    <ClInclude Include="src\renderer\bloom_renderer.h" />
+    <ClInclude Include="src\renderer\frustum.h" />
     <ClInclude Include="src\renderer\mesh.h" />
     <ClInclude Include="src\renderer\model.h" />
     <ClInclude Include="src\renderer\primitive.h" />

@@ -37,6 +37,7 @@ void Editor::Initialize(GLFWwindow* window)
 	m_LDRFramebuffer = std::make_unique<Framebuffer>(ldrSpec);
 
 	m_ToneMapShader = Shader("shaders/ToneMap.shader");
+	m_BloomRenderer.Initialize(1280, 720);
 
 	m_InputHandler.SetCallbacks(window);
 
@@ -60,6 +61,7 @@ void Editor::Initialize(GLFWwindow* window)
 
 void Editor::Shutdown()
 {
+	m_BloomRenderer.Shutdown();
 	if (ImGui::GetCurrentContext())
 	{
 		ImGui_ImplOpenGL3_Shutdown();
@@ -111,7 +113,13 @@ void Editor::RenderSceneViewport()
 		lightShader.Unbind();
 		m_HDRFramebuffer->Unbind();
 
-		// 2. Post-processing tonemapping pass: HDR -> LDR
+		// 2. Post-processing Bloom pass (multi-scale Dual Filter Bloom)
+		if (m_BloomEnabled)
+		{
+			m_BloomRenderer.RenderBloom(m_HDRFramebuffer->GetColorAttachmentRendererID(), m_BloomThreshold, m_BloomFilterRadius);
+		}
+
+		// 3. Post-processing tonemapping pass: HDR + Bloom -> LDR
 		m_LDRFramebuffer->Bind();
 		glViewport(0, 0, m_ViewportSize.x, m_ViewportSize.y);
 		glClear(GL_COLOR_BUFFER_BIT);
@@ -121,6 +129,13 @@ void Editor::RenderSceneViewport()
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, m_HDRFramebuffer->GetColorAttachmentRendererID());
 		m_ToneMapShader.SetUniform1i("hdrBuffer", 0);
+
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, m_BloomRenderer.GetBloomTexture());
+		m_ToneMapShader.SetUniform1i("bloomBuffer", 1);
+		m_ToneMapShader.SetUniform1i("enableBloom", m_BloomEnabled ? 1 : 0);
+		m_ToneMapShader.SetUniform1f("bloomIntensity", m_BloomIntensity);
+
 		m_ToneMapShader.SetUniform1f("exposure", m_Exposure);
 		m_ToneMapShader.SetUniform1i("toneMappingOperator", m_ToneMappingOperator);
 		m_ToneMapShader.SetUniform1f("gamma", m_Gamma);
@@ -128,6 +143,7 @@ void Editor::RenderSceneViewport()
 		Primitive::GetFullScreenQuad()->Draw(m_ToneMapShader);
 
 		m_ToneMapShader.Unbind();
+		glActiveTexture(GL_TEXTURE0);
 		glEnable(GL_DEPTH_TEST);
 		m_LDRFramebuffer->Unbind();
 	}
@@ -172,6 +188,7 @@ void Editor::DrawViewportPanel()
 		if (m_LDRFramebuffer && (m_LDRFramebuffer->GetWidth() != m_ViewportSize.x || m_LDRFramebuffer->GetHeight() != m_ViewportSize.y))
 		{
 			m_LDRFramebuffer->Resize(m_ViewportSize.x, m_ViewportSize.y);
+			m_BloomRenderer.Resize(m_ViewportSize.x, m_ViewportSize.y);
 		}
 	}
 
@@ -427,6 +444,14 @@ void Editor::DrawEnvironmentPanel()
 
 	if (ImGui::CollapsingHeader("Post-Processing & Tone Mapping", ImGuiTreeNodeFlags_DefaultOpen))
 	{
+		ImGui::Checkbox("Enable HDR Bloom", &m_BloomEnabled);
+		if (m_BloomEnabled)
+		{
+			ImGui::SliderFloat("Bloom Intensity", &m_BloomIntensity, 0.0f, 5.0f, "%.2f");
+			ImGui::SliderFloat("Bloom Threshold", &m_BloomThreshold, 0.1f, 5.0f, "%.2f");
+			ImGui::SliderFloat("Bloom Radius", &m_BloomFilterRadius, 0.001f, 0.02f, "%.4f");
+		}
+		ImGui::Separator();
 		ImGui::SliderFloat("Exposure", &m_Exposure, 0.01f, 10.0f, "%.2f");
 		const char* tonemapOps[] = { "ACES Filmic", "Reinhard", "None (Clamp)" };
 		ImGui::Combo("Tone Mapping", &m_ToneMappingOperator, tonemapOps, IM_ARRAYSIZE(tonemapOps));
