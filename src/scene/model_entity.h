@@ -50,16 +50,50 @@ public:
 	const std::string& GetModelPath() const { return m_ModelPath; }
 	Rigidbody* GetRigidbody() const { return m_Rigidbody; }
 
+	void GetWorldAABB(glm::vec3& outMin, glm::vec3& outMax) const
+	{
+		if (!m_Model) {
+			outMin = m_Transform.Position;
+			outMax = m_Transform.Position;
+			return;
+		}
+
+		const auto& aabb = m_Model->GetAABB();
+		glm::mat4 M = m_Transform.GetMatrix();
+
+		glm::vec3 corners[8] = {
+			glm::vec3(aabb.min.x, aabb.min.y, aabb.min.z),
+			glm::vec3(aabb.max.x, aabb.min.y, aabb.min.z),
+			glm::vec3(aabb.min.x, aabb.max.y, aabb.min.z),
+			glm::vec3(aabb.max.x, aabb.max.y, aabb.min.z),
+			glm::vec3(aabb.min.x, aabb.min.y, aabb.max.z),
+			glm::vec3(aabb.max.x, aabb.min.y, aabb.max.z),
+			glm::vec3(aabb.min.x, aabb.max.y, aabb.max.z),
+			glm::vec3(aabb.max.x, aabb.max.y, aabb.max.z)
+		};
+
+		outMin = glm::vec3(std::numeric_limits<float>::max());
+		outMax = glm::vec3(std::numeric_limits<float>::lowest());
+
+		for (int i = 0; i < 8; ++i) {
+			glm::vec3 transformed = glm::vec3(M * glm::vec4(corners[i], 1.0f));
+			outMin = glm::min(outMin, transformed);
+			outMax = glm::max(outMax, transformed);
+		}
+	}
+
 	glm::vec3 GetBoundingBoxMin() const
 	{
-		if (!m_Model) return glm::vec3(0.0f);
-		return glm::vec3(m_Transform.GetMatrix() * glm::vec4(m_Model->GetAABB().min, 1.0f));
+		glm::vec3 bmin, bmax;
+		GetWorldAABB(bmin, bmax);
+		return bmin;
 	}
 
 	glm::vec3 GetBoundingBoxMax() const
 	{
-		if (!m_Model) return glm::vec3(0.0f);
-		return glm::vec3(m_Transform.GetMatrix() * glm::vec4(m_Model->GetAABB().max, 1.0f));
+		glm::vec3 bmin, bmax;
+		GetWorldAABB(bmin, bmax);
+		return bmax;
 	}
 
 private:

@@ -402,6 +402,7 @@ void Editor::DrawEnvironmentPanel()
 
 	if (ImGui::CollapsingHeader("Renderer Settings", ImGuiTreeNodeFlags_DefaultOpen))
 	{
+		ImGui::Checkbox("Frustum Culling", &m_Renderer.GetFrustumCullingEnabled());
 		ImGui::SliderFloat("Alpha Cutoff", &m_Renderer.GetAlphaThreshold(), 0.0f, 1.0f, "%.2f");
 	}
 
@@ -461,6 +462,8 @@ void Editor::DrawMetricsPanel(float deltaTime)
 	ImGui::Separator();
 	ImGui::Text("Viewport: %d x %d", m_ViewportSize.x, m_ViewportSize.y);
 	ImGui::Text("Entities: %zu", m_Scene.GetEntities().size());
+	const auto& stats = m_Renderer.GetStats();
+	ImGui::Text("Visible / Culled: %zu / %zu", stats.renderedEntities, stats.culledEntities);
 	ImGui::Text("Lights: %zu", m_Scene.GetLights().size());
 
 	ImGui::End();

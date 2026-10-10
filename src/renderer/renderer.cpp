@@ -37,6 +37,35 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 
 	m_ShadowRenderer.RenderShadowMaps(windowSize, lights, entities);
 
+	// Frustum Culling
+	m_Stats.totalEntities = entities.size();
+	m_Stats.renderedEntities = 0;
+	m_Stats.culledEntities = 0;
+
+	glm::mat4 viewProj = camera.GetProjectionMatrix(windowSize) * camera.GetViewMatrix();
+	Frustum cameraFrustum = Frustum::FromViewProjection(viewProj);
+
+	std::vector<ModelEntity*> visibleEntities;
+	visibleEntities.reserve(entities.size());
+
+	for (ModelEntity* entity : entities) {
+		if (!entity || !entity->IsActive()) continue;
+
+		if (m_FrustumCullingEnabled) {
+			glm::vec3 bmin, bmax;
+			entity->GetWorldAABB(bmin, bmax);
+			if (cameraFrustum.IsAABBVisible(bmin, bmax)) {
+				visibleEntities.push_back(entity);
+				m_Stats.renderedEntities++;
+			} else {
+				m_Stats.culledEntities++;
+			}
+		} else {
+			visibleEntities.push_back(entity);
+			m_Stats.renderedEntities++;
+		}
+	}
+
 	glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
 	glViewport(0, 0, windowSize.x, windowSize.y);
 	glClearColor(0.12f, 0.12f, 0.14f, 1.0f);
@@ -112,7 +141,7 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 		m_MainShader.SetUniform1i(uniformName, static_cast<int>(6 + i));
 	}
 
-	for (Entity* entity : entities) {
+	for (ModelEntity* entity : visibleEntities) {
 		entity->Draw(m_MainShader);
 	}
 

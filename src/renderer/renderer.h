@@ -5,6 +5,7 @@
 #include "light.h"
 #include "model_entity.h"
 #include "shadow_renderer.h"
+#include "frustum.h"
 #include <vector>
 #include <GL/glew.h>
 
@@ -12,6 +13,12 @@
 #define MAX_SPOT_LIGHTS 5
 
 class Scene;
+
+struct RenderStats {
+	size_t totalEntities = 0;
+	size_t renderedEntities = 0;
+	size_t culledEntities = 0;
+};
 
 class Renderer {
 public:
@@ -50,10 +57,17 @@ public:
 	float GetAlphaThreshold() const { return m_AlphaThreshold; }
 	void SetAlphaThreshold(float threshold) { m_AlphaThreshold = threshold; }
 
+	bool& GetFrustumCullingEnabled() { return m_FrustumCullingEnabled; }
+	bool IsFrustumCullingEnabled() const { return m_FrustumCullingEnabled; }
+	void SetFrustumCullingEnabled(bool enabled) { m_FrustumCullingEnabled = enabled; }
+	const RenderStats& GetStats() const { return m_Stats; }
+
 private:
 	ShadowRenderer m_ShadowRenderer;
 	bool m_DebugCascades = false;
 	float m_AlphaThreshold = 0.5f;
+	bool m_FrustumCullingEnabled = true;
+	RenderStats m_Stats;
 
 	std::vector<glm::mat4> m_CascadeLightSpaceMatrices;
 
