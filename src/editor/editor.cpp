@@ -5,6 +5,8 @@
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_opengl3.h>
+#include <imgui/ImGuizmo.h>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <chrono>
 
@@ -75,6 +77,19 @@ void Editor::Shutdown()
 void Editor::ProcessInput(GLFWwindow* window, float deltaTime)
 {
 	m_InputHandler.Update(window, deltaTime);
+
+	// Gizmo shortcuts (W: Translate, E: Rotate, R: Scale, Q: None)
+	if (!m_Camera.isCapturingMovements && !ImGui::GetIO().WantTextInput)
+	{
+		if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+			m_GizmoType = ImGuizmo::TRANSLATE;
+		if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+			m_GizmoType = ImGuizmo::ROTATE;
+		if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
+			m_GizmoType = ImGuizmo::SCALE;
+		if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+			m_GizmoType = -1;
+	}
 }
 
 void Editor::RenderSceneViewport()
@@ -158,6 +173,7 @@ void Editor::RenderUI(float deltaTime)
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
+	ImGuizmo::BeginFrame();
 
 	DrawViewportPanel();
 	DrawSceneHierarchyPanel();
@@ -203,6 +219,47 @@ void Editor::DrawViewportPanel()
 				ImVec2(0.0f, 1.0f),
 				ImVec2(1.0f, 0.0f)
 			);
+		}
+
+		// 3D Viewport Gizmos
+		auto selectedEntity = m_Scene.GetSelectedEntity();
+		if (selectedEntity && m_GizmoType != -1)
+		{
+			ImGuizmo::SetOrthographic(false);
+			ImGuizmo::SetDrawlist();
+
+			ImVec2 windowPos = ImGui::GetWindowPos();
+			ImVec2 windowSize = ImGui::GetWindowSize();
+			ImGuizmo::SetRect(windowPos.x, windowPos.y, windowSize.x, windowSize.y);
+
+			glm::mat4 cameraView = m_Camera.GetViewMatrix();
+			glm::mat4 cameraProj = m_Camera.GetProjectionMatrix(m_ViewportSize);
+			glm::mat4 modelMatrix = selectedEntity->GetModelMatrix();
+
+			bool snap = m_GizmoSnap;
+			float snapVal = m_GizmoSnapTranslation;
+			if (m_GizmoType == ImGuizmo::ROTATE)
+				snapVal = m_GizmoSnapRotation;
+			else if (m_GizmoType == ImGuizmo::SCALE)
+				snapVal = m_GizmoSnapScale;
+			float snapValues[3] = { snapVal, snapVal, snapVal };
+
+			if (ImGuizmo::Manipulate(
+				glm::value_ptr(cameraView),
+				glm::value_ptr(cameraProj),
+				static_cast<ImGuizmo::OPERATION>(m_GizmoType),
+				static_cast<ImGuizmo::MODE>(m_GizmoMode),
+				glm::value_ptr(modelMatrix),
+				nullptr,
+				snap ? snapValues : nullptr))
+			{
+				float translation[3], rotation[3], scale[3];
+				ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(modelMatrix), translation, rotation, scale);
+
+				selectedEntity->SetPosition(glm::vec3(translation[0], translation[1], translation[2]));
+				selectedEntity->SetRotation(glm::vec3(rotation[0], rotation[1], rotation[2]));
+				selectedEntity->SetScale(glm::vec3(scale[0], scale[1], scale[2]));
+			}
 		}
 	}
 
@@ -294,6 +351,34 @@ void Editor::DrawEntityInspectorPanel()
 
 	if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen))
 	{
+		ImGui::Text("Gizmo (W/E/R/Q):");
+		if (ImGui::RadioButton("Translate##G", m_GizmoType == ImGuizmo::TRANSLATE)) m_GizmoType = ImGuizmo::TRANSLATE;
+		ImGui::SameLine();
+		if (ImGui::RadioButton("Rotate##G", m_GizmoType == ImGuizmo::ROTATE)) m_GizmoType = ImGuizmo::ROTATE;
+		ImGui::SameLine();
+		if (ImGui::RadioButton("Scale##G", m_GizmoType == ImGuizmo::SCALE)) m_GizmoType = ImGuizmo::SCALE;
+		ImGui::SameLine();
+		if (ImGui::RadioButton("Hide##G", m_GizmoType == -1)) m_GizmoType = -1;
+
+		if (m_GizmoType != -1)
+		{
+			const char* modeNames[] = { "Local", "World" };
+			ImGui::Combo("Coord Space", &m_GizmoMode, modeNames, IM_ARRAYSIZE(modeNames));
+			ImGui::Checkbox("Snap", &m_GizmoSnap);
+			if (m_GizmoSnap)
+			{
+				ImGui::SameLine();
+				if (m_GizmoType == ImGuizmo::ROTATE)
+					ImGui::DragFloat("Angle", &m_GizmoSnapRotation, 1.0f, 1.0f, 90.0f, "%.0f deg");
+				else if (m_GizmoType == ImGuizmo::SCALE)
+					ImGui::DragFloat("Scale Step", &m_GizmoSnapScale, 0.05f, 0.01f, 2.0f, "%.2f");
+				else
+					ImGui::DragFloat("Grid Step", &m_GizmoSnapTranslation, 0.1f, 0.01f, 10.0f, "%.2f m");
+			}
+		}
+
+		ImGui::Separator();
+
 		glm::vec3 pos = selectedEntity->GetPosition();
 		if (ImGui::DragFloat3("Position", &pos.x, 0.1f))
 		{

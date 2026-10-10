@@ -51,6 +51,12 @@ public:
 	float& GetBloomThreshold() { return m_BloomThreshold; }
 	float& GetBloomFilterRadius() { return m_BloomFilterRadius; }
 
+	int GetGizmoType() const { return m_GizmoType; }
+	void SetGizmoType(int type) { m_GizmoType = type; }
+	int GetGizmoMode() const { return m_GizmoMode; }
+	void SetGizmoMode(int mode) { m_GizmoMode = mode; }
+	bool& GetGizmoSnap() { return m_GizmoSnap; }
+
 private:
 	Scene& m_Scene;
 	Renderer& m_Renderer;
@@ -75,6 +81,13 @@ private:
 	bool m_IsViewportHovered = false;
 	glm::ivec2 m_ViewportSize = { 1280, 720 };
 	float m_GpuRenderTime = 0.0f;
+
+	int m_GizmoType = 7; // ImGuizmo::TRANSLATE
+	int m_GizmoMode = 0; // ImGuizmo::LOCAL
+	bool m_GizmoSnap = false;
+	float m_GizmoSnapTranslation = 0.5f;
+	float m_GizmoSnapRotation = 45.0f;
+	float m_GizmoSnapScale = 0.5f;
 
 	void DrawViewportPanel();
 	void DrawSceneHierarchyPanel();

@@ -178,6 +178,7 @@
     <ClCompile Include="vendor\imgui\imgui_impl_opengl3.cpp" />
     <ClCompile Include="vendor\imgui\imgui_tables.cpp" />
     <ClCompile Include="vendor\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="vendor\imgui\ImGuizmo.cpp" />
     <ClCompile Include="vendor\std_image\stb_image.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -582,6 +583,7 @@
     <ClInclude Include="vendor\glm\vector_relational.hpp" />
     <ClInclude Include="vendor\imgui\imconfig.h" />
     <ClInclude Include="vendor\imgui\imgui.h" />
+    <ClInclude Include="vendor\imgui\ImGuizmo.h" />
     <ClInclude Include="vendor\imgui\imgui_impl_glfw.h" />
     <ClInclude Include="vendor\imgui\imgui_impl_opengl3.h" />
     <ClInclude Include="vendor\imgui\imgui_impl_opengl3_loader.h" />

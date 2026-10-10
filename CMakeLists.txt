@@ -58,6 +58,7 @@ set(ENGINE_SOURCES
     vendor/imgui/imgui_impl_opengl3.cpp
     vendor/imgui/imgui_tables.cpp
     vendor/imgui/imgui_widgets.cpp
+    vendor/imgui/ImGuizmo.cpp
     vendor/std_image/stb_image.cpp
 )
 
