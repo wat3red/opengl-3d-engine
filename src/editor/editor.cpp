@@ -294,6 +294,7 @@ void Editor::DrawViewportPanel()
 			ImGuizmo::SetOrthographic(false);
 			ImGuizmo::SetDrawlist();
 			ImGuizmo::SetRect(imagePos.x, imagePos.y, imageSize.x, imageSize.y);
+			ImGuizmo::PushID(selectedEntity.get());
 
 			glm::mat4 cameraView = m_Camera.GetViewMatrix();
 			glm::mat4 cameraProj = m_Camera.GetProjectionMatrix(m_ViewportSize);
@@ -348,6 +349,8 @@ void Editor::DrawViewportPanel()
 					selectedEntity->SetScale(glm::vec3(scale[0], scale[1], scale[2]));
 				}
 			}
+
+			ImGuizmo::PopID();
 		}
 	}
 
