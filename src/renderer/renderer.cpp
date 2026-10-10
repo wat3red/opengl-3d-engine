@@ -103,42 +103,69 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 	glBindTexture(GL_TEXTURE_2D_ARRAY, m_ShadowRenderer.GetLightDepthMaps());
 	m_MainShader.SetUniform1i("shadowMap", 10);
 
+	bool hasDirLight = false;
 	int pointLightCount = 0;
+	int spotLightCount = 0;
+
 	for (const Light* light : lights) {
+		if (!light || !light->IsActive()) continue;
+
 		switch (light->GetType()) {
 		case DIRECTIONAL: {
-			m_MainShader.SetUniform3f("dirLight.direction", light->GetDirection());
-			m_MainShader.SetUniform3f("dirLight.color", light->GetColor());
-			m_MainShader.SetUniform1f("dirLight.intensity", light->GetIntensity());
+			if (!hasDirLight) {
+				m_MainShader.SetUniform3f("dirLight.direction", light->GetDirection());
+				m_MainShader.SetUniform3f("dirLight.color", light->GetColor());
+				m_MainShader.SetUniform1f("dirLight.intensity", light->GetIntensity());
+				hasDirLight = true;
+			}
 			break;
 		}
 		case POINT: {
-			std::string uniformName = std::format("pointLights[{}]", pointLightCount);
-			m_MainShader.SetUniform3f(uniformName + ".position", light->GetPosition());
-			m_MainShader.SetUniform3f(uniformName + ".color", light->GetColor());
-			m_MainShader.SetUniform1f(uniformName + ".intensity", light->GetIntensity());
-			m_MainShader.SetUniform1f(uniformName + ".constant", light->GetConstant());
-			m_MainShader.SetUniform1f(uniformName + ".linear", light->GetLinear());
-			m_MainShader.SetUniform1f(uniformName + ".quadratic", light->GetQuadratic());
-			m_MainShader.SetUniform1i(uniformName + ".shadowMap", 6 + pointLightCount);
-			m_MainShader.SetUniform1f(uniformName + ".farPlane", light->GetRange());
-			++pointLightCount;
+			if (pointLightCount < 4) {
+				std::string uniformName = std::format("pointLights[{}]", pointLightCount);
+				m_MainShader.SetUniform3f(uniformName + ".position", light->GetPosition());
+				m_MainShader.SetUniform3f(uniformName + ".color", light->GetColor());
+				m_MainShader.SetUniform1f(uniformName + ".intensity", light->GetIntensity());
+				m_MainShader.SetUniform1f(uniformName + ".constant", light->GetConstant());
+				m_MainShader.SetUniform1f(uniformName + ".linear", light->GetLinear());
+				m_MainShader.SetUniform1f(uniformName + ".quadratic", light->GetQuadratic());
+				m_MainShader.SetUniform1i(uniformName + ".shadowMap", 6 + pointLightCount);
+				m_MainShader.SetUniform1f(uniformName + ".farPlane", light->GetRange());
+				++pointLightCount;
+			}
 			break;
 		}
 
 		case SPOTLIGHT: {
-			m_MainShader.SetUniform3f("spotLight.position", light->GetPosition());
-			m_MainShader.SetUniform3f("spotLight.direction", light->GetDirection());
-			m_MainShader.SetUniform3f("spotLight.color", light->GetColor());
-			m_MainShader.SetUniform1f("spotLight.intensity", light->GetIntensity());
-			m_MainShader.SetUniform1f("spotLight.constant", 1.0f);
-			m_MainShader.SetUniform1f("spotLight.linear", 0.09f);
-			m_MainShader.SetUniform1f("spotLight.quadratic", 0.032f);
-			m_MainShader.SetUniform1f("spotLight.cutOff", glm::cos(glm::radians(light->GetInnerCutoff())));
-			m_MainShader.SetUniform1f("spotLight.outerCutOff", glm::cos(glm::radians(light->GetOuterCutoff())));
+			if (spotLightCount < 4) {
+				std::string uniformName = std::format("spotLights[{}]", spotLightCount);
+				m_MainShader.SetUniform3f(uniformName + ".position", light->GetPosition());
+				m_MainShader.SetUniform3f(uniformName + ".direction", light->GetDirection());
+				m_MainShader.SetUniform3f(uniformName + ".color", light->GetColor());
+				m_MainShader.SetUniform1f(uniformName + ".intensity", light->GetIntensity());
+				m_MainShader.SetUniform1f(uniformName + ".range", light->GetRange());
+				m_MainShader.SetUniform1f(uniformName + ".constant", light->GetConstant());
+				m_MainShader.SetUniform1f(uniformName + ".linear", light->GetLinear());
+				m_MainShader.SetUniform1f(uniformName + ".quadratic", light->GetQuadratic());
+				m_MainShader.SetUniform1f(uniformName + ".cutOff", glm::cos(glm::radians(light->GetInnerCutoff())));
+				m_MainShader.SetUniform1f(uniformName + ".outerCutOff", glm::cos(glm::radians(light->GetOuterCutoff())));
+				++spotLightCount;
+			}
 			break;
 		}
 		}
+	}
+
+	if (!hasDirLight) {
+		m_MainShader.SetUniform1f("dirLight.intensity", 0.0f);
+	}
+
+	for (int i = pointLightCount; i < 4; ++i) {
+		m_MainShader.SetUniform1f(std::format("pointLights[{}].intensity", i), 0.0f);
+	}
+
+	for (int i = spotLightCount; i < 4; ++i) {
+		m_MainShader.SetUniform1f(std::format("spotLights[{}].intensity", i), 0.0f);
 	}
 
 	const auto& pointShadows = m_ShadowRenderer.GetPointLightShadows();

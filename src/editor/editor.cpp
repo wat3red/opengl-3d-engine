@@ -137,18 +137,22 @@ void Editor::RenderSceneViewport()
 
 		for (const auto& light : m_Scene.GetLights())
 		{
-			if (!light || !light->IsActive() || light->GetType() != LightType::Point)
+			if (!light || !light->IsActive())
 				continue;
 
-			lightShader.SetUniform4f("objectColor", glm::vec4(light->GetColor(), 1.0f));
+			if (light->GetType() == LightType::Point || light->GetType() == LightType::Spotlight)
+			{
+				lightShader.SetUniform4f("objectColor", glm::vec4(light->GetColor(), 1.0f));
 
-			glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), light->GetPosition());
-			modelMatrix = glm::scale(modelMatrix, glm::vec3(0.2f));
-			lightShader.SetUniformMat4f("model", modelMatrix);
-			lightShader.SetUniformMat4f("view", m_Camera.GetViewMatrix());
-			lightShader.SetUniformMat4f("projection", m_Camera.GetProjectionMatrix(m_ViewportSize));
+				glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), light->GetPosition());
+				float scale = (light->GetType() == LightType::Spotlight) ? 0.25f : 0.2f;
+				modelMatrix = glm::scale(modelMatrix, glm::vec3(scale));
+				lightShader.SetUniformMat4f("model", modelMatrix);
+				lightShader.SetUniformMat4f("view", m_Camera.GetViewMatrix());
+				lightShader.SetUniformMat4f("projection", m_Camera.GetProjectionMatrix(m_ViewportSize));
 
-			m_Renderer.RenderCube();
+				m_Renderer.RenderCube();
+			}
 		}
 
 		lightShader.Unbind();
@@ -286,9 +290,20 @@ void Editor::DrawViewportPanel()
 
 			auto light = std::dynamic_pointer_cast<Light>(selectedEntity);
 			ImGuizmo::OPERATION operation = static_cast<ImGuizmo::OPERATION>(m_GizmoType);
-			if (light && light->GetType() == LightType::Point)
+			if (light)
 			{
-				operation = ImGuizmo::TRANSLATE;
+				if (light->GetType() == LightType::Point)
+				{
+					operation = ImGuizmo::TRANSLATE;
+				}
+				else if (light->GetType() == LightType::Directional && operation != ImGuizmo::ROTATE)
+				{
+					operation = ImGuizmo::ROTATE;
+				}
+				else if (light->GetType() == LightType::Spotlight && operation == ImGuizmo::SCALE)
+				{
+					operation = ImGuizmo::TRANSLATE;
+				}
 			}
 
 			bool snap = m_GizmoSnap;
@@ -545,11 +560,19 @@ void Editor::DrawEntityInspectorPanel()
 						light->SetDirection(glm::normalize(dir));
 				}
 
+				float range = light->GetRange();
+				if (ImGui::SliderFloat("Range", &range, 1.0f, 150.0f))
+				{
+					light->SetRange(range);
+				}
+
 				float inner = light->GetInnerCutoff();
 				float outer = light->GetOuterCutoff();
 				if (ImGui::SliderFloat("Inner Cutoff", &inner, 0.0f, 89.0f))
 				{
+					if (inner > outer) outer = inner;
 					light->SetInnerCutoff(inner);
+					light->SetOuterCutoff(outer);
 				}
 				if (ImGui::SliderFloat("Outer Cutoff", &outer, inner, 89.0f))
 				{

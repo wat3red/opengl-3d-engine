@@ -15,7 +15,7 @@ void ShadowRenderer::Initialize(Camera* camera, const ShadowQuality& settings) {
 	}
 	m_PointShadowShader = Shader("shaders/PointShadowsDepth.shader");
 	m_CurrentCamera = camera;
-	SetupPointLightDepthMaps(2);
+	SetupPointLightDepthMaps(4);
 
 	RecalculateShadowSettings();
 }

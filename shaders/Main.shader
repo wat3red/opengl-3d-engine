@@ -97,6 +97,7 @@ struct SpotLight {
     vec3 direction;
     vec3 color;
     float intensity;
+    float range;
     float cutOff;
     float outerCutOff;
     float constant;
@@ -104,11 +105,12 @@ struct SpotLight {
     float quadratic;
 };
 
-#define NR_POINT_LIGHTS 2
+#define NR_POINT_LIGHTS 4
+#define NR_SPOT_LIGHTS 4
 
 uniform DirLight dirLight;
 uniform PointLight pointLights[NR_POINT_LIGHTS];
-uniform SpotLight spotLight;
+uniform SpotLight spotLights[NR_SPOT_LIGHTS];
 
 uniform vec3 viewPos;
 uniform mat4 view;
@@ -189,7 +191,7 @@ vec3 CalcPBRLight(vec3 L, vec3 radiance, vec3 N, vec3 V, vec3 albedo, float roug
     vec3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
 
     vec3 numerator = NDF * G * F;
-    float denominator = 4.0 * NdotV * NdotL + 0.0001;
+    float denominator = 4.0 * max(NdotV, 0.001) * max(NdotL, 0.001);
     vec3 specular = numerator / denominator;
 
     vec3 kS = F;
@@ -200,7 +202,7 @@ vec3 CalcPBRLight(vec3 L, vec3 radiance, vec3 N, vec3 V, vec3 albedo, float roug
 
 // ---------------- Shadow Calculations -----------------
 
-float CalculateCascadeShadow(vec3 fragPosWorldSpace)
+float CalculateCascadeShadow(vec3 fragPosWorldSpace, vec3 normal, vec3 lightDir)
 {
     vec4 fragPosViewSpace = view * vec4(fragPosWorldSpace, 1.0);
     float depthValue = abs(fragPosViewSpace.z);
@@ -216,7 +218,7 @@ float CalculateCascadeShadow(vec3 fragPosWorldSpace)
     }
     if (layer == -1)
     {
-        layer = cascadeCount;
+        return 0.0;
     }
 
     vec4 fragPosLightSpace = lightSpaceMatrices[layer] * vec4(fragPosWorldSpace, 1.0);
@@ -231,6 +233,9 @@ float CalculateCascadeShadow(vec3 fragPosWorldSpace)
     {
         return 0.0;
     }
+
+    float cosTheta = max(dot(normal, lightDir), 0.0);
+    float currentBias = max(shadowBias * (1.0 - cosTheta), shadowBias * 0.15);
 
     float shadow = 0.0;
     int samples = 16;
@@ -251,7 +256,7 @@ float CalculateCascadeShadow(vec3 fragPosWorldSpace)
     {
         vec2 randomOffset = poissonDisk[i % 16] * texelSize.xy;
         float pcfDepth = texture(shadowMap, vec3(projCoords.xy + randomOffset, layer)).r;
-        shadow += (projCoords.z > pcfDepth + shadowBias) ? 1.0 : 0.0;
+        shadow += (projCoords.z - currentBias > pcfDepth) ? 1.0 : 0.0;
     }
 
     shadow /= float(samples);
@@ -353,24 +358,31 @@ void main()
     vec3 Lo = vec3(0.0);
 
     // Directional Light
+    if (dirLight.intensity > 0.0001)
     {
         vec3 L = normalize(-dirLight.direction);
-        vec3 radiance = dirLight.color * dirLight.intensity;
-        float shadow = CalculateCascadeShadow(FragPos);
-        Lo += (1.0 - shadow) * CalcPBRLight(L, radiance, N, V, albedo, roughness, metallic, F0);
+        if (dot(N, L) > 0.0)
+        {
+            float shadow = CalculateCascadeShadow(FragPos, N, L);
+            vec3 radiance = dirLight.color * dirLight.intensity;
+            Lo += (1.0 - shadow) * CalcPBRLight(L, radiance, N, V, albedo, roughness, metallic, F0);
+        }
     }
 
     // Point Lights
     for (int i = 0; i < NR_POINT_LIGHTS; ++i)
     {
+        if (pointLights[i].intensity <= 0.0001)
+            continue;
+
         vec3 lightVec = pointLights[i].position - FragPos;
         float distance = length(lightVec);
         if (distance >= pointLights[i].farPlane)
-        {
             continue;
-        }
 
         vec3 L = normalize(lightVec);
+        if (dot(N, L) <= 0.0)
+            continue;
 
         // Physically based smooth windowing (Karis / Unreal model) to eliminate sharp circular cutoff
         float distRatio = distance / pointLights[i].farPlane;
@@ -384,19 +396,37 @@ void main()
         Lo += (1.0 - shadow) * CalcPBRLight(L, radiance, N, V, albedo, roughness, metallic, F0);
     }
 
-    // Spot Light
+    // Spot Lights
+    for (int i = 0; i < NR_SPOT_LIGHTS; ++i)
     {
-        vec3 L = normalize(spotLight.position - FragPos);
-        float distance = length(spotLight.position - FragPos);
-        float attenuation = 1.0 / (spotLight.constant + spotLight.linear * distance + spotLight.quadratic * (distance * distance));
+        if (spotLights[i].intensity <= 0.0001)
+            continue;
 
-        float theta = dot(L, normalize(-spotLight.direction));
-        float epsilon = max(spotLight.cutOff - spotLight.outerCutOff, 0.0001);
-        float spotIntensity = clamp((theta - spotLight.outerCutOff) / epsilon, 0.0, 1.0);
-        vec3 radiance = spotLight.color * spotLight.intensity * attenuation * spotIntensity;
+        vec3 lightVec = spotLights[i].position - FragPos;
+        float distance = length(lightVec);
+        if (spotLights[i].range > 0.0 && distance >= spotLights[i].range)
+            continue;
 
-        float shadow = CalculateCascadeShadow(FragPos);
-        Lo += (1.0 - shadow) * CalcPBRLight(L, radiance, N, V, albedo, roughness, metallic, F0);
+        vec3 L = normalize(lightVec);
+        if (dot(N, L) <= 0.0)
+            continue;
+
+        float theta = dot(L, normalize(-spotLights[i].direction));
+        if (theta <= spotLights[i].outerCutOff)
+            continue;
+
+        // Smooth cubic Hermite penumbra falloff across the cone boundary
+        float spotIntensity = smoothstep(spotLights[i].outerCutOff, spotLights[i].cutOff, theta);
+
+        // Physically based smooth windowing (Karis / Unreal model) to eliminate sharp cutoff at range limit
+        float distRatio = (spotLights[i].range > 0.0) ? (distance / spotLights[i].range) : 0.0;
+        float window = clamp(1.0 - distRatio * distRatio, 0.0, 1.0);
+        window = window * window;
+
+        float attenuation = 1.0 / (spotLights[i].constant + spotLights[i].linear * distance + spotLights[i].quadratic * (distance * distance));
+        vec3 radiance = spotLights[i].color * spotLights[i].intensity * attenuation * spotIntensity * window;
+
+        Lo += CalcPBRLight(L, radiance, N, V, albedo, roughness, metallic, F0);
     }
 
     // Ambient Lighting (soft ambient scaled by AO)

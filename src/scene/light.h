@@ -99,15 +99,15 @@ private:
 
 class SpotLight : public Light {
 public:
-	SpotLight(const std::string& name, const glm::vec3& position, const glm::vec3& direction, const glm::vec3& color = glm::vec3(1.0f), float intensity = 1.0f, float innerCutoff = 12.5f, float outerCutoff = 17.5f)
-		: Light(name, LightType::Spotlight, color, intensity), m_Direction(glm::normalize(direction)), m_InnerCutoff(innerCutoff), m_OuterCutoff(outerCutoff),
+	SpotLight(const std::string& name, const glm::vec3& position, const glm::vec3& direction, const glm::vec3& color = glm::vec3(1.0f), float intensity = 1.0f, float innerCutoff = 12.5f, float outerCutoff = 17.5f, float range = 35.0f)
+		: Light(name, LightType::Spotlight, color, intensity), m_Direction(glm::normalize(direction)), m_InnerCutoff(innerCutoff), m_OuterCutoff(outerCutoff), m_Range(range),
 		  m_Constant(1.0f), m_Linear(0.09f), m_Quadratic(0.032f)
 	{
 		m_Transform.Position = position;
 	}
 
-	SpotLight(const glm::vec3& position, const glm::vec3& direction, const glm::vec3& color, float intensity, float innerCutoff, float outerCutoff)
-		: SpotLight("Spot Light", position, direction, color, intensity, innerCutoff, outerCutoff) {}
+	SpotLight(const glm::vec3& position, const glm::vec3& direction, const glm::vec3& color, float intensity, float innerCutoff, float outerCutoff, float range = 35.0f)
+		: SpotLight("Spot Light", position, direction, color, intensity, innerCutoff, outerCutoff, range) {}
 
 	glm::vec3 GetDirection() const override { return glm::normalize(m_Direction); }
 	void SetDirection(const glm::vec3& direction) override { m_Direction = glm::normalize(direction); }
@@ -118,6 +118,9 @@ public:
 	float GetOuterCutoff() const override { return m_OuterCutoff; }
 	void SetOuterCutoff(float outerCutoff) override { m_OuterCutoff = outerCutoff; }
 
+	float GetRange() const override { return m_Range; }
+	void SetRange(float range) override { m_Range = range; }
+
 	float GetConstant() const override { return m_Constant; }
 	float GetLinear() const override { return m_Linear; }
 	float GetQuadratic() const override { return m_Quadratic; }
@@ -126,6 +129,7 @@ private:
 	glm::vec3 m_Direction;
 	float m_InnerCutoff;
 	float m_OuterCutoff;
+	float m_Range;
 	float m_Constant;
 	float m_Linear;
 	float m_Quadratic;

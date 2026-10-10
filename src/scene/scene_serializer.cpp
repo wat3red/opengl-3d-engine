@@ -394,7 +394,7 @@ bool SceneSerializer::Deserialize(const std::string& filepath)
 				light->SetActive(active);
 				m_Scene.AddLight(light);
 			} else if (type == "Spotlight") {
-				auto light = std::make_shared<SpotLight>(name, pos, dir, color, intensity, innerCut, outerCut);
+				auto light = std::make_shared<SpotLight>(name, pos, dir, color, intensity, innerCut, outerCut, range);
 				light->SetActive(active);
 				m_Scene.AddLight(light);
 			} else {

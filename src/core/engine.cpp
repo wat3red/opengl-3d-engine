@@ -3,6 +3,7 @@
 #include "skybox.h"
 
 #include <std_image/stb_image.h>
+#include <imgui/imgui.h>
 #include <cassert>
 
 Engine* Engine::s_Instance = nullptr;
@@ -86,8 +87,9 @@ void Engine::InitializeScene()
 		"Sun",
 		glm::vec3(-0.2f, -1.0f, -0.3f),
 		glm::vec3(1.0f, 1.0f, 0.95f),
-		0.8f
+		2.5f
 	);
+	
 	m_Scene.AddLight(sun);
 
 	auto lamp1 = std::make_shared<PointLight>(
@@ -143,6 +145,24 @@ void Engine::ProcessInput(float deltaTime)
 				sun->SetDirection(m_Editor->GetCamera().Front);
 			}
 		}
+
+		// Toggle flashlight on pressing F
+		static bool s_FKeyWasPressed = false;
+		bool fPressed = (glfwGetKey(m_Window->GetNativeWindow(), GLFW_KEY_F) == GLFW_PRESS);
+		if (fPressed && !s_FKeyWasPressed && !ImGui::GetIO().WantTextInput)
+		{
+			for (auto& light : m_Scene.GetLights())
+			{
+				if (light && light->GetType() == LightType::Spotlight && light->GetName() == "Flashlight")
+				{
+					if (light->GetIntensity() > 0.001f)
+						light->SetIntensity(0.0f);
+					else
+						light->SetIntensity(2.5f);
+				}
+			}
+		}
+		s_FKeyWasPressed = fPressed;
 	}
 }
 
