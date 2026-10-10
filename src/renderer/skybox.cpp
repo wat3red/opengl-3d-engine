@@ -42,6 +42,8 @@ void Skybox::Draw(const Camera& camera, const glm::ivec2& viewportSize)
 
 	m_Shader->SetUniformMat4f("view", view);
 	m_Shader->SetUniformMat4f("projection", projection);
+	m_Shader->SetUniform1i("fogEnabled", m_FogEnabled ? 1 : 0);
+	m_Shader->SetUniform3f("fogColor", m_FogColor);
 
 	if (m_Type == Type::Cubemap)
 	{

@@ -126,6 +126,14 @@ uniform float shadowBias;
 uniform float alphaThreshold;
 uniform int debugCascades;
 
+// Atmospheric Fog Uniforms
+uniform int fogEnabled;
+uniform vec3 fogColor;
+uniform float fogDensity;
+uniform float fogStart;
+uniform float fogEnd;
+uniform float fogHeightFalloff;
+
 const float PI = 3.14159265359;
 
 // ---------------- Cook-Torrance GGX PBR Functions -----------------
@@ -395,6 +403,23 @@ void main()
     vec3 ambient = (dirLight.color * dirLight.intensity * 0.05 + vec3(0.03)) * albedo * ao;
 
     vec3 color = ambient + Lo;
+
+    if (fogEnabled == 1)
+    {
+        float dist = length(viewPos - FragPos);
+        float distFactor = clamp((dist - fogStart) / max(fogEnd - fogStart, 0.001), 0.0, 1.0);
+        float expDistFactor = 1.0 - exp(-pow(dist * fogDensity, 2.0));
+        float combinedDist = mix(distFactor, expDistFactor, 0.5);
+
+        float heightFactor = clamp(exp(-max(FragPos.y, 0.0) * fogHeightFalloff), 0.05, 1.0);
+        float fogFactor = clamp(combinedDist * heightFactor, 0.0, 1.0);
+
+        vec3 viewDir = normalize(FragPos - viewPos);
+        float sunScatter = max(dot(viewDir, -dirLight.direction), 0.0);
+        vec3 inscatterColor = mix(fogColor, dirLight.color * max(dirLight.intensity, 1.0), pow(sunScatter, 8.0) * 0.4);
+
+        color = mix(color, inscatterColor, fogFactor);
+    }
 
     if (debugCascades == 1)
     {

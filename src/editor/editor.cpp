@@ -458,6 +458,20 @@ void Editor::DrawEnvironmentPanel()
 		ImGui::SliderFloat("Gamma", &m_Gamma, 1.0f, 3.0f, "%.2f");
 	}
 
+	if (ImGui::CollapsingHeader("Atmospheric Fog", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		auto& fog = m_Renderer.GetFogSettings();
+		ImGui::Checkbox("Enable Fog", &fog.enabled);
+		if (fog.enabled)
+		{
+			ImGui::ColorEdit3("Fog Color", &fog.color.x);
+			ImGui::SliderFloat("Density", &fog.density, 0.001f, 0.1f, "%.4f");
+			ImGui::DragFloat("Start Distance", &fog.start, 1.0f, 0.0f, 500.0f, "%.1f");
+			ImGui::DragFloat("End Distance", &fog.end, 1.0f, 5.0f, 1000.0f, "%.1f");
+			ImGui::SliderFloat("Height Falloff", &fog.heightFalloff, 0.0f, 0.1f, "%.4f");
+		}
+	}
+
 	if (ImGui::CollapsingHeader("Camera Settings", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		ImGui::SliderFloat("Movement Speed", &m_Camera.MovementSpeed, 0.5f, 100.0f);

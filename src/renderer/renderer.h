@@ -20,6 +20,15 @@ struct RenderStats {
 	size_t culledEntities = 0;
 };
 
+struct FogSettings {
+	bool enabled = false;
+	glm::vec3 color = glm::vec3(0.65f, 0.75f, 0.85f);
+	float density = 0.015f;
+	float start = 10.0f;
+	float end = 120.0f;
+	float heightFalloff = 0.02f;
+};
+
 class Renderer {
 public:
 	Renderer();
@@ -62,12 +71,16 @@ public:
 	void SetFrustumCullingEnabled(bool enabled) { m_FrustumCullingEnabled = enabled; }
 	const RenderStats& GetStats() const { return m_Stats; }
 
+	FogSettings& GetFogSettings() { return m_FogSettings; }
+	const FogSettings& GetFogSettings() const { return m_FogSettings; }
+
 private:
 	ShadowRenderer m_ShadowRenderer;
 	bool m_DebugCascades = false;
 	float m_AlphaThreshold = 0.5f;
 	bool m_FrustumCullingEnabled = true;
 	RenderStats m_Stats;
+	FogSettings m_FogSettings;
 
 	std::vector<glm::mat4> m_CascadeLightSpaceMatrices;
 

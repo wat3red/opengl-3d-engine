@@ -36,6 +36,8 @@ public:
 	bool IsActive() const { return m_Active; }
 	void SetActive(bool active) { m_Active = active; }
 
+	void SetFog(bool enabled, const glm::vec3& color) { m_FogEnabled = enabled; m_FogColor = color; }
+
 private:
 	Type m_Type = Type::Cubemap;
 	std::shared_ptr<TextureCube> m_Cubemap;
@@ -43,4 +45,6 @@ private:
 	std::shared_ptr<Shader> m_Shader;
 	std::shared_ptr<Mesh> m_CubeMesh;
 	bool m_Active = true;
+	bool m_FogEnabled = false;
+	glm::vec3 m_FogColor = glm::vec3(0.65f, 0.75f, 0.85f);
 };

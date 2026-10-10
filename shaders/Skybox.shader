@@ -21,8 +21,20 @@ out vec4 FragColor;
 in vec3 TexCoords;
 
 uniform samplerCube skybox;
+uniform int fogEnabled;
+uniform vec3 fogColor;
 
 void main()
 {    
-    FragColor = texture(skybox, TexCoords);
+    vec4 skyColor = texture(skybox, TexCoords);
+    if (fogEnabled == 1)
+    {
+        vec3 norm = normalize(TexCoords);
+        if (norm.y < 0.35)
+        {
+            float horizonBlend = clamp((0.35 - norm.y) / 0.45, 0.0, 1.0);
+            skyColor.rgb = mix(skyColor.rgb, fogColor, horizonBlend * 0.85);
+        }
+    }
+    FragColor = skyColor;
 }

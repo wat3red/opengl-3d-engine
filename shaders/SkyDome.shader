@@ -28,8 +28,20 @@ out vec4 FragColor;
 in vec2 TexCoords;
 
 uniform sampler2D albedoMap;
+uniform int fogEnabled;
+uniform vec3 fogColor;
 
 void main()
 {
-    FragColor = texture(albedoMap, TexCoords);
+    vec4 col = texture(albedoMap, TexCoords);
+    if (fogEnabled == 1)
+    {
+        // For dome spherical texture coordinates, TexCoords.y corresponds to vertical height
+        if (TexCoords.y < 0.45)
+        {
+            float horizonBlend = clamp((0.45 - TexCoords.y) / 0.45, 0.0, 1.0);
+            col.rgb = mix(col.rgb, fogColor, horizonBlend * 0.85);
+        }
+    }
+    FragColor = col;
 }

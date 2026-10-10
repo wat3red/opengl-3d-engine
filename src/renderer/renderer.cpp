@@ -83,6 +83,14 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 
 	m_MainShader.SetUniform1i("debugCascades", m_DebugCascades);
 
+	// Atmospheric Fog Uniforms
+	m_MainShader.SetUniform1i("fogEnabled", m_FogSettings.enabled ? 1 : 0);
+	m_MainShader.SetUniform3f("fogColor", m_FogSettings.color);
+	m_MainShader.SetUniform1f("fogDensity", m_FogSettings.density);
+	m_MainShader.SetUniform1f("fogStart", m_FogSettings.start);
+	m_MainShader.SetUniform1f("fogEnd", m_FogSettings.end);
+	m_MainShader.SetUniform1f("fogHeightFalloff", m_FogSettings.heightFalloff);
+
 	const auto& cascadeLevels = m_ShadowRenderer.GetShadowCascadeLevels();
 	m_MainShader.SetUniform1i("cascadeCount", static_cast<int>(cascadeLevels.size()));
 
@@ -164,6 +172,7 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, S
 	RenderScene(windowSize, camera, rawLights, rawEntities, targetFBO);
 
 	if (scene.GetSkybox() && scene.GetSkybox()->IsActive()) {
+		scene.GetSkybox()->SetFog(m_FogSettings.enabled, m_FogSettings.color);
 		glBindFramebuffer(GL_FRAMEBUFFER, targetFBO);
 		glViewport(0, 0, windowSize.x, windowSize.y);
 		scene.GetSkybox()->Draw(camera, windowSize);
