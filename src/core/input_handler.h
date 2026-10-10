@@ -19,6 +19,9 @@ public:
 
 	void SetCallbacks(GLFWwindow* window);
 
+	void SetCanCaptureRightClick(bool canCapture) { m_CanCaptureRightClick = canCapture; }
+	bool IsRightMouseDown() const { return m_RightMouseDown; }
+
 private:
 	Camera& m_Camera;
 
@@ -26,4 +29,6 @@ private:
 	float m_LastY = 450.0f;
 	float m_LastFrameTime = 0.0f;
 	bool m_FirstMouse = true;
+	bool m_CanCaptureRightClick = false;
+	bool m_RightMouseDown = false;
 };

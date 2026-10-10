@@ -34,18 +34,35 @@ void InputHandler::Update(GLFWwindow* window, float deltaTime)
 		glfwSetWindowShouldClose(window, GLFW_TRUE);
 	}
 
-	if (IS_PRESSED(GLFW_KEY_W))
-		m_Camera.ProcessKeyboard(FORWARD, deltaTime);
-	if (IS_PRESSED(GLFW_KEY_S))
-		m_Camera.ProcessKeyboard(BACKWARD, deltaTime);
-	if (IS_PRESSED(GLFW_KEY_A))
-		m_Camera.ProcessKeyboard(LEFT, deltaTime);
-	if (IS_PRESSED(GLFW_KEY_D))
-		m_Camera.ProcessKeyboard(RIGHT, deltaTime);
-	if (IS_PRESSED(GLFW_KEY_SPACE))
-		m_Camera.ProcessKeyboard(UP, deltaTime);
-	if (IS_PRESSED(GLFW_KEY_LEFT_CONTROL))
-		m_Camera.ProcessKeyboard(DOWN, deltaTime);
+	// Safety check: if right mouse button was released while cursor was disabled
+	if (m_Camera.isCapturingMovements && glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_RELEASE)
+	{
+		m_Camera.isCapturingMovements = false;
+		m_RightMouseDown = false;
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		m_FirstMouse = true;
+	}
+
+	// Camera movement controls are only active while in fly mode (holding right mouse button)
+	if (m_Camera.isCapturingMovements)
+	{
+		float speedMultiplier = 1.0f;
+		if (IS_PRESSED(GLFW_KEY_LEFT_SHIFT))
+			speedMultiplier = 2.5f;
+
+		if (IS_PRESSED(GLFW_KEY_W))
+			m_Camera.ProcessKeyboard(FORWARD, deltaTime * speedMultiplier);
+		if (IS_PRESSED(GLFW_KEY_S))
+			m_Camera.ProcessKeyboard(BACKWARD, deltaTime * speedMultiplier);
+		if (IS_PRESSED(GLFW_KEY_A))
+			m_Camera.ProcessKeyboard(LEFT, deltaTime * speedMultiplier);
+		if (IS_PRESSED(GLFW_KEY_D))
+			m_Camera.ProcessKeyboard(RIGHT, deltaTime * speedMultiplier);
+		if (IS_PRESSED(GLFW_KEY_SPACE))
+			m_Camera.ProcessKeyboard(UP, deltaTime * speedMultiplier);
+		if (IS_PRESSED(GLFW_KEY_LEFT_CONTROL))
+			m_Camera.ProcessKeyboard(DOWN, deltaTime * speedMultiplier);
+	}
 
 #undef IS_PRESSED
 }
@@ -65,29 +82,39 @@ void InputHandler::KeyCallback(GLFWwindow* window, int key, int scancode, int ac
 
 void InputHandler::MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
-	if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+	if (button == GLFW_MOUSE_BUTTON_RIGHT)
 	{
-		if (!m_Camera.isCapturingMovements)
+		if (action == GLFW_PRESS)
 		{
-			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-			if (glfwRawMouseMotionSupported())
+			m_RightMouseDown = true;
+			// Only capture cursor and camera if right click was initiated inside the viewport
+			if (m_CanCaptureRightClick)
 			{
-				glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-			}
+				m_Camera.isCapturingMovements = true;
+				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+				if (glfwRawMouseMotionSupported())
+				{
+					glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+				}
 
-			double xpos = 0.0;
-			double ypos = 0.0;
-			glfwGetCursorPos(window, &xpos, &ypos);
-			m_LastX = static_cast<float>(xpos);
-			m_LastY = static_cast<float>(ypos);
-			m_FirstMouse = true;
+				double xpos = 0.0;
+				double ypos = 0.0;
+				glfwGetCursorPos(window, &xpos, &ypos);
+				m_LastX = static_cast<float>(xpos);
+				m_LastY = static_cast<float>(ypos);
+				m_FirstMouse = true;
+			}
 		}
-		else
+		else if (action == GLFW_RELEASE)
 		{
-			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-			m_FirstMouse = true;
+			m_RightMouseDown = false;
+			if (m_Camera.isCapturingMovements)
+			{
+				m_Camera.isCapturingMovements = false;
+				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+				m_FirstMouse = true;
+			}
 		}
-		m_Camera.isCapturingMovements = !m_Camera.isCapturingMovements;
 	}
 }
 

@@ -49,6 +49,7 @@ void Editor::Initialize(GLFWwindow* window)
 	ImGui::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	io.ConfigWindowsMoveFromTitleBarOnly = true;
 
 	ImGui::StyleColorsDark();
 
@@ -211,17 +212,34 @@ void Editor::RenderUI(float deltaTime)
 	DrawEnvironmentPanel();
 	DrawMetricsPanel(deltaTime);
 
+	m_ResetLayout = false;
+
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
 void Editor::DrawViewportPanel()
 {
+	ImGuiWindowFlags viewportFlags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+	if (ImGuizmo::IsOver() || ImGuizmo::IsUsing())
+	{
+		viewportFlags |= ImGuiWindowFlags_NoMove;
+	}
+
+	if (m_ResetLayout)
+	{
+		ImGui::SetNextWindowPos(ImVec2(290, 25), ImGuiCond_Always);
+		ImGui::SetNextWindowSize(ImVec2(1010, 865), ImGuiCond_Always);
+	}
+
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-	ImGui::Begin("Scene Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+	ImGui::Begin("Scene Viewport", nullptr, viewportFlags);
 
 	m_IsViewportFocused = ImGui::IsWindowFocused();
 	m_IsViewportHovered = ImGui::IsWindowHovered();
+
+	// Allow camera look-around only when right clicking inside the viewport and not currently manipulating gizmos
+	m_InputHandler.SetCanCaptureRightClick(m_IsViewportHovered && !ImGuizmo::IsUsing());
 
 	ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 	if (viewportPanelSize.x > 0 && viewportPanelSize.y > 0)
@@ -251,33 +269,40 @@ void Editor::DrawViewportPanel()
 			);
 		}
 
+		ImVec2 imagePos = ImGui::GetItemRectMin();
+		ImVec2 imageSize = ImGui::GetItemRectSize();
+
 		// 3D Viewport Gizmos
 		auto selectedEntity = m_Scene.GetSelectedEntity();
 		if (selectedEntity && m_GizmoType != -1)
 		{
 			ImGuizmo::SetOrthographic(false);
 			ImGuizmo::SetDrawlist();
-
-			ImVec2 windowPos = ImGui::GetWindowPos();
-			ImVec2 windowSize = ImGui::GetWindowSize();
-			ImGuizmo::SetRect(windowPos.x, windowPos.y, windowSize.x, windowSize.y);
+			ImGuizmo::SetRect(imagePos.x, imagePos.y, imageSize.x, imageSize.y);
 
 			glm::mat4 cameraView = m_Camera.GetViewMatrix();
 			glm::mat4 cameraProj = m_Camera.GetProjectionMatrix(m_ViewportSize);
 			glm::mat4 modelMatrix = selectedEntity->GetModelMatrix();
 
+			auto light = std::dynamic_pointer_cast<Light>(selectedEntity);
+			ImGuizmo::OPERATION operation = static_cast<ImGuizmo::OPERATION>(m_GizmoType);
+			if (light && light->GetType() == LightType::Point)
+			{
+				operation = ImGuizmo::TRANSLATE;
+			}
+
 			bool snap = m_GizmoSnap;
 			float snapVal = m_GizmoSnapTranslation;
-			if (m_GizmoType == ImGuizmo::ROTATE)
+			if (operation == ImGuizmo::ROTATE)
 				snapVal = m_GizmoSnapRotation;
-			else if (m_GizmoType == ImGuizmo::SCALE)
+			else if (operation == ImGuizmo::SCALE)
 				snapVal = m_GizmoSnapScale;
 			float snapValues[3] = { snapVal, snapVal, snapVal };
 
 			if (ImGuizmo::Manipulate(
 				glm::value_ptr(cameraView),
 				glm::value_ptr(cameraProj),
-				static_cast<ImGuizmo::OPERATION>(m_GizmoType),
+				operation,
 				static_cast<ImGuizmo::MODE>(m_GizmoMode),
 				glm::value_ptr(modelMatrix),
 				nullptr,
@@ -289,6 +314,19 @@ void Editor::DrawViewportPanel()
 				selectedEntity->SetPosition(glm::vec3(translation[0], translation[1], translation[2]));
 				selectedEntity->SetRotation(glm::vec3(rotation[0], rotation[1], rotation[2]));
 				selectedEntity->SetScale(glm::vec3(scale[0], scale[1], scale[2]));
+
+				if (light)
+				{
+					if (light->GetType() == LightType::Directional || light->GetType() == LightType::Spotlight)
+					{
+						glm::mat4 rotMatrix = glm::mat4(1.0f);
+						rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation[0]), glm::vec3(1.0f, 0.0f, 0.0f));
+						rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation[1]), glm::vec3(0.0f, 1.0f, 0.0f));
+						rotMatrix = glm::rotate(rotMatrix, glm::radians(rotation[2]), glm::vec3(0.0f, 0.0f, 1.0f));
+						glm::vec3 newDir = glm::normalize(glm::vec3(rotMatrix * glm::vec4(0.0f, -1.0f, 0.0f, 0.0f)));
+						light->SetDirection(newDir);
+					}
+				}
 			}
 		}
 	}
@@ -299,6 +337,12 @@ void Editor::DrawViewportPanel()
 
 void Editor::DrawSceneHierarchyPanel()
 {
+	if (m_ResetLayout)
+	{
+		ImGui::SetNextWindowPos(ImVec2(5, 25), ImGuiCond_Always);
+		ImGui::SetNextWindowSize(ImVec2(280, 420), ImGuiCond_Always);
+	}
+
 	ImGui::Begin("Scene Hierarchy");
 
 	if (ImGui::CollapsingHeader("Entities", ImGuiTreeNodeFlags_DefaultOpen))
@@ -377,6 +421,12 @@ void Editor::DrawSceneHierarchyPanel()
 
 void Editor::DrawEntityInspectorPanel()
 {
+	if (m_ResetLayout)
+	{
+		ImGui::SetNextWindowPos(ImVec2(1305, 25), ImGuiCond_Always);
+		ImGui::SetNextWindowSize(ImVec2(290, 560), ImGuiCond_Always);
+	}
+
 	ImGui::Begin("Entity Inspector");
 
 	auto selectedEntity = m_Scene.GetSelectedEntity();
@@ -528,6 +578,12 @@ void Editor::DrawEntityInspectorPanel()
 
 void Editor::DrawEnvironmentPanel()
 {
+	if (m_ResetLayout)
+	{
+		ImGui::SetNextWindowPos(ImVec2(5, 450), ImGuiCond_Always);
+		ImGui::SetNextWindowSize(ImVec2(280, 440), ImGuiCond_Always);
+	}
+
 	ImGui::Begin("Lighting & Environment");
 
 	auto sun = m_Scene.GetSunLight();
@@ -644,6 +700,12 @@ void Editor::DrawEnvironmentPanel()
 
 void Editor::DrawMetricsPanel(float deltaTime)
 {
+	if (m_ResetLayout)
+	{
+		ImGui::SetNextWindowPos(ImVec2(1305, 590), ImGuiCond_Always);
+		ImGui::SetNextWindowSize(ImVec2(290, 300), ImGuiCond_Always);
+	}
+
 	ImGui::Begin("Performance Metrics");
 
 	ImGui::Text("Framerate: %.1f FPS", ImGui::GetIO().Framerate);
@@ -744,6 +806,15 @@ void Editor::DrawMainMenuBar()
 				auto spot = std::make_shared<SpotLight>("Spotlight", m_Camera.Position, m_Camera.Front, glm::vec3(1.0f), 2.0f, 12.5f, 17.5f);
 				m_Scene.AddLight(spot);
 				m_Scene.SetSelectedEntity(spot);
+			}
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("Window"))
+		{
+			if (ImGui::MenuItem("Reset Layout"))
+			{
+				m_ResetLayout = true;
 			}
 			ImGui::EndMenu();
 		}

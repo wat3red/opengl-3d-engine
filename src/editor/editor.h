@@ -60,6 +60,7 @@ public:
 	void SaveScene(const std::string& filepath = "res/scenes/default.scene");
 	void LoadScene(const std::string& filepath = "res/scenes/default.scene");
 	void NewScene();
+	void ResetDefaultLayout() { m_ResetLayout = true; }
 
 private:
 	Scene& m_Scene;
@@ -99,6 +100,7 @@ private:
 	bool m_ShowOpenModal = false;
 	std::string m_StatusMessage = "";
 	float m_StatusTimer = 0.0f;
+	bool m_ResetLayout = false;
 
 	void DrawMainMenuBar();
 	void DrawModals();
