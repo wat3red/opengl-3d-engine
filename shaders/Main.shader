@@ -404,26 +404,35 @@ void main()
 
         vec3 lightVec = spotLights[i].position - FragPos;
         float distance = length(lightVec);
-        if (spotLights[i].range > 0.0 && distance >= spotLights[i].range)
+        float maxRange = max(spotLights[i].range, 1.0);
+        if (distance >= maxRange)
             continue;
 
         vec3 L = normalize(lightVec);
         if (dot(N, L) <= 0.0)
             continue;
 
-        float theta = dot(L, normalize(-spotLights[i].direction));
+        float dirLen = length(spotLights[i].direction);
+        if (dirLen < 0.001)
+            continue;
+
+        vec3 spotDir = -spotLights[i].direction / dirLen;
+        float theta = dot(L, spotDir);
         if (theta <= spotLights[i].outerCutOff)
             continue;
 
         // Smooth cubic Hermite penumbra falloff across the cone boundary
-        float spotIntensity = smoothstep(spotLights[i].outerCutOff, spotLights[i].cutOff, theta);
+        float epsilon = max(spotLights[i].cutOff - spotLights[i].outerCutOff, 0.0001);
+        float t = clamp((theta - spotLights[i].outerCutOff) / epsilon, 0.0, 1.0);
+        float spotIntensity = t * t * (3.0 - 2.0 * t);
 
         // Physically based smooth windowing (Karis / Unreal model) to eliminate sharp cutoff at range limit
-        float distRatio = (spotLights[i].range > 0.0) ? (distance / spotLights[i].range) : 0.0;
+        float distRatio = clamp(distance / maxRange, 0.0, 1.0);
         float window = clamp(1.0 - distRatio * distRatio, 0.0, 1.0);
         window = window * window;
 
-        float attenuation = 1.0 / (spotLights[i].constant + spotLights[i].linear * distance + spotLights[i].quadratic * (distance * distance));
+        float denom = max(spotLights[i].constant + spotLights[i].linear * distance + spotLights[i].quadratic * (distance * distance), 0.01);
+        float attenuation = 1.0 / denom;
         vec3 radiance = spotLights[i].color * spotLights[i].intensity * attenuation * spotIntensity * window;
 
         Lo += CalcPBRLight(L, radiance, N, V, albedo, roughness, metallic, F0);

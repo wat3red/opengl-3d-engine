@@ -137,22 +137,22 @@ void Editor::RenderSceneViewport()
 
 		for (const auto& light : m_Scene.GetLights())
 		{
-			if (!light || !light->IsActive())
+			if (!light || !light->IsActive() || light->GetType() != LightType::Point)
 				continue;
 
-			if (light->GetType() == LightType::Point || light->GetType() == LightType::Spotlight)
-			{
-				lightShader.SetUniform4f("objectColor", glm::vec4(light->GetColor(), 1.0f));
+			// Do not render debug cube if light is closer than 0.5m to camera to avoid camera clipping
+			if (glm::distance(light->GetPosition(), m_Camera.Position) < 0.5f)
+				continue;
 
-				glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), light->GetPosition());
-				float scale = (light->GetType() == LightType::Spotlight) ? 0.25f : 0.2f;
-				modelMatrix = glm::scale(modelMatrix, glm::vec3(scale));
-				lightShader.SetUniformMat4f("model", modelMatrix);
-				lightShader.SetUniformMat4f("view", m_Camera.GetViewMatrix());
-				lightShader.SetUniformMat4f("projection", m_Camera.GetProjectionMatrix(m_ViewportSize));
+			lightShader.SetUniform4f("objectColor", glm::vec4(light->GetColor(), 1.0f));
 
-				m_Renderer.RenderCube();
-			}
+			glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), light->GetPosition());
+			modelMatrix = glm::scale(modelMatrix, glm::vec3(0.2f));
+			lightShader.SetUniformMat4f("model", modelMatrix);
+			lightShader.SetUniformMat4f("view", m_Camera.GetViewMatrix());
+			lightShader.SetUniformMat4f("projection", m_Camera.GetProjectionMatrix(m_ViewportSize));
+
+			m_Renderer.RenderCube();
 		}
 
 		lightShader.Unbind();
@@ -424,7 +424,7 @@ void Editor::DrawSceneHierarchyPanel()
 		}
 		if (ImGui::MenuItem("Add Spotlight"))
 		{
-			auto light = std::make_shared<SpotLight>("Spotlight", m_Camera.Position, m_Camera.Front, glm::vec3(1.0f), 2.0f, 12.5f, 17.5f);
+			auto light = std::make_shared<SpotLight>("Spotlight", m_Camera.Position + m_Camera.Front * 5.0f, m_Camera.Front, glm::vec3(1.0f), 2.0f, 12.5f, 17.5f, 35.0f);
 			m_Scene.AddLight(light);
 			m_Scene.SetSelectedEntity(light);
 		}
@@ -826,7 +826,7 @@ void Editor::DrawMainMenuBar()
 			}
 			if (ImGui::MenuItem("Spotlight"))
 			{
-				auto spot = std::make_shared<SpotLight>("Spotlight", m_Camera.Position, m_Camera.Front, glm::vec3(1.0f), 2.0f, 12.5f, 17.5f);
+				auto spot = std::make_shared<SpotLight>("Spotlight", m_Camera.Position + m_Camera.Front * 5.0f, m_Camera.Front, glm::vec3(1.0f), 2.0f, 12.5f, 17.5f, 35.0f);
 				m_Scene.AddLight(spot);
 				m_Scene.SetSelectedEntity(spot);
 			}
