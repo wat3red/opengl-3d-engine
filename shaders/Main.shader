@@ -1,14 +1,16 @@
-//Main.cpp
 #shader vertex
 #version 330 core
 
-layout (location = 0) in vec3 aPos; // Positions/Coordinates
-layout (location = 1) in vec3 aNormal; // Normals (not necessarily normalized)
-layout (location = 2) in vec2 aTexCoords; // Texture Coordinates
+layout (location = 0) in vec3 aPos;
+layout (location = 1) in vec3 aNormal;
+layout (location = 2) in vec2 aTexCoords;
+layout (location = 3) in vec3 aTangent;
+layout (location = 4) in vec3 aBitangent;
 
 out vec3 FragPos;
-out vec3 Normal;
 out vec2 TexCoords;
+out vec3 GeometricNormal;
+out mat3 TBN;
 
 uniform mat4 projection;
 uniform mat4 view;
@@ -17,131 +19,392 @@ uniform mat4 model;
 void main()
 {
     FragPos = vec3(model * vec4(aPos, 1.0));
-    Normal = transpose(inverse(mat3(model))) * aNormal;
-
     TexCoords = aTexCoords;
-    
-    gl_Position = projection * view * model * vec4(aPos, 1.0);
 
+    mat3 normalMatrix = transpose(inverse(mat3(model)));
+    vec3 N = normalize(normalMatrix * aNormal);
+    GeometricNormal = N;
+
+    if (length(aTangent) > 0.001)
+    {
+        vec3 T = normalize(normalMatrix * aTangent);
+        T = normalize(T - dot(T, N) * N);
+        vec3 B = cross(N, T);
+        if (length(aBitangent) > 0.001)
+        {
+            vec3 loadedB = normalize(normalMatrix * aBitangent);
+            if (dot(cross(N, T), loadedB) < 0.0)
+            {
+                B = -B;
+            }
+        }
+        TBN = mat3(T, B, N);
+    }
+    else
+    {
+        vec3 up = abs(N.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+        vec3 T = normalize(cross(up, N));
+        vec3 B = cross(N, T);
+        TBN = mat3(T, B, N);
+    }
+
+    gl_Position = projection * view * model * vec4(aPos, 1.0);
 }
 
 #shader fragment
 #version 330 core
-#line 35 "Main.shader"
+
 out vec4 FragColor;
 
-struct Material {
-    sampler2D diffuse;
-    sampler2D specular;
-    float shininess;
-};
+in vec3 FragPos;
+in vec2 TexCoords;
+in vec3 GeometricNormal;
+in mat3 TBN;
 
+// Material PBR textures
+uniform sampler2D albedoMap;            // Texture slot 0
+uniform sampler2D metallicRoughnessMap; // Texture slot 1 (G = Roughness, B = Metallic)
+uniform sampler2D normalMap;            // Texture slot 2
+uniform sampler2D aoMap;                // Texture slot 3
+
+uniform int hasNormalMap;
+
+uniform vec4 baseColorFactor;
+uniform float metallicFactor;
+uniform float roughnessFactor;
+uniform float aoStrength;
+
+// Lights
 struct DirLight {
     vec3 direction;
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
+    vec3 color;
+    float intensity;
 };
 
 struct PointLight {
     vec3 position;
+    vec3 color;
+    float intensity;
     float constant;
     float linear;
     float quadratic;
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
-    samplerCube shadowMap; // Cubemap shadow texture
-    float farPlane;        // Far plane for depth comparison
+    samplerCube shadowMap;
+    float farPlane;
 };
 
 struct SpotLight {
     vec3 position;
     vec3 direction;
+    vec3 color;
+    float intensity;
     float cutOff;
     float outerCutOff;
     float constant;
     float linear;
     float quadratic;
-    vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
 };
 
 #define NR_POINT_LIGHTS 2
-
-// Inputs from the vertex shader
-in vec3 FragPos;
-in vec3 Normal;
-in vec2 TexCoords;
-
-// -------------------------------- Uniforms ---------------------------------
-
-uniform float shadowBias;
 
 uniform DirLight dirLight;
 uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform SpotLight spotLight;
 
-uniform Material material;
-
 uniform vec3 viewPos;
 uniform mat4 view;
 
-// Shadow maps
+// Shadows
 layout (std140) uniform LightSpaceMatrices
 {
     mat4 lightSpaceMatrices[16];
 };
 uniform float cascadePlaneDistances[16];
-uniform int cascadeCount;   // number of frusta
-uniform sampler2DArray shadowMap; // Cascaded shadow maps
+uniform int cascadeCount;
+uniform sampler2DArray shadowMap; // Cascaded shadow maps (Texture slot 10)
+uniform float shadowBias;
 
-// Alpha testing threshold
 uniform float alphaThreshold;
-
-// Debugging toggle
 uniform int debugCascades;
-// -------------------------------- Function Prototypes ---------------------------------
 
-vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir, float alpha);
-vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, float alpha);
-vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir, float alpha);
-float CalculateCascadeShadow(vec3 fragPosWorldSpace);
-float CalculatePointShadow(vec3 fragPos, vec3 lightPos, samplerCube shadowMap, float farPlane);
+const float PI = 3.14159265359;
 
-// Main Function
+// ---------------- Cook-Torrance GGX PBR Functions -----------------
+
+float DistributionGGX(vec3 N, vec3 H, float roughness)
+{
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float NdotH = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH * NdotH;
+
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+
+    return a2 / max(denom, 0.000001);
+}
+
+float GeometrySchlickGGX(float NdotV, float roughness)
+{
+    float r = (roughness + 1.0);
+    float k = (r * r) / 8.0;
+
+    float denom = NdotV * (1.0 - k) + k;
+    return NdotV / max(denom, 0.000001);
+}
+
+float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+{
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float ggx2 = GeometrySchlickGGX(NdotV, roughness);
+    float ggx1 = GeometrySchlickGGX(NdotL, roughness);
+
+    return ggx2 * ggx1;
+}
+
+vec3 FresnelSchlick(float cosTheta, vec3 F0)
+{
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}
+
+vec3 CalcPBRLight(vec3 L, vec3 radiance, vec3 N, vec3 V, vec3 albedo, float roughness, float metallic, vec3 F0)
+{
+    vec3 H = normalize(V + L);
+    float NdotL = max(dot(N, L), 0.0);
+    float NdotV = max(dot(N, V), 0.0);
+
+    if (NdotL <= 0.0)
+        return vec3(0.0);
+
+    float NDF = DistributionGGX(N, H, roughness);
+    float G = GeometrySmith(N, V, L, roughness);
+    vec3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
+
+    vec3 numerator = NDF * G * F;
+    float denominator = 4.0 * NdotV * NdotL + 0.0001;
+    vec3 specular = numerator / denominator;
+
+    vec3 kS = F;
+    vec3 kD = (vec3(1.0) - kS) * (1.0 - metallic);
+
+    return (kD * albedo / PI + specular) * radiance * NdotL;
+}
+
+// ---------------- Shadow Calculations -----------------
+
+float CalculateCascadeShadow(vec3 fragPosWorldSpace)
+{
+    vec4 fragPosViewSpace = view * vec4(fragPosWorldSpace, 1.0);
+    float depthValue = abs(fragPosViewSpace.z);
+
+    int layer = -1;
+    for (int i = 0; i < cascadeCount; ++i)
+    {
+        if (depthValue < cascadePlaneDistances[i])
+        {
+            layer = i;
+            break;
+        }
+    }
+    if (layer == -1)
+    {
+        layer = cascadeCount;
+    }
+
+    vec4 fragPosLightSpace = lightSpaceMatrices[layer] * vec4(fragPosWorldSpace, 1.0);
+    if (abs(fragPosLightSpace.w) < 0.0001)
+    {
+        return 0.0;
+    }
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+
+    if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
+    {
+        return 0.0;
+    }
+
+    float shadow = 0.0;
+    int samples = 16;
+    vec3 texelSize = 1.0 / vec3(textureSize(shadowMap, 0));
+
+    const vec2 poissonDisk[16] = vec2[](
+        vec2(-0.94201624, -0.39906216), vec2(0.94558609, -0.76890725),
+        vec2(-0.094184101, -0.92938870), vec2(0.34495938, 0.29387760),
+        vec2(-0.91588581, 0.45771432), vec2(-0.81544232, -0.87912464),
+        vec2(-0.38277543, 0.27676845), vec2(0.97484398, 0.75648379),
+        vec2(0.44323325, -0.97511554), vec2(0.53742981, -0.47373420),
+        vec2(-0.26496911, -0.41893023), vec2(0.79197514, 0.19090188),
+        vec2(-0.24188840, 0.99706507), vec2(-0.81409955, 0.91437590),
+        vec2(0.19984126, 0.78641367), vec2(0.14383161, -0.14100790)
+    );
+
+    for (int i = 0; i < samples; ++i)
+    {
+        vec2 randomOffset = poissonDisk[i % 16] * texelSize.xy;
+        float pcfDepth = texture(shadowMap, vec3(projCoords.xy + randomOffset, layer)).r;
+        shadow += (projCoords.z > pcfDepth + shadowBias) ? 1.0 : 0.0;
+    }
+
+    shadow /= float(samples);
+    return shadow;
+}
+
+float CalculatePointShadow(vec3 fragPos, vec3 lightPos, vec3 normal, samplerCube shadowMap, float farPlane)
+{
+    vec3 lightToFrag = fragPos - lightPos;
+    float currentDepth = length(lightToFrag);
+
+    // If fragment is at or beyond the light's farPlane, it receives no shadow from this light
+    if (currentDepth >= farPlane)
+    {
+        return 0.0;
+    }
+
+    float currentDepthNorm = currentDepth / farPlane;
+
+    vec3 L = normalize(lightPos - fragPos);
+    float cosTheta = max(dot(normal, L), 0.0);
+    // Slope-scaled adaptive bias to eliminate shadow acne on angled surfaces
+    float bias = max(0.005 * (1.0 - cosTheta), 0.0015);
+
+    float shadow = 0.0;
+    int samples = 20;
+    float diskRadius = (1.0 + (currentDepth / farPlane)) / 50.0;
+
+    const vec3 sampleOffsetDirections[20] = vec3[](
+       vec3( 1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1), 
+       vec3( 1,  1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1,  1, -1),
+       vec3( 1,  1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1,  1,  0),
+       vec3( 1,  0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1,  0, -1),
+       vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
+    );
+
+    for (int i = 0; i < samples; ++i)
+    {
+        float closestDepth = texture(shadowMap, lightToFrag + sampleOffsetDirections[i] * diskRadius).r;
+        if (currentDepthNorm - bias > closestDepth)
+        {
+            shadow += 1.0;
+        }
+    }
+
+    return shadow / float(samples);
+}
+
+// ---------------- Main Shader -----------------
+
 void main()
 {
-    // Alternatively, if alpha is in the diffuse texture's alpha channel:
-    float alpha = texture(material.diffuse, TexCoords).a;
+    vec4 albedoTex = texture(albedoMap, TexCoords);
+    vec4 baseColor = albedoTex * baseColorFactor;
 
-    // Optional alpha testing
-    if (alphaThreshold > 0.0 && alpha < alphaThreshold) {
-        discard;  // Discard fragments below the alpha threshold
+    if (alphaThreshold > 0.0 && baseColor.a < alphaThreshold)
+    {
+        discard;
     }
 
-    vec3 norm = normalize(Normal);
-    if (!gl_FrontFacing) norm = -norm;
-    vec3 viewDir = normalize(viewPos - FragPos);
+    // Convert sRGB albedo to linear space for physically accurate lighting
+    vec3 albedo = pow(baseColor.rgb, vec3(2.2));
 
-    // Accumulate lighting
-    vec3 result = vec3(0.0);
-
-    for (int i = 0; i < NR_POINT_LIGHTS; i++) {
-        result += CalcPointLight(pointLights[i], norm, FragPos, viewDir, alpha);
+    // Normal Mapping
+    vec3 N;
+    if (hasNormalMap == 1 && length(TBN[0]) > 0.1)
+    {
+        vec3 tangentNormal = texture(normalMap, TexCoords).xyz * 2.0 - 1.0;
+        N = normalize(TBN * tangentNormal);
+    }
+    else
+    {
+        N = normalize(GeometricNormal);
     }
 
-    result += CalcSpotLight(spotLight, norm, FragPos, viewDir, alpha);
+    if (length(N) < 0.001)
+    {
+        N = vec3(0.0, 1.0, 0.0);
+    }
 
-    result += CalcDirLight(dirLight, norm, viewDir, alpha);
-    
-    if (debugCascades == 1) {
+    if (!gl_FrontFacing)
+    {
+        N = -N;
+    }
+
+    vec3 V = normalize(viewPos - FragPos);
+
+    // glTF 2.0: Green = Roughness, Blue = Metallic
+    vec4 mrSample = texture(metallicRoughnessMap, TexCoords);
+    float roughness = clamp(mrSample.g * roughnessFactor, 0.04, 1.0);
+    float metallic = clamp(mrSample.b * metallicFactor, 0.0, 1.0);
+
+    float aoSample = texture(aoMap, TexCoords).r;
+    float ao = mix(1.0, aoSample, aoStrength);
+
+    vec3 F0 = vec3(0.04);
+    F0 = mix(F0, albedo, metallic);
+
+    vec3 Lo = vec3(0.0);
+
+    // Directional Light
+    {
+        vec3 L = normalize(-dirLight.direction);
+        vec3 radiance = dirLight.color * dirLight.intensity;
+        float shadow = CalculateCascadeShadow(FragPos);
+        Lo += (1.0 - shadow) * CalcPBRLight(L, radiance, N, V, albedo, roughness, metallic, F0);
+    }
+
+    // Point Lights
+    for (int i = 0; i < NR_POINT_LIGHTS; ++i)
+    {
+        vec3 lightVec = pointLights[i].position - FragPos;
+        float distance = length(lightVec);
+        if (distance >= pointLights[i].farPlane)
+        {
+            continue;
+        }
+
+        vec3 L = normalize(lightVec);
+
+        // Physically based smooth windowing (Karis / Unreal model) to eliminate sharp circular cutoff
+        float distRatio = distance / pointLights[i].farPlane;
+        float window = clamp(1.0 - distRatio * distRatio, 0.0, 1.0);
+        window = window * window;
+
+        float attenuation = 1.0 / (pointLights[i].constant + pointLights[i].linear * distance + pointLights[i].quadratic * (distance * distance));
+        vec3 radiance = pointLights[i].color * pointLights[i].intensity * attenuation * window;
+
+        float shadow = CalculatePointShadow(FragPos, pointLights[i].position, N, pointLights[i].shadowMap, pointLights[i].farPlane);
+        Lo += (1.0 - shadow) * CalcPBRLight(L, radiance, N, V, albedo, roughness, metallic, F0);
+    }
+
+    // Spot Light
+    {
+        vec3 L = normalize(spotLight.position - FragPos);
+        float distance = length(spotLight.position - FragPos);
+        float attenuation = 1.0 / (spotLight.constant + spotLight.linear * distance + spotLight.quadratic * (distance * distance));
+
+        float theta = dot(L, normalize(-spotLight.direction));
+        float epsilon = max(spotLight.cutOff - spotLight.outerCutOff, 0.0001);
+        float spotIntensity = clamp((theta - spotLight.outerCutOff) / epsilon, 0.0, 1.0);
+        vec3 radiance = spotLight.color * spotLight.intensity * attenuation * spotIntensity;
+
+        float shadow = CalculateCascadeShadow(FragPos);
+        Lo += (1.0 - shadow) * CalcPBRLight(L, radiance, N, V, albedo, roughness, metallic, F0);
+    }
+
+    // Ambient Lighting (soft ambient scaled by AO)
+    vec3 ambient = (dirLight.color * dirLight.intensity * 0.05 + vec3(0.03)) * albedo * ao;
+
+    vec3 color = ambient + Lo;
+
+    if (debugCascades == 1)
+    {
         vec4 fragPosViewSpace = view * vec4(FragPos, 1.0);
         float depthValue = abs(fragPosViewSpace.z);
         int layer = -1;
-        for (int i = 0; i < cascadeCount; ++i) {
-            if (depthValue < cascadePlaneDistances[i]) {
+        for (int i = 0; i < cascadeCount; ++i)
+        {
+            if (depthValue < cascadePlaneDistances[i])
+            {
                 layer = i;
                 break;
             }
@@ -154,178 +417,9 @@ void main()
         else if (layer == 3) debugColor = vec3(1.0, 0.0, 1.0);
         else debugColor = vec3(1.0, 1.0, 0.0);
         FragColor = vec4(debugColor, 1.0);
-    } else {
-        FragColor = vec4(result, 1.0);
     }
-}
-
-// Directional Light Calculation with Cascade Shadows
-vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir, float alpha)
-{
-    float lightLen = length(light.direction);
-    if (lightLen < 0.0001) return vec3(0.0);
-    vec3 lightDir = -light.direction / lightLen;
-    float diff = max(dot(normal, lightDir), 0.0);
-    vec3 reflectDir = reflect(-lightDir, normal);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
-
-    vec4 diffuseTex = texture(material.diffuse, TexCoords);
-    vec4 specularTex = texture(material.specular, TexCoords);
-
-    vec3 ambient = light.ambient * diffuseTex.rgb;
-    vec3 diffuse = light.diffuse * diff * diffuseTex.rgb;
-    vec3 specular = light.specular * spec * specularTex.rgb;
-
-    // Cascade shadow calculation
-    float shadow = CalculateCascadeShadow(FragPos);
-
-    return ambient + (1.0 - shadow) * (diffuse + specular);
-}
-
-float CalculateCascadeShadow(vec3 fragPosWorldSpace) {
-    vec4 fragPosViewSpace = view * vec4(fragPosWorldSpace, 1.0);
-    float depthValue = abs(fragPosViewSpace.z);
-
-    int layer = -1;
-    for (int i = 0; i < cascadeCount; ++i) {
-        if (depthValue < cascadePlaneDistances[i]) {
-            layer = i;
-            break;
-        }
+    else
+    {
+        FragColor = vec4(color, baseColor.a);
     }
-    if (layer == -1) {
-        layer = cascadeCount; // Default to last cascade
-    }
-
-    vec4 fragPosLightSpace = lightSpaceMatrices[layer] * vec4(fragPosWorldSpace, 1.0);
-    if (abs(fragPosLightSpace.w) < 0.0001) {
-        return 0.0;
-    }
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    projCoords = projCoords * 0.5 + 0.5;
-
-    if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0) {
-        return 0.0; // Outside light's frustum
-    }
-
-    float shadow = 0.0;
-    int samples = 16; // Number of samples for multisampling
-    vec3 texelSize = 1.0 / textureSize(shadowMap, 0);
-
-    // Multisampling: sample surrounding texels with random offsets
-    for (int i = 0; i < samples; ++i) {
-       // vec3 randomOffset = normalize(vec3(
-        //    fract(sin(dot(vec3(gl_FragCoord.xy, i), vec3(12.9898, 78.233, 54.53))) * 43758.5453),
-        //    fract(cos(dot(vec3(gl_FragCoord.yx, i), vec3(42.535, 93.425, 12.34))) * 23432.1234),
-        //    fract(sin(dot(vec3(gl_FragCoord.xy, i + 42), vec3(91.934, 45.123, 34.534))) * 52342.12)
-       // )) * texelSize;
-
-        const vec2 poissonDisk[16] = vec2[](
-    vec2(-0.94201624, -0.39906216), vec2(0.94558609, -0.76890725),
-    vec2(-0.094184101, -0.92938870), vec2(0.34495938, 0.29387760),
-    vec2(-0.91588581, 0.45771432), vec2(-0.81544232, -0.87912464),
-    vec2(-0.38277543, 0.27676845), vec2(0.97484398, 0.75648379),
-    vec2(0.44323325, -0.97511554), vec2(0.53742981, -0.47373420),
-    vec2(-0.26496911, -0.41893023), vec2(0.79197514, 0.19090188),
-    vec2(-0.24188840, 0.99706507), vec2(-0.81409955, 0.91437590),
-    vec2(0.19984126, 0.78641367), vec2(0.14383161, -0.14100790)
-);
-
-        vec2 randomOffset = poissonDisk[i % 16] * texelSize.xy;
-
-
-        float pcfDepth = texture(shadowMap, vec3(projCoords.xy + randomOffset, layer)).r;
-        shadow += (projCoords.z > pcfDepth + shadowBias) ? 1.0 : 0.0;
-        
-        //float pcfDepth = texture(shadowMap, vec3(projCoords.xy + vec2(x, y) * texelSize.xy, layer)).r;
-        //shadow += (projCoords.z > pcfDepth + shadowBias) ? 1.0 : 0.0;
-    }
-
-    shadow /= float(samples);
-
-    return shadow;
-}
-
-
-// Point Light Calculation (unchanged)
-vec3 CalcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir, float alpha)
-{
-    vec3 lightDir = normalize(light.position - fragPos);
-    float diff = max(dot(normal, lightDir), 0.0);
-    vec3 reflectDir = reflect(-lightDir, normal);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
-
-    float distance = length(light.position - fragPos);
-    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
-
-    vec4 diffuseTex = texture(material.diffuse, TexCoords);
-    vec4 specularTex = texture(material.specular, TexCoords);
-
-    vec3 ambient = light.ambient * diffuseTex.rgb;
-    vec3 diffuse = light.diffuse * diff * diffuseTex.rgb;
-    vec3 specular = light.specular * spec * specularTex.rgb;
-
-    ambient *= attenuation;
-    diffuse *= attenuation;
-    specular *= attenuation;
-
-    float shadow = CalculatePointShadow(fragPos, light.position, light.shadowMap, light.farPlane);
-    return ambient + (1.0 - shadow) * (diffuse + specular);
-}
-
-// Spot Light Calculation (unchanged)
-vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir, float alpha)
-{
-    vec3 lightDir = normalize(light.position - fragPos);
-    float diff = max(dot(normal, lightDir), 0.0);
-    vec3 reflectDir = reflect(-lightDir, normal);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
-
-    float distance = length(light.position - fragPos);
-    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
-
-    float dirLen = length(light.direction);
-    if (dirLen < 0.0001) return vec3(0.0);
-    float theta = dot(lightDir, -light.direction / dirLen);
-    float epsilon = max(light.cutOff - light.outerCutOff, 0.0001);
-    float intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
-
-    vec4 diffuseTex = texture(material.diffuse, TexCoords);
-    vec4 specularTex = texture(material.specular, TexCoords);
-
-    vec3 ambient = light.ambient * diffuseTex.rgb;
-    vec3 diffuse = light.diffuse * diff * diffuseTex.rgb;
-    vec3 specular = light.specular * spec * specularTex.rgb;
-
-    ambient *= attenuation * intensity;
-    diffuse *= attenuation * intensity;
-    specular *= attenuation * intensity;
-
-    float shadow = CalculateCascadeShadow(FragPos);
-
-    return ambient + (1.0 - shadow) * (diffuse + specular);
-}
-
-// Point Light Shadow Calculation (unchanged)
-float CalculatePointShadow(vec3 fragPos, vec3 lightPos, samplerCube shadowMap, float farPlane)
-{
-    vec3 lightToFrag = fragPos - lightPos;
-    float currentDepth = length(lightToFrag) / farPlane;
-
-    float shadow = 0.0;
-    int samples = 20;
-    float diskRadius = 0.05;
-
-    for (int i = 0; i < samples; ++i) {
-        vec3 randomOffset = normalize(vec3(
-            fract(sin(dot(vec3(gl_FragCoord.xy, i), vec3(12.9898, 78.233, 54.53))) * 43758.5453),
-            fract(cos(dot(vec3(gl_FragCoord.yx, i), vec3(42.535, 93.425, 12.34))) * 23432.1234),
-            fract(sin(dot(vec3(gl_FragCoord.xy, i + 42), vec3(91.934, 45.123, 34.534))) * 52342.12)
-        )) * diskRadius;
-
-        float closestDepth = texture(shadowMap, lightToFrag + randomOffset).r;
-        shadow += currentDepth > closestDepth + 0.005 ? 1.0 : 0.0;
-    }
-
-    return shadow / float(samples);
 }

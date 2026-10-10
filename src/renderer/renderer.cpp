@@ -66,29 +66,25 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 	glBindTexture(GL_TEXTURE_2D_ARRAY, m_ShadowRenderer.GetLightDepthMaps());
 	m_MainShader.SetUniform1i("shadowMap", 10);
 
-	m_MainShader.SetUniform1f("material.shininess", 32.0f);
-
 	int pointLightCount = 0;
 	for (const Light* light : lights) {
 		switch (light->GetType()) {
 		case DIRECTIONAL: {
 			m_MainShader.SetUniform3f("dirLight.direction", light->GetDirection());
-			m_MainShader.SetUniform3f("dirLight.ambient", light->GetColor() * light->GetIntensity() * 0.05f);
-			m_MainShader.SetUniform3f("dirLight.diffuse", light->GetColor() * light->GetIntensity() * 0.4f);
-			m_MainShader.SetUniform3f("dirLight.specular", light->GetColor() * light->GetIntensity() * 0.5f);
+			m_MainShader.SetUniform3f("dirLight.color", light->GetColor());
+			m_MainShader.SetUniform1f("dirLight.intensity", light->GetIntensity());
 			break;
 		}
 		case POINT: {
 			std::string uniformName = std::format("pointLights[{}]", pointLightCount);
 			m_MainShader.SetUniform3f(uniformName + ".position", light->GetPosition());
-			m_MainShader.SetUniform3f(uniformName + ".ambient", light->GetColor() * light->GetIntensity() * 0.05f);
-			m_MainShader.SetUniform3f(uniformName + ".diffuse", light->GetColor() * light->GetIntensity() * 0.8f);
-			m_MainShader.SetUniform3f(uniformName + ".specular", light->GetColor() * light->GetIntensity() * 1.0f);
-			m_MainShader.SetUniform1f(uniformName + ".constant", 1.0f);
-			m_MainShader.SetUniform1f(uniformName + ".linear", 0.09f);
-			m_MainShader.SetUniform1f(uniformName + ".quadratic", 0.032f);
-			m_MainShader.SetUniform1i(uniformName + ".shadowMap", 6);
-			m_MainShader.SetUniform1f(uniformName + ".farPlane", 25.0f);
+			m_MainShader.SetUniform3f(uniformName + ".color", light->GetColor());
+			m_MainShader.SetUniform1f(uniformName + ".intensity", light->GetIntensity());
+			m_MainShader.SetUniform1f(uniformName + ".constant", light->GetConstant());
+			m_MainShader.SetUniform1f(uniformName + ".linear", light->GetLinear());
+			m_MainShader.SetUniform1f(uniformName + ".quadratic", light->GetQuadratic());
+			m_MainShader.SetUniform1i(uniformName + ".shadowMap", 6 + pointLightCount);
+			m_MainShader.SetUniform1f(uniformName + ".farPlane", light->GetRange());
 			++pointLightCount;
 			break;
 		}
@@ -96,9 +92,8 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, c
 		case SPOTLIGHT: {
 			m_MainShader.SetUniform3f("spotLight.position", light->GetPosition());
 			m_MainShader.SetUniform3f("spotLight.direction", light->GetDirection());
-			m_MainShader.SetUniform3f("spotLight.ambient", light->GetColor() * light->GetIntensity() * 0.05f);
-			m_MainShader.SetUniform3f("spotLight.diffuse", light->GetColor() * light->GetIntensity() * 0.8f);
-			m_MainShader.SetUniform3f("spotLight.specular", light->GetColor() * light->GetIntensity() * 1.0f);
+			m_MainShader.SetUniform3f("spotLight.color", light->GetColor());
+			m_MainShader.SetUniform1f("spotLight.intensity", light->GetIntensity());
 			m_MainShader.SetUniform1f("spotLight.constant", 1.0f);
 			m_MainShader.SetUniform1f("spotLight.linear", 0.09f);
 			m_MainShader.SetUniform1f("spotLight.quadratic", 0.032f);

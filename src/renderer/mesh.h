@@ -32,19 +32,24 @@ struct Texture {
 	string path;
 };
 
+struct MaterialFactors {
+	glm::vec4 baseColorFactor = glm::vec4(1.0f);
+	float metallicFactor = 1.0f;
+	float roughnessFactor = 1.0f;
+	float aoStrength = 1.0f;
+};
+
 class Mesh {
 public:
 	vector<Vertex>       vertices;
 	vector<unsigned int> indices;
 	vector<Texture>      textures;
+	MaterialFactors      factors;
 	unsigned int VAO;
 
-	Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures)
+	Mesh(vector<Vertex> vertices, vector<unsigned int> indices, vector<Texture> textures, MaterialFactors factors = {})
+		: vertices(std::move(vertices)), indices(std::move(indices)), textures(std::move(textures)), factors(factors)
 	{
-		this->vertices = vertices;
-		this->indices = indices;
-		this->textures = textures;
-
 		setupMesh();
 	}
 
@@ -59,6 +64,7 @@ public:
 		vertices = std::move(other.vertices);
 		indices = std::move(other.indices);
 		textures = std::move(other.textures);
+		factors = other.factors;
 		VAO = other.VAO;
 		VBO = other.VBO;
 		EBO = other.EBO;
@@ -72,6 +78,7 @@ public:
 			vertices = std::move(other.vertices);
 			indices = std::move(other.indices);
 			textures = std::move(other.textures);
+			factors = other.factors;
 			VAO = other.VAO;
 			VBO = other.VBO;
 			EBO = other.EBO;
@@ -86,63 +93,103 @@ public:
 
 	void Draw(Shader& shader)
 	{
-		// Bind appropriate textures only if the shader uses material uniforms (skip for shadow/depth passes)
-		if (glGetUniformLocation(shader.RendererID(), "material.diffuse") != -1)
-		{
-			unsigned int diffuseNr = 1;
-			unsigned int specularNr = 1;
-			unsigned int normalNr = 1;
-			unsigned int heightNr = 1;
-			unsigned int shadowNr = 1;
-			if (textures.empty())
-			{
-				static unsigned int defaultGreyTex = 0;
-				if (defaultGreyTex == 0)
-				{
-					unsigned int grey = 0xFFB4B4B4;
-					glGenTextures(1, &defaultGreyTex);
-					glBindTexture(GL_TEXTURE_2D, defaultGreyTex);
-					glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &grey);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-				}
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, defaultGreyTex);
-				shader.SetUniform1i("material.diffuse", 0);
-				if (glGetUniformLocation(shader.RendererID(), "material.specular") != -1)
-					shader.SetUniform1i("material.specular", 0);
-			}
-			else
-			{
-				for (unsigned int i = 0; i < textures.size(); i++)
-				{
-					glActiveTexture(GL_TEXTURE0 + i);
-					string name = textures[i].type;
-					if (name == "material.diffuse")
-					{
-						if (diffuseNr == 1)
-							shader.SetUniform1i("material.diffuse", i);
-						else
-							shader.SetUniform1i("material.diffuse" + std::to_string(diffuseNr), i);
-						diffuseNr++;
-					}
-					else if (name == "material.specular")
-					{
-						if (specularNr == 1)
-							shader.SetUniform1i("material.specular", i);
-						else
-							shader.SetUniform1i("material.specular" + std::to_string(specularNr), i);
-						specularNr++;
-					}
-					else if (name == "material.normal")
-						shader.SetUniform1i(name + std::to_string(normalNr++), i);
-					else if (name == "material.height")
-						shader.SetUniform1i(name + std::to_string(heightNr++), i);
-					else if (name == "material.shadow")
-						shader.SetUniform1i(name + std::to_string(shadowNr++), i);
+		bool isPBR = (glGetUniformLocation(shader.RendererID(), "normalMap") != -1);
+		bool hasAlbedoUniform = (glGetUniformLocation(shader.RendererID(), "albedoMap") != -1);
 
-					glBindTexture(GL_TEXTURE_2D, textures[i].id);
+		if (isPBR || hasAlbedoUniform)
+		{
+			static unsigned int defaultAlbedo = 0;
+			static unsigned int defaultMR = 0;
+			static unsigned int defaultNormal = 0;
+			static unsigned int defaultAO = 0;
+
+			if (defaultAlbedo == 0)
+			{
+				unsigned int white = 0xFFFFFFFF;
+				glGenTextures(1, &defaultAlbedo);
+				glBindTexture(GL_TEXTURE_2D, defaultAlbedo);
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &white);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+				unsigned char mrData[4] = { 255, 128, 0, 255 }; // R=unused, G=roughness(0.5), B=metallic(0.0)
+				glGenTextures(1, &defaultMR);
+				glBindTexture(GL_TEXTURE_2D, defaultMR);
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, mrData);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+				unsigned char normalData[4] = { 128, 128, 255, 255 }; // Flat tangent space normal (0, 0, 1)
+				glGenTextures(1, &defaultNormal);
+				glBindTexture(GL_TEXTURE_2D, defaultNormal);
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, normalData);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+				unsigned int aoWhite = 0xFFFFFFFF;
+				glGenTextures(1, &defaultAO);
+				glBindTexture(GL_TEXTURE_2D, defaultAO);
+				glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, &aoWhite);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			}
+
+			// Bind default albedo to slot 0
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, defaultAlbedo);
+
+			if (isPBR)
+			{
+				glActiveTexture(GL_TEXTURE1);
+				glBindTexture(GL_TEXTURE_2D, defaultMR);
+				glActiveTexture(GL_TEXTURE2);
+				glBindTexture(GL_TEXTURE_2D, defaultNormal);
+				glActiveTexture(GL_TEXTURE3);
+				glBindTexture(GL_TEXTURE_2D, defaultAO);
+			}
+
+			int hasAlbedo = 0;
+			int hasNormal = 0;
+
+			for (const auto& tex : textures)
+			{
+				if ((tex.type == "texture_albedo" || tex.type == "material.diffuse") && !hasAlbedo)
+				{
+					glActiveTexture(GL_TEXTURE0);
+					glBindTexture(GL_TEXTURE_2D, tex.id);
+					hasAlbedo = 1;
 				}
+				else if (isPBR && (tex.type == "texture_metallicRoughness" || tex.type == "material.specular"))
+				{
+					glActiveTexture(GL_TEXTURE1);
+					glBindTexture(GL_TEXTURE_2D, tex.id);
+				}
+				else if (isPBR && (tex.type == "texture_normal" || tex.type == "material.normal") && !hasNormal)
+				{
+					glActiveTexture(GL_TEXTURE2);
+					glBindTexture(GL_TEXTURE_2D, tex.id);
+					hasNormal = 1;
+				}
+				else if (isPBR && (tex.type == "texture_ao" || tex.type == "material.ambient"))
+				{
+					glActiveTexture(GL_TEXTURE3);
+					glBindTexture(GL_TEXTURE_2D, tex.id);
+				}
+			}
+
+			shader.SetUniform1i("albedoMap", 0);
+
+			if (isPBR)
+			{
+				shader.SetUniform1i("metallicRoughnessMap", 1);
+				shader.SetUniform1i("normalMap", 2);
+				shader.SetUniform1i("aoMap", 3);
+				shader.SetUniform1i("hasNormalMap", hasNormal);
+
+				shader.SetUniform4f("baseColorFactor", factors.baseColorFactor);
+				shader.SetUniform1f("metallicFactor", factors.metallicFactor);
+				shader.SetUniform1f("roughnessFactor", factors.roughnessFactor);
+				shader.SetUniform1f("aoStrength", factors.aoStrength);
 			}
 		}
 

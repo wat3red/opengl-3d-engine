@@ -2,9 +2,17 @@
 
 #include <GL/glew.h>
 
+enum class FramebufferTextureFormat {
+	None = 0,
+	RGBA8,
+	RGBA16F,
+	Depth24Stencil8
+};
+
 struct FramebufferSpecification {
 	int Width = 0;
 	int Height = 0;
+	FramebufferTextureFormat ColorFormat = FramebufferTextureFormat::RGBA8;
 	int Samples = 1;
 	bool SwapChainTarget = false;
 };

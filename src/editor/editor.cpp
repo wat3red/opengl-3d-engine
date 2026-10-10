@@ -1,5 +1,6 @@
 #include "editor.h"
 #include "skybox.h"
+#include "primitive.h"
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
@@ -23,7 +24,20 @@ Editor::~Editor()
 
 void Editor::Initialize(GLFWwindow* window)
 {
-	m_Framebuffer = std::make_unique<Framebuffer>(FramebufferSpecification{ 1280, 720 });
+	FramebufferSpecification hdrSpec;
+	hdrSpec.Width = 1280;
+	hdrSpec.Height = 720;
+	hdrSpec.ColorFormat = FramebufferTextureFormat::RGBA16F;
+	m_HDRFramebuffer = std::make_unique<Framebuffer>(hdrSpec);
+
+	FramebufferSpecification ldrSpec;
+	ldrSpec.Width = 1280;
+	ldrSpec.Height = 720;
+	ldrSpec.ColorFormat = FramebufferTextureFormat::RGBA8;
+	m_LDRFramebuffer = std::make_unique<Framebuffer>(ldrSpec);
+
+	m_ToneMapShader = Shader("shaders/ToneMap.shader");
+
 	m_InputHandler.SetCallbacks(window);
 
 	IMGUI_CHECKVERSION();
@@ -52,7 +66,8 @@ void Editor::Shutdown()
 		ImGui_ImplGlfw_Shutdown();
 		ImGui::DestroyContext();
 	}
-	m_Framebuffer.reset();
+	m_HDRFramebuffer.reset();
+	m_LDRFramebuffer.reset();
 }
 
 void Editor::ProcessInput(GLFWwindow* window, float deltaTime)
@@ -62,7 +77,7 @@ void Editor::ProcessInput(GLFWwindow* window, float deltaTime)
 
 void Editor::RenderSceneViewport()
 {
-	if (!m_Framebuffer)
+	if (!m_HDRFramebuffer || !m_LDRFramebuffer)
 	{
 		return;
 	}
@@ -71,7 +86,8 @@ void Editor::RenderSceneViewport()
 
 	if (m_ViewportSize.x > 0 && m_ViewportSize.y > 0)
 	{
-		m_Renderer.RenderScene(m_ViewportSize, m_Camera, m_Scene, m_Framebuffer->GetRendererID());
+		// 1. Render 3D scene into HDR Framebuffer (GL_RGBA16F)
+		m_Renderer.RenderScene(m_ViewportSize, m_Camera, m_Scene, m_HDRFramebuffer->GetRendererID());
 
 		Shader& lightShader = m_Renderer.GetLightShader();
 		lightShader.Bind();
@@ -93,13 +109,32 @@ void Editor::RenderSceneViewport()
 		}
 
 		lightShader.Unbind();
+		m_HDRFramebuffer->Unbind();
+
+		// 2. Post-processing tonemapping pass: HDR -> LDR
+		m_LDRFramebuffer->Bind();
+		glViewport(0, 0, m_ViewportSize.x, m_ViewportSize.y);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glDisable(GL_DEPTH_TEST);
+
+		m_ToneMapShader.Bind();
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, m_HDRFramebuffer->GetColorAttachmentRendererID());
+		m_ToneMapShader.SetUniform1i("hdrBuffer", 0);
+		m_ToneMapShader.SetUniform1f("exposure", m_Exposure);
+		m_ToneMapShader.SetUniform1i("toneMappingOperator", m_ToneMappingOperator);
+		m_ToneMapShader.SetUniform1f("gamma", m_Gamma);
+
+		Primitive::GetFullScreenQuad()->Draw(m_ToneMapShader);
+
+		m_ToneMapShader.Unbind();
+		glEnable(GL_DEPTH_TEST);
+		m_LDRFramebuffer->Unbind();
 	}
 
 	auto end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<float> duration = end - start;
 	m_GpuRenderTime = duration.count() * 1000.0f;
-
-	m_Framebuffer->Unbind();
 }
 
 void Editor::RenderUI(float deltaTime)
@@ -130,20 +165,24 @@ void Editor::DrawViewportPanel()
 	if (viewportPanelSize.x > 0 && viewportPanelSize.y > 0)
 	{
 		m_ViewportSize = { static_cast<int>(viewportPanelSize.x), static_cast<int>(viewportPanelSize.y) };
-		if (m_Framebuffer && (m_Framebuffer->GetWidth() != m_ViewportSize.x || m_Framebuffer->GetHeight() != m_ViewportSize.y))
+		if (m_HDRFramebuffer && (m_HDRFramebuffer->GetWidth() != m_ViewportSize.x || m_HDRFramebuffer->GetHeight() != m_ViewportSize.y))
 		{
-			m_Framebuffer->Resize(m_ViewportSize.x, m_ViewportSize.y);
+			m_HDRFramebuffer->Resize(m_ViewportSize.x, m_ViewportSize.y);
+		}
+		if (m_LDRFramebuffer && (m_LDRFramebuffer->GetWidth() != m_ViewportSize.x || m_LDRFramebuffer->GetHeight() != m_ViewportSize.y))
+		{
+			m_LDRFramebuffer->Resize(m_ViewportSize.x, m_ViewportSize.y);
 		}
 	}
 
-	if (m_Framebuffer)
+	if (m_LDRFramebuffer)
 	{
-		unsigned int textureID = m_Framebuffer->GetColorAttachmentRendererID();
+		unsigned int textureID = m_LDRFramebuffer->GetColorAttachmentRendererID();
 		if (textureID != 0)
 		{
 			ImGui::Image(
 				(ImTextureID)(intptr_t)textureID,
-				ImVec2(static_cast<float>(m_Framebuffer->GetWidth()), static_cast<float>(m_Framebuffer->GetHeight())),
+				ImVec2(static_cast<float>(m_LDRFramebuffer->GetWidth()), static_cast<float>(m_LDRFramebuffer->GetHeight())),
 				ImVec2(0.0f, 1.0f),
 				ImVec2(1.0f, 0.0f)
 			);
@@ -383,6 +422,14 @@ void Editor::DrawEnvironmentPanel()
 		}
 
 		ImGui::Checkbox("Debug Cascade Frustums", &m_Renderer.GetDebugCascades());
+	}
+
+	if (ImGui::CollapsingHeader("Post-Processing & Tone Mapping", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		ImGui::SliderFloat("Exposure", &m_Exposure, 0.01f, 10.0f, "%.2f");
+		const char* tonemapOps[] = { "ACES Filmic", "Reinhard", "None (Clamp)" };
+		ImGui::Combo("Tone Mapping", &m_ToneMappingOperator, tonemapOps, IM_ARRAYSIZE(tonemapOps));
+		ImGui::SliderFloat("Gamma", &m_Gamma, 1.0f, 3.0f, "%.2f");
 	}
 
 	if (ImGui::CollapsingHeader("Camera Settings", ImGuiTreeNodeFlags_DefaultOpen))

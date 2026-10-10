@@ -18,6 +18,9 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 std::wstring stringToWString(const std::string& str) {
 	if (str.empty()) return std::wstring();
@@ -36,10 +39,35 @@ std::string wstringToUtf8(const std::wstring& wstr) {
 }
 
 unsigned int TextureFromFile(const std::wstring& path, const std::wstring& directory, bool gamma = false) {
-	std::wstring filename = directory + L'/' + path;
-	std::println("Loading texture from file: {}", wstringToUtf8(filename));
+	fs::path p(path);
+	fs::path dir(directory);
+	fs::path resolvedPath;
 
-	std::string filenameUtf8 = wstringToUtf8(filename);
+	std::error_code ec;
+	if (fs::exists(p, ec) && !fs::is_directory(p, ec)) {
+		resolvedPath = p;
+	}
+	else if (fs::exists(dir / p, ec) && !fs::is_directory(dir / p, ec)) {
+		resolvedPath = dir / p;
+	}
+	else if (fs::exists(dir / p.filename(), ec) && !fs::is_directory(dir / p.filename(), ec)) {
+		resolvedPath = dir / p.filename();
+	}
+	else if (fs::exists(dir / "textures" / p.filename(), ec) && !fs::is_directory(dir / "textures" / p.filename(), ec)) {
+		resolvedPath = dir / "textures" / p.filename();
+	}
+	else if (fs::exists(dir / ".." / "textures" / p.filename(), ec) && !fs::is_directory(dir / ".." / "textures" / p.filename(), ec)) {
+		resolvedPath = dir / ".." / "textures" / p.filename();
+	}
+	else if (fs::exists(dir / ".." / p.filename(), ec) && !fs::is_directory(dir / ".." / p.filename(), ec)) {
+		resolvedPath = dir / ".." / p.filename();
+	}
+	else {
+		resolvedPath = dir / p;
+	}
+
+	std::string filenameUtf8 = resolvedPath.string();
+	std::println("Loading texture from file: {}", filenameUtf8);
 
 	unsigned int textureID;
 	glGenTextures(1, &textureID);
@@ -142,7 +170,8 @@ void Model::loadModel(const std::string& path, bool flipUVs) {
 		aiProcess_GlobalScale |
 		aiProcess_TransformUVCoords |
 		aiProcess_OptimizeGraph |
-		aiProcess_OptimizeMeshes;
+		aiProcess_OptimizeMeshes |
+		aiProcess_PreTransformVertices;
 
 	const aiScene* scene = importer.ReadFile(path,
 		flipUVs ? sceneParams | aiProcess_FlipUVs : sceneParams
@@ -206,10 +235,15 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 	}
 
 	aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-	std::vector<Texture> diffuseMaps = loadMaterialTextures(scene, material, aiTextureType_DIFFUSE, "material.diffuse");
 
-	// If no diffuse texture assigned to this material, search for sibling materials with the same prefix (e.g. Floor001 -> Floor002)
-	if (diffuseMaps.empty()) {
+	// 1. Albedo / Base Color
+	std::vector<Texture> albedoMaps = loadMaterialTextures(scene, material, aiTextureType_BASE_COLOR, "texture_albedo");
+	if (albedoMaps.empty()) {
+		albedoMaps = loadMaterialTextures(scene, material, aiTextureType_DIFFUSE, "texture_albedo");
+	}
+
+	// Sibling fallback if no albedo texture found
+	if (albedoMaps.empty()) {
 		aiString matName;
 		if (material->Get(AI_MATKEY_NAME, matName) == AI_SUCCESS) {
 			std::string nameStr = matName.C_Str();
@@ -222,9 +256,12 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 					aiString otherName;
 					if (otherMat->Get(AI_MATKEY_NAME, otherName) == AI_SUCCESS) {
 						std::string otherStr = otherName.C_Str();
-						if (otherStr.rfind(prefix, 0) == 0 && otherMat->GetTextureCount(aiTextureType_DIFFUSE) > 0) {
-							std::println("[Model] Material '{}' has no diffuse texture; falling back to sibling '{}'", nameStr, otherStr);
-							diffuseMaps = loadMaterialTextures(scene, otherMat, aiTextureType_DIFFUSE, "material.diffuse");
+						if (otherStr.rfind(prefix, 0) == 0 && (otherMat->GetTextureCount(aiTextureType_BASE_COLOR) > 0 || otherMat->GetTextureCount(aiTextureType_DIFFUSE) > 0)) {
+							std::println("[Model] Material '{}' has no albedo texture; falling back to sibling '{}'", nameStr, otherStr);
+							albedoMaps = loadMaterialTextures(scene, otherMat, aiTextureType_BASE_COLOR, "texture_albedo");
+							if (albedoMaps.empty()) {
+								albedoMaps = loadMaterialTextures(scene, otherMat, aiTextureType_DIFFUSE, "texture_albedo");
+							}
 							break;
 						}
 					}
@@ -233,12 +270,134 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene) {
 		}
 	}
 
-	std::vector<Texture> specularMaps = loadMaterialTextures(scene, material, aiTextureType_SPECULAR, "material.specular");
+	// Fallback to directory scan for loose textures if model material has no texture bindings
+	if (albedoMaps.empty()) {
+		fs::path dir(directory);
+		std::vector<fs::path> searchDirs = {
+			dir / "textures",
+			dir / ".." / "textures",
+			dir,
+			dir / ".."
+		};
 
-	textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-	textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+		static const std::vector<std::string> imageExtensions = {
+			".png", ".jpg", ".jpeg", ".tga", ".bmp", ".dds", ".webp"
+		};
 
-	return Mesh(vertices, indices, textures);
+		std::vector<fs::path> foundImages;
+		for (const auto& searchDir : searchDirs) {
+			std::error_code ec;
+			if (fs::exists(searchDir, ec) && fs::is_directory(searchDir, ec)) {
+				for (const auto& entry : fs::directory_iterator(searchDir, ec)) {
+					if (entry.is_regular_file(ec)) {
+						std::string ext = entry.path().extension().string();
+						for (auto& c : ext) c = static_cast<char>(tolower(c));
+						for (const auto& validExt : imageExtensions) {
+							if (ext == validExt) {
+								foundImages.push_back(entry.path());
+								break;
+							}
+						}
+					}
+				}
+				if (!foundImages.empty()) {
+					break;
+				}
+			}
+		}
+
+		if (!foundImages.empty()) {
+			fs::path bestAlbedo;
+			for (const auto& imgPath : foundImages) {
+				std::string stem = imgPath.stem().string();
+				for (auto& c : stem) c = static_cast<char>(tolower(c));
+				if (stem.find("albedo") != std::string::npos ||
+				    stem.find("diffuse") != std::string::npos ||
+				    stem.find("basecolor") != std::string::npos ||
+				    stem.find("base_color") != std::string::npos ||
+				    stem.find("color") != std::string::npos ||
+				    stem.find("col") != std::string::npos ||
+				    stem.find("sky") != std::string::npos ||
+				    stem.find("landscape") != std::string::npos) {
+					bestAlbedo = imgPath;
+					break;
+				}
+			}
+
+			if (bestAlbedo.empty()) {
+				bestAlbedo = foundImages[0];
+			}
+
+			std::string albedoPathStr = bestAlbedo.string();
+			bool alreadyLoaded = false;
+			for (const auto& loadedTex : textures_loaded) {
+				if (loadedTex.path == albedoPathStr) {
+					albedoMaps.push_back(loadedTex);
+					alreadyLoaded = true;
+					break;
+				}
+			}
+
+			if (!alreadyLoaded) {
+				std::println("[Model] Auto-associated loose texture '{}' as albedo for mesh '{}'", albedoPathStr, mesh->mName.C_Str());
+				Texture tex;
+				tex.id = TextureFromFile(bestAlbedo.wstring(), dir.wstring());
+				tex.type = "texture_albedo";
+				tex.path = albedoPathStr;
+				albedoMaps.push_back(tex);
+				textures_loaded.push_back(tex);
+			}
+		}
+	}
+
+	// 2. Metallic / Roughness (glTF packs Roughness in G and Metallic in B)
+	std::vector<Texture> mrMaps = loadMaterialTextures(scene, material, aiTextureType_DIFFUSE_ROUGHNESS, "texture_metallicRoughness");
+	if (mrMaps.empty()) {
+		mrMaps = loadMaterialTextures(scene, material, aiTextureType_METALNESS, "texture_metallicRoughness");
+	}
+	if (mrMaps.empty()) {
+		mrMaps = loadMaterialTextures(scene, material, aiTextureType_UNKNOWN, "texture_metallicRoughness");
+	}
+	if (mrMaps.empty()) {
+		mrMaps = loadMaterialTextures(scene, material, aiTextureType_SPECULAR, "texture_metallicRoughness");
+	}
+
+	// 3. Normal Map
+	std::vector<Texture> normalMaps = loadMaterialTextures(scene, material, aiTextureType_NORMALS, "texture_normal");
+	if (normalMaps.empty()) {
+		normalMaps = loadMaterialTextures(scene, material, aiTextureType_HEIGHT, "texture_normal");
+	}
+
+	// 4. Ambient Occlusion Map
+	std::vector<Texture> aoMaps = loadMaterialTextures(scene, material, aiTextureType_AMBIENT_OCCLUSION, "texture_ao");
+	if (aoMaps.empty()) {
+		aoMaps = loadMaterialTextures(scene, material, aiTextureType_LIGHTMAP, "texture_ao");
+	}
+
+	textures.insert(textures.end(), albedoMaps.begin(), albedoMaps.end());
+	textures.insert(textures.end(), mrMaps.begin(), mrMaps.end());
+	textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
+	textures.insert(textures.end(), aoMaps.begin(), aoMaps.end());
+
+	// 5. Material Factors
+	MaterialFactors factors;
+	aiColor4D baseColor(1.0f, 1.0f, 1.0f, 1.0f);
+	if (material->Get(AI_MATKEY_BASE_COLOR, baseColor) == AI_SUCCESS ||
+	    material->Get(AI_MATKEY_COLOR_DIFFUSE, baseColor) == AI_SUCCESS) {
+		factors.baseColorFactor = glm::vec4(baseColor.r, baseColor.g, baseColor.b, baseColor.a);
+	}
+
+	float metallic = 1.0f;
+	if (material->Get(AI_MATKEY_METALLIC_FACTOR, metallic) == AI_SUCCESS) {
+		factors.metallicFactor = metallic;
+	}
+
+	float roughness = 1.0f;
+	if (material->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) == AI_SUCCESS) {
+		factors.roughnessFactor = roughness;
+	}
+
+	return Mesh(vertices, indices, textures, factors);
 }
 
 std::vector<Texture> Model::loadMaterialTextures(const aiScene* scene, aiMaterial* mat, aiTextureType type, const std::string& typeName) {

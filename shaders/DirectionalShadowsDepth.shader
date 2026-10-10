@@ -46,16 +46,13 @@ void main()
 
 in vec2 FragTexCoords;
 
-struct Material {
-    sampler2D diffuse;
-};
-uniform Material material;
+uniform sampler2D albedoMap;
 uniform float alphaThreshold;
 
 void main()
 {
     if (alphaThreshold > 0.0) {
-        if (texture(material.diffuse, FragTexCoords).a < alphaThreshold)
+        if (texture(albedoMap, FragTexCoords).a < alphaThreshold)
             discard;
     }
 }

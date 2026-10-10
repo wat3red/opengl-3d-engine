@@ -154,6 +154,12 @@ std::shared_ptr<Mesh> Primitive::GetUnitQuad()
 	return s_UnitQuad;
 }
 
+std::shared_ptr<Mesh> Primitive::GetFullScreenQuad()
+{
+	static std::shared_ptr<Mesh> s_FullScreenQuad = CreateQuad(2.0f, 2.0f);
+	return s_FullScreenQuad;
+}
+
 std::shared_ptr<Mesh> Primitive::GetUnitSphere()
 {
 	static std::shared_ptr<Mesh> s_UnitSphere = CreateSphere(1.0f);

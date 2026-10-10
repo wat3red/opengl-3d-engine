@@ -13,5 +13,6 @@ public:
 	// Shared singleton instances (allocated once on the GPU, reused everywhere)
 	static std::shared_ptr<Mesh> GetUnitCube();
 	static std::shared_ptr<Mesh> GetUnitQuad();
+	static std::shared_ptr<Mesh> GetFullScreenQuad();
 	static std::shared_ptr<Mesh> GetUnitSphere();
 };

@@ -7,7 +7,7 @@
 class Entity {
 public:
 	Entity(const std::string& name = "Entity")
-		: m_Name(name), m_Active(true) {}
+		: m_Name(name), m_Active(true), m_CastsShadow(true) {}
 
 	virtual ~Entity() = default;
 
@@ -19,6 +19,9 @@ public:
 
 	bool IsActive() const { return m_Active; }
 	void SetActive(bool active) { m_Active = active; }
+
+	bool CastsShadow() const { return m_CastsShadow; }
+	void SetCastsShadow(bool castsShadow) { m_CastsShadow = castsShadow; }
 
 	Transform& GetTransform() { return m_Transform; }
 	const Transform& GetTransform() const { return m_Transform; }
@@ -38,4 +41,5 @@ protected:
 	std::string m_Name;
 	Transform m_Transform;
 	bool m_Active;
+	bool m_CastsShadow = true;
 };

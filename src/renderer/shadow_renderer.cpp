@@ -134,7 +134,9 @@ void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::v
 			glCullFace(GL_FRONT); // Front-face culling to mitigate shadow acne
 			glEnable(GL_DEPTH_CLAMP);
 			for (Entity* entity : entities) {
-				entity->Draw(m_DirectionalShadowShader);
+				if (entity && entity->CastsShadow()) {
+					entity->Draw(m_DirectionalShadowShader);
+				}
 			}
 			glCullFace(GL_BACK);
 			glDisable(GL_DEPTH_CLAMP);
@@ -156,7 +158,7 @@ void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::v
 			m_PointShadowShader.SetUniform3f("lightPos", lightPos);
 
 			float nearPlane = 0.1f;
-			float farPlane = 25.0f;
+			float farPlane = light->GetRange();
 			m_PointShadowShader.SetUniform1f("farPlane", farPlane);
 
 			glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), 1.0f, nearPlane, farPlane);
@@ -176,7 +178,7 @@ void ShadowRenderer::RenderShadowMaps(const glm::ivec2& windowSize, const std::v
 			}
 
 			for (Entity* entity : entities) {
-				if (glm::distance(entity->GetPosition(), lightPos) < farPlane) {
+				if (entity && entity->CastsShadow()) {
 					entity->Draw(m_PointShadowShader);
 				}
 			}

@@ -28,13 +28,22 @@ public:
 	Camera& GetCamera() { return m_Camera; }
 	const Camera& GetCamera() const { return m_Camera; }
 
-	Framebuffer& GetFramebuffer() { return *m_Framebuffer; }
-	const Framebuffer& GetFramebuffer() const { return *m_Framebuffer; }
+	Framebuffer& GetFramebuffer() { return *m_LDRFramebuffer; }
+	const Framebuffer& GetFramebuffer() const { return *m_LDRFramebuffer; }
 
 	bool IsViewportFocused() const { return m_IsViewportFocused; }
 	bool IsViewportHovered() const { return m_IsViewportHovered; }
 	glm::ivec2 GetViewportSize() const { return m_ViewportSize; }
 	float GetGpuRenderTime() const { return m_GpuRenderTime; }
+
+	float& GetExposure() { return m_Exposure; }
+	float GetExposure() const { return m_Exposure; }
+
+	float& GetGamma() { return m_Gamma; }
+	float GetGamma() const { return m_Gamma; }
+
+	int& GetToneMappingOperator() { return m_ToneMappingOperator; }
+	int GetToneMappingOperator() const { return m_ToneMappingOperator; }
 
 private:
 	Scene& m_Scene;
@@ -42,7 +51,13 @@ private:
 
 	Camera m_Camera;
 	InputHandler m_InputHandler;
-	std::unique_ptr<Framebuffer> m_Framebuffer;
+	std::unique_ptr<Framebuffer> m_HDRFramebuffer;
+	std::unique_ptr<Framebuffer> m_LDRFramebuffer;
+	Shader m_ToneMapShader;
+
+	float m_Exposure = 1.0f;
+	int m_ToneMappingOperator = 0;
+	float m_Gamma = 2.2f;
 
 	bool m_IsViewportFocused = false;
 	bool m_IsViewportHovered = false;

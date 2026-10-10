@@ -79,9 +79,7 @@ void Engine::InitializeScene()
 		"Clock Tower Map",
 		"res/models/house/source/free_fire_maxx_new_clock_tower_map_download_free.glb"
 	);
-	houseEntity->SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
-	houseEntity->SetRotation(glm::vec3(0.0f, 0.0f, 0.0f));
-	houseEntity->SetScale(glm::vec3(1.0f, 1.0f, 1.0f));
+	houseEntity->SetScale(glm::vec3(100.0f, 100.0f, 100.0f));
 	m_Scene.AddEntity(houseEntity);
 
 	auto sun = std::make_shared<DirectionalLight>(
@@ -121,19 +119,10 @@ void Engine::InitializeScene()
 	);
 	m_Scene.AddLight(flashlight);
 
-	std::vector<std::string> skyboxFaces = {
-		"res/textures/skybox_Storforsen/posx.jpg",
-		"res/textures/skybox_Storforsen/negx.jpg",
-		"res/textures/skybox_Storforsen/posy.jpg",
-		"res/textures/skybox_Storforsen/negy.jpg",
-		"res/textures/skybox_Storforsen/posz.jpg",
-		"res/textures/skybox_Storforsen/negz.jpg"
-	};
-	auto skyboxCube = AssetManager::Get().LoadCubemap("storforsen", skyboxFaces);
-	auto skyboxShader = AssetManager::Get().LoadShader("skybox", "shaders/Skybox.shader");
-	if (skyboxCube && skyboxShader)
+	auto skyDomeShader = AssetManager::Get().LoadShader("skydome", "shaders/SkyDome.shader");
+	if (skyDomeShader)
 	{
-		m_Scene.SetSkybox(std::make_shared<Skybox>(skyboxCube, skyboxShader));
+		m_Scene.SetSkybox(std::make_shared<Skybox>("res/models/skybox/source/basic_skybox_3d.fbx", skyDomeShader));
 	}
 
 	m_Scene.SetSelectedEntity(houseEntity);

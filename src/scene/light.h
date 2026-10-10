@@ -45,6 +45,10 @@ public:
 	virtual float GetOuterCutoff() const { return 17.5f; }
 	virtual void SetOuterCutoff(float) {}
 
+	virtual float GetConstant() const { return 1.0f; }
+	virtual float GetLinear() const { return 0.09f; }
+	virtual float GetQuadratic() const { return 0.032f; }
+
 	void Draw(Shader& shader) override {}
 
 protected:
@@ -82,9 +86,9 @@ public:
 	float GetRange() const override { return m_Range; }
 	void SetRange(float range) override { m_Range = range; }
 
-	float GetConstant() const { return m_Constant; }
-	float GetLinear() const { return m_Linear; }
-	float GetQuadratic() const { return m_Quadratic; }
+	float GetConstant() const override { return m_Constant; }
+	float GetLinear() const override { return m_Linear; }
+	float GetQuadratic() const override { return m_Quadratic; }
 
 private:
 	float m_Range;
@@ -114,9 +118,9 @@ public:
 	float GetOuterCutoff() const override { return m_OuterCutoff; }
 	void SetOuterCutoff(float outerCutoff) override { m_OuterCutoff = outerCutoff; }
 
-	float GetConstant() const { return m_Constant; }
-	float GetLinear() const { return m_Linear; }
-	float GetQuadratic() const { return m_Quadratic; }
+	float GetConstant() const override { return m_Constant; }
+	float GetLinear() const override { return m_Linear; }
+	float GetQuadratic() const override { return m_Quadratic; }
 
 private:
 	glm::vec3 m_Direction;
