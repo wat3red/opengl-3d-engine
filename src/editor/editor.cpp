@@ -13,6 +13,58 @@
 
 #include <chrono>
 #include <algorithm>
+#include <filesystem>
+#include <cctype>
+
+namespace {
+
+std::vector<std::string>& GetDiscoveredModels()
+{
+	static std::vector<std::string> s_DiscoveredModels;
+	static bool s_ModelsScanned = false;
+	if (!s_ModelsScanned)
+	{
+		s_DiscoveredModels.clear();
+		std::error_code ec;
+		for (const auto& entry : std::filesystem::recursive_directory_iterator("res/models", ec))
+		{
+			if (entry.is_regular_file())
+			{
+				auto ext = entry.path().extension().string();
+				for (auto& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+				if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj")
+				{
+					s_DiscoveredModels.push_back(entry.path().generic_string());
+				}
+			}
+		}
+		std::sort(s_DiscoveredModels.begin(), s_DiscoveredModels.end());
+		s_ModelsScanned = true;
+	}
+	return s_DiscoveredModels;
+}
+
+void RescanDiscoveredModels()
+{
+	auto& models = GetDiscoveredModels();
+	models.clear();
+	std::error_code ec;
+	for (const auto& entry : std::filesystem::recursive_directory_iterator("res/models", ec))
+	{
+		if (entry.is_regular_file())
+		{
+			auto ext = entry.path().extension().string();
+			for (auto& c : ext) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+			if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj")
+			{
+				models.push_back(entry.path().generic_string());
+			}
+		}
+	}
+	std::sort(models.begin(), models.end());
+}
+
+} // namespace
 
 Editor::Editor(Scene& scene, Renderer& renderer)
 	: m_Scene(scene),
@@ -547,6 +599,29 @@ void Editor::DrawSceneHierarchyPanel()
 			Entity e = m_Scene.CreateEntity("New Entity");
 			m_Scene.SetSelectedEntity(e);
 		}
+		if (ImGui::BeginMenu("Add 3D Model"))
+		{
+			if (ImGui::MenuItem("Empty Mesh Entity"))
+			{
+				Entity e = m_Scene.CreateEntity("New Mesh Entity");
+				e.AddComponent<MeshComponent>();
+				m_Scene.SetSelectedEntity(e);
+			}
+			ImGui::Separator();
+			const auto& models = GetDiscoveredModels();
+			for (const auto& modelPath : models)
+			{
+				std::filesystem::path p(modelPath);
+				std::string label = p.stem().string() + " (" + p.extension().string() + ")";
+				if (ImGui::MenuItem(label.c_str()))
+				{
+					Entity e = m_Scene.CreateModelEntity(p.stem().string(), modelPath);
+					e.SetPosition(m_Camera.Position + m_Camera.Front * 5.0f);
+					m_Scene.SetSelectedEntity(e);
+				}
+			}
+			ImGui::EndMenu();
+		}
 		if (ImGui::MenuItem("Add Camera"))
 		{
 			Entity cam = m_Scene.CreateEntity("Camera");
@@ -667,14 +742,81 @@ void Editor::DrawEntityInspectorPanel()
 		if (ImGui::CollapsingHeader("Mesh Component", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			auto& mc = selectedEntity.GetComponent<MeshComponent>();
-			ImGui::TextWrapped("Model: %s", mc.ModelPath.c_str());
-			ImGui::Checkbox("Casts Shadow##Mesh", &mc.CastsShadow);
-			if (ImGui::Button("Reload Model"))
+
+			// Path input buffer
+			char modelPathBuf[260];
+			strncpy_s(modelPathBuf, mc.ModelPath.c_str(), sizeof(modelPathBuf));
+			if (ImGui::InputText("Model File", modelPathBuf, sizeof(modelPathBuf), ImGuiInputTextFlags_EnterReturnsTrue))
 			{
-				mc.LoadModel(mc.ModelPath, mc.FlipUVs);
+				mc.LoadModel(modelPathBuf, mc.FlipUVs);
+				if (mc.ModelAsset && !selectedEntity.HasComponent<RigidbodyComponent>())
+				{
+					selectedEntity.AddComponent<RigidbodyComponent>(mc.ModelAsset.get());
+				}
+			}
+
+			// Discovered models dropdown / picker
+			const auto& discoveredModels = GetDiscoveredModels();
+			if (ImGui::BeginCombo("Quick Pick Model", mc.ModelPath.empty() ? "(Select Model...)" : mc.ModelPath.c_str()))
+			{
+				for (const auto& modelPath : discoveredModels)
+				{
+					bool isSelected = (mc.ModelPath == modelPath);
+					if (ImGui::Selectable(modelPath.c_str(), isSelected))
+					{
+						mc.LoadModel(modelPath, mc.FlipUVs);
+						if (mc.ModelAsset && !selectedEntity.HasComponent<RigidbodyComponent>())
+						{
+							selectedEntity.AddComponent<RigidbodyComponent>(mc.ModelAsset.get());
+						}
+					}
+					if (isSelected)
+					{
+						ImGui::SetItemDefaultFocus();
+					}
+				}
+				ImGui::EndCombo();
+			}
+
+			if (ImGui::Button("Load / Reload"))
+			{
+				mc.LoadModel(std::string(modelPathBuf), mc.FlipUVs);
+				if (mc.ModelAsset && !selectedEntity.HasComponent<RigidbodyComponent>())
+				{
+					selectedEntity.AddComponent<RigidbodyComponent>(mc.ModelAsset.get());
+				}
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Remove Mesh"))
+			if (ImGui::Button("Rescan Folder"))
+			{
+				RescanDiscoveredModels();
+			}
+
+			if (ImGui::Checkbox("Flip UVs##Mesh", &mc.FlipUVs))
+			{
+				if (!mc.ModelPath.empty())
+				{
+					mc.LoadModel(mc.ModelPath, mc.FlipUVs);
+				}
+			}
+			ImGui::SameLine();
+			ImGui::Checkbox("Casts Shadow##Mesh", &mc.CastsShadow);
+
+			if (mc.ModelAsset)
+			{
+				const auto& aabb = mc.ModelAsset->GetAABB();
+				glm::vec3 extents = aabb.max - aabb.min;
+				ImGui::TextColored(ImVec4(0.35f, 0.95f, 0.45f, 1.0f), "Meshes: %zu", mc.ModelAsset->GetMeshCount());
+				ImGui::SameLine();
+				ImGui::TextDisabled("| Extents: (%.1f, %.1f, %.1f)", extents.x, extents.y, extents.z);
+			}
+			else
+			{
+				ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.45f, 1.0f), "No 3D model loaded. Select or enter a file above.");
+			}
+
+			ImGui::Separator();
+			if (ImGui::Button("Remove Mesh Component"))
 			{
 				selectedEntity.RemoveComponent<MeshComponent>();
 			}
@@ -1195,6 +1337,29 @@ void Editor::DrawMainMenuBar()
 			{
 				Entity e = m_Scene.CreateEntity("New Entity");
 				m_Scene.SetSelectedEntity(e);
+			}
+			if (ImGui::BeginMenu("Add 3D Model"))
+			{
+				if (ImGui::MenuItem("Empty Mesh Entity"))
+				{
+					Entity e = m_Scene.CreateEntity("New Mesh Entity");
+					e.AddComponent<MeshComponent>();
+					m_Scene.SetSelectedEntity(e);
+				}
+				ImGui::Separator();
+				const auto& models = GetDiscoveredModels();
+				for (const auto& modelPath : models)
+				{
+					std::filesystem::path p(modelPath);
+					std::string label = p.stem().string() + " (" + p.extension().string() + ")";
+					if (ImGui::MenuItem(label.c_str()))
+					{
+						Entity e = m_Scene.CreateModelEntity(p.stem().string(), modelPath);
+						e.SetPosition(m_Camera.Position + m_Camera.Front * 5.0f);
+						m_Scene.SetSelectedEntity(e);
+					}
+				}
+				ImGui::EndMenu();
 			}
 			if (ImGui::MenuItem("Camera"))
 			{
