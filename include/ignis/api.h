@@ -11,6 +11,12 @@
 #include <glm/glm.hpp>
 #include <cstdint>
 
+#if __has_include(<imgui/imgui.h>)
+#include <imgui/imgui.h>
+#elif __has_include(<imgui.h>)
+#include <imgui.h>
+#endif
+
 // Forward declaration of ScriptableEntity in global namespace
 class ScriptableEntity;
 
@@ -61,6 +67,10 @@ struct EngineContext {
     AudioContext Audio;
     PhysicsContext Physics;
     void* ImGuiContext;
+    void* (*GetImGuiContext)();
+    void* ImGuiMemAllocFunc;
+    void* ImGuiMemFreeFunc;
+    void* ImGuiMemUserData;
     void (*RegisterScript)(const char* name, ScriptCreatorFn creator);
     void (*UnregisterScript)(const char* name);
     void (*LogMessage)(int level, const char* message);
@@ -77,12 +87,27 @@ inline void SetContext(EngineContext* ctx) { g_Context = ctx; }
     void RegisterModuleScripts(); \
     extern "C" __declspec(dllexport) void InitializeGameModule(Ignis::EngineContext* context); \
     extern "C" __declspec(dllexport) void ShutdownGameModule(); \
+    extern "C" __declspec(dllexport) void SetGameModuleImGuiContext(void* ctx, void* allocFunc, void* freeFunc, void* userData); \
     extern "C" __declspec(dllexport) const char* GetGameModuleName() { return ModuleName; } \
     void ShutdownGameModule() {} \
+    void SetGameModuleImGuiContext(void* ctx, void* allocFunc, void* freeFunc, void* userData) { \
+        if (ctx) { \
+            ImGui::SetCurrentContext(static_cast<ImGuiContext*>(ctx)); \
+        } \
+        if (allocFunc && freeFunc) { \
+            ImGui::SetAllocatorFunctions( \
+                reinterpret_cast<ImGuiMemAllocFunc>(allocFunc), \
+                reinterpret_cast<ImGuiMemFreeFunc>(freeFunc), \
+                userData \
+            ); \
+        } \
+    } \
     void InitializeGameModule(Ignis::EngineContext* context) { \
         Ignis::SetContext(context); \
-        if (context && context->ImGuiContext) { \
-            ImGui::SetCurrentContext(static_cast<ImGuiContext*>(context->ImGuiContext)); \
+        if (context) { \
+            void* ctx = context->ImGuiContext; \
+            if (!ctx && context->GetImGuiContext) ctx = context->GetImGuiContext(); \
+            SetGameModuleImGuiContext(ctx, context->ImGuiMemAllocFunc, context->ImGuiMemFreeFunc, context->ImGuiMemUserData); \
         } \
         RegisterModuleScripts(); \
     } \

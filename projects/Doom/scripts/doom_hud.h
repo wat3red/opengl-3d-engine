@@ -7,7 +7,14 @@
 
 inline void DrawRetroDoomHUD()
 {
+	Ignis::EnsureImGuiContext();
+	if (!ImGui::GetCurrentContext())
+		return;
+
 	ImDrawList* drawList = ImGui::GetWindowDrawList();
+	if (!drawList)
+		return;
+
 	ImVec2 winPos = ImGui::GetWindowPos();
 	ImVec2 winSize = ImGui::GetWindowSize();
 	ImVec2 center(winPos.x + winSize.x * 0.5f, winPos.y + winSize.y * 0.5f);
@@ -110,6 +117,10 @@ class DoomHUD : public ScriptableEntity {
 public:
 	void OnGUI() override
 	{
+		Ignis::EnsureImGuiContext();
+		if (!ImGui::GetCurrentContext())
+			return;
+
 		DrawRetroDoomHUD();
 	}
 };

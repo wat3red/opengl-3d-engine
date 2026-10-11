@@ -22,6 +22,35 @@
 
 #include "physics.h"
 
+namespace Ignis {
+
+inline void EnsureImGuiContext()
+{
+    if (!ImGui::GetCurrentContext())
+    {
+        if (GetContext())
+        {
+            void* ctx = GetContext()->ImGuiContext;
+            if (!ctx && GetContext()->GetImGuiContext)
+                ctx = GetContext()->GetImGuiContext();
+            if (ctx)
+            {
+                ImGui::SetCurrentContext(static_cast<ImGuiContext*>(ctx));
+                if (GetContext()->ImGuiMemAllocFunc && GetContext()->ImGuiMemFreeFunc)
+                {
+                    ImGui::SetAllocatorFunctions(
+                        reinterpret_cast<ImGuiMemAllocFunc>(GetContext()->ImGuiMemAllocFunc),
+                        reinterpret_cast<ImGuiMemFreeFunc>(GetContext()->ImGuiMemFreeFunc),
+                        GetContext()->ImGuiMemUserData
+                    );
+                }
+            }
+        }
+    }
+}
+
+} // namespace Ignis
+
 namespace Ignis::Physics {
 
 inline Entity RaycastHit::GetHitEntity(Scene* scene) const

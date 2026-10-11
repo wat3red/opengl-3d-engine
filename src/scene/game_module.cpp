@@ -161,6 +161,16 @@ void GameModule::SetupContext()
 
 	// ImGui context
 	m_Context.ImGuiContext = ImGui::GetCurrentContext();
+	m_Context.GetImGuiContext = []() -> void* {
+		return ImGui::GetCurrentContext();
+	};
+	ImGuiMemAllocFunc allocFunc = nullptr;
+	ImGuiMemFreeFunc freeFunc = nullptr;
+	void* userData = nullptr;
+	ImGui::GetAllocatorFunctions(&allocFunc, &freeFunc, &userData);
+	m_Context.ImGuiMemAllocFunc = reinterpret_cast<void*>(allocFunc);
+	m_Context.ImGuiMemFreeFunc = reinterpret_cast<void*>(freeFunc);
+	m_Context.ImGuiMemUserData = userData;
 
 	// Script registration
 	m_Context.RegisterScript = [](const char* name, Ignis::ScriptCreatorFn creator) {
@@ -248,7 +258,11 @@ bool GameModule::Load(const std::string& dllPath)
 		return false;
 	}
 
+	m_SetImGuiContextFn = reinterpret_cast<SetImGuiContextFn>(GetProcAddress(static_cast<HMODULE>(m_Module), "SetGameModuleImGuiContext"));
+
 	init(&m_Context);
+	SyncImGuiContext();
+
 	std::println("[GameModule] Successfully loaded game module '{}' from '{}'", m_ModuleName, targetPath);
 	return true;
 }
@@ -264,6 +278,7 @@ void GameModule::Unload()
 
 		FreeLibrary(static_cast<HMODULE>(m_Module));
 		m_Module = nullptr;
+		m_SetImGuiContextFn = nullptr;
 		m_ModuleName = "None";
 		std::println("[GameModule] Unloaded game module.");
 	}
@@ -274,4 +289,22 @@ bool GameModule::Reload()
 	std::string path = m_ModulePath;
 	ScriptRegistry::Clear();
 	return Load(path);
+}
+
+void GameModule::SyncImGuiContext(void* ctx)
+{
+	if (!ctx) ctx = ImGui::GetCurrentContext();
+	m_Context.ImGuiContext = ctx;
+
+	ImGuiMemAllocFunc allocFunc = nullptr;
+	ImGuiMemFreeFunc freeFunc = nullptr;
+	void* userData = nullptr;
+	ImGui::GetAllocatorFunctions(&allocFunc, &freeFunc, &userData);
+	m_Context.ImGuiMemAllocFunc = reinterpret_cast<void*>(allocFunc);
+	m_Context.ImGuiMemFreeFunc = reinterpret_cast<void*>(freeFunc);
+	m_Context.ImGuiMemUserData = userData;
+
+	if (m_SetImGuiContextFn && ctx) {
+		m_SetImGuiContextFn(ctx, m_Context.ImGuiMemAllocFunc, m_Context.ImGuiMemFreeFunc, m_Context.ImGuiMemUserData);
+	}
 }

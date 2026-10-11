@@ -1,6 +1,7 @@
 #include "scene.h"
 #include "light.h"
 #include "scriptable_entity.h"
+#include "game_module.h"
 #include <unordered_map>
 
 Scene::Scene()
@@ -167,6 +168,7 @@ void Scene::OnUpdateRuntime(float deltaTime)
 
 void Scene::OnRuntimeGUI()
 {
+	GameModule::Get().SyncImGuiContext();
 	auto view = m_Registry.view<TagComponent, NativeScriptComponent>();
 	for (auto [entityHandle, tag, nsc] : view.each())
 	{
