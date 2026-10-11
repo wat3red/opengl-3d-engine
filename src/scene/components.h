@@ -13,6 +13,7 @@
 #include "shader.h"
 #include "camera.h"
 #include "physics/rigidbody.h"
+#include "audio_engine.h"
 
 // Forward declaration of LightType enum (or defined here/in light.h)
 #ifndef LIGHT_TYPE_ENUM_DEFINED
@@ -302,4 +303,98 @@ struct MeshColliderComponent {
 	MeshColliderComponent() = default;
 	explicit MeshColliderComponent(bool isTrigger) : IsTrigger(isTrigger) {}
 };
+
+// 3D Audio Source Component
+struct AudioSourceComponent {
+	std::string SoundPath = "";
+	float Volume = 1.0f;
+	float Pitch = 1.0f;
+	bool Loop = false;
+	bool PlayOnAwake = true;
+	bool Spatial = true;
+	float MinDistance = 1.0f;
+	float MaxDistance = 50.0f;
+	float RollOff = 1.0f;
+
+	std::shared_ptr<Sound> SoundInstance = nullptr;
+
+	AudioSourceComponent() = default;
+	explicit AudioSourceComponent(const std::string& path, bool loop = false, bool playOnAwake = true, bool spatial = true)
+		: SoundPath(path), Loop(loop), PlayOnAwake(playOnAwake), Spatial(spatial)
+	{
+		LoadSound(path);
+	}
+
+	void LoadSound(const std::string& path)
+	{
+		SoundPath = path;
+		if (!path.empty())
+		{
+			SoundInstance = AudioEngine::Get().CreateSound(path, Spatial, Loop);
+			if (SoundInstance)
+			{
+				SoundInstance->SetVolume(Volume);
+				SoundInstance->SetPitch(Pitch);
+				SoundInstance->SetAttenuation(MinDistance, MaxDistance, RollOff);
+			}
+		}
+		else
+		{
+			SoundInstance = nullptr;
+		}
+	}
+
+	void Play()
+	{
+		if (!SoundInstance && !SoundPath.empty())
+		{
+			LoadSound(SoundPath);
+		}
+		if (SoundInstance)
+		{
+			SoundInstance->SetVolume(Volume);
+			SoundInstance->SetPitch(Pitch);
+			SoundInstance->SetLooping(Loop);
+			SoundInstance->SetSpatial(Spatial);
+			SoundInstance->SetAttenuation(MinDistance, MaxDistance, RollOff);
+			SoundInstance->Play();
+		}
+	}
+
+	void Pause()
+	{
+		if (SoundInstance)
+			SoundInstance->Pause();
+	}
+
+	void Stop()
+	{
+		if (SoundInstance)
+			SoundInstance->Stop();
+	}
+
+	[[nodiscard]] bool IsPlaying() const
+	{
+		return SoundInstance ? SoundInstance->IsPlaying() : false;
+	}
+
+	void UpdateTransform(const glm::vec3& worldPos)
+	{
+		if (SoundInstance && Spatial)
+		{
+			SoundInstance->SetPosition(worldPos);
+		}
+	}
+};
+
+// 3D Audio Listener Component
+struct AudioListenerComponent {
+	bool Primary = true;
+	float Volume = 1.0f;
+
+	AudioListenerComponent() = default;
+	explicit AudioListenerComponent(bool primary, float volume = 1.0f)
+		: Primary(primary), Volume(volume) {}
+};
+
 

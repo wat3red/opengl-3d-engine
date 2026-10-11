@@ -46,6 +46,9 @@ set(ENGINE_SOURCES
     # Assets
     src/assets/asset_manager.cpp
 
+    # Audio
+    src/audio/audio_engine.cpp
+
     # Physics
     src/physics/rigidbody.cpp
     src/physics/collision.cpp
@@ -107,6 +110,10 @@ set(ENGINE_HEADERS
     # Assets
     src/assets/asset_manager.h
 
+    # Audio
+    src/audio/audio_engine.h
+    vendor/miniaudio/miniaudio.h
+
     # Physics
     src/physics/rigidbody.h
     src/physics/collision.h
@@ -128,6 +135,7 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${ENGINE_SOURCES} ${ENGINE
 target_include_directories(Ignis PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/audio
     ${CMAKE_CURRENT_SOURCE_DIR}/src/renderer
     ${CMAKE_CURRENT_SOURCE_DIR}/src/scene
     ${CMAKE_CURRENT_SOURCE_DIR}/src/assets
@@ -136,6 +144,7 @@ target_include_directories(Ignis PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/GLEW/include
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/GLFW/include
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor
+    ${CMAKE_CURRENT_SOURCE_DIR}/vendor/miniaudio
 )
 
 # Preprocessor definitions

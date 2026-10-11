@@ -81,6 +81,9 @@
     <ClCompile Include="src\assets\asset_manager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\audio\audio_engine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\physics\rigidbody.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -210,6 +213,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\assets\asset_manager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\audio\audio_engine.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="vendor\miniaudio\miniaudio.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\physics\rigidbody.h">

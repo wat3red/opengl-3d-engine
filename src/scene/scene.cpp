@@ -34,6 +34,7 @@ void Scene::DestroyEntity(Entity entity)
 
 void Scene::OnRuntimeStart()
 {
+	// 1. Instantiate and start native scripts
 	auto view = m_Registry.view<NativeScriptComponent>();
 	for (auto [entityHandle, nsc] : view.each())
 	{
@@ -42,6 +43,22 @@ void Scene::OnRuntimeStart()
 			nsc.Instance = nsc.InstantiateScript();
 			nsc.Instance->m_Entity = Entity{ entityHandle, this };
 			nsc.Instance->OnCreate();
+		}
+	}
+
+	// 2. Start Audio Sources with PlayOnAwake
+	{
+		auto audioView = m_Registry.view<TagComponent, AudioSourceComponent>();
+		for (auto [entityHandle, tag, audio] : audioView.each())
+		{
+			if (tag.Active && audio.PlayOnAwake)
+			{
+				if (m_Registry.all_of<TransformComponent>(entityHandle))
+				{
+					audio.UpdateTransform(m_Registry.get<TransformComponent>(entityHandle).Position);
+				}
+				audio.Play();
+			}
 		}
 	}
 }
@@ -79,10 +96,54 @@ void Scene::OnUpdateRuntime(float deltaTime)
 			}
 		}
 	}
+
+	// 3. Update Audio Listener and Spatial Sources
+	{
+		Entity listenerEntity = {};
+		auto listenerView = m_Registry.view<TagComponent, AudioListenerComponent, TransformComponent>();
+		for (auto [entityHandle, tag, listener, tc] : listenerView.each())
+		{
+			if (tag.Active && listener.Primary)
+			{
+				listenerEntity = Entity{ entityHandle, this };
+				break;
+			}
+		}
+
+		if (listenerEntity)
+		{
+			auto& tc = listenerEntity.GetTransform();
+			glm::vec3 forward = DirectionFromEuler(tc.Rotation);
+			AudioEngine::Get().SetListenerPosition(tc.Position);
+			AudioEngine::Get().SetListenerDirection(forward, glm::vec3(0.0f, 1.0f, 0.0f));
+		}
+		else
+		{
+			Entity primaryCam = GetPrimaryCameraEntity();
+			if (primaryCam && primaryCam.HasComponent<TransformComponent>())
+			{
+				auto& tc = primaryCam.GetTransform();
+				glm::vec3 forward = DirectionFromEuler(tc.Rotation);
+				AudioEngine::Get().SetListenerPosition(tc.Position);
+				AudioEngine::Get().SetListenerDirection(forward, glm::vec3(0.0f, 1.0f, 0.0f));
+			}
+		}
+
+		// Update 3D Audio Sources positions
+		auto audioView = m_Registry.view<TagComponent, TransformComponent, AudioSourceComponent>();
+		for (auto [entityHandle, tag, tc, audio] : audioView.each())
+		{
+			if (tag.Active && audio.Spatial)
+			{
+				audio.UpdateTransform(tc.Position);
+			}
+		}
+	}
 }
 
 void Scene::OnRuntimeStop()
 {
+	// 1. Destroy running script instances
 	auto view = m_Registry.view<NativeScriptComponent>();
 	for (auto [entityHandle, nsc] : view.each())
 	{
@@ -95,6 +156,13 @@ void Scene::OnRuntimeStop()
 			}
 			nsc.Instance = nullptr;
 		}
+	}
+
+	// 2. Stop all audio playback
+	auto audioView = m_Registry.view<AudioSourceComponent>();
+	for (auto [entityHandle, audio] : audioView.each())
+	{
+		audio.Stop();
 	}
 }
 
@@ -191,6 +259,35 @@ void Scene::DuplicateFrom(const Scene& other)
 				dstRb.Body->SetVelocity(srcRb.Velocity);
 				dstRb.Body->SetMass(srcRb.Mass);
 			}
+		}
+
+		if (other.m_Registry.all_of<MaterialComponent>(srcHandle))
+		{
+			dstEntity.AddComponent<MaterialComponent>(other.m_Registry.get<MaterialComponent>(srcHandle));
+		}
+
+		if (other.m_Registry.all_of<AudioSourceComponent>(srcHandle))
+		{
+			const auto& srcAudio = other.m_Registry.get<AudioSourceComponent>(srcHandle);
+			auto& dstAudio = dstEntity.AddComponent<AudioSourceComponent>();
+			dstAudio.SoundPath = srcAudio.SoundPath;
+			dstAudio.Volume = srcAudio.Volume;
+			dstAudio.Pitch = srcAudio.Pitch;
+			dstAudio.Loop = srcAudio.Loop;
+			dstAudio.PlayOnAwake = srcAudio.PlayOnAwake;
+			dstAudio.Spatial = srcAudio.Spatial;
+			dstAudio.MinDistance = srcAudio.MinDistance;
+			dstAudio.MaxDistance = srcAudio.MaxDistance;
+			dstAudio.RollOff = srcAudio.RollOff;
+			if (!dstAudio.SoundPath.empty())
+			{
+				dstAudio.LoadSound(dstAudio.SoundPath);
+			}
+		}
+
+		if (other.m_Registry.all_of<AudioListenerComponent>(srcHandle))
+		{
+			dstEntity.AddComponent<AudioListenerComponent>(other.m_Registry.get<AudioListenerComponent>(srcHandle));
 		}
 
 		if (other.m_Registry.all_of<NativeScriptComponent>(srcHandle))

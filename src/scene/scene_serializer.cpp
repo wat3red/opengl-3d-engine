@@ -385,6 +385,33 @@ bool SceneSerializer::Serialize(const std::string& filepath)
 			out << "\t\t\t}";
 		}
 
+		if (entity.HasComponent<AudioSourceComponent>())
+		{
+			const auto& asc = entity.GetComponent<AudioSourceComponent>();
+			out << ",\n";
+			out << "\t\t\t\"AudioSource\": {\n";
+			out << "\t\t\t\t\"SoundPath\": \"" << asc.SoundPath << "\",\n";
+			out << "\t\t\t\t\"Volume\": " << asc.Volume << ",\n";
+			out << "\t\t\t\t\"Pitch\": " << asc.Pitch << ",\n";
+			out << "\t\t\t\t\"Loop\": " << (asc.Loop ? "true" : "false") << ",\n";
+			out << "\t\t\t\t\"PlayOnAwake\": " << (asc.PlayOnAwake ? "true" : "false") << ",\n";
+			out << "\t\t\t\t\"Spatial\": " << (asc.Spatial ? "true" : "false") << ",\n";
+			out << "\t\t\t\t\"MinDistance\": " << asc.MinDistance << ",\n";
+			out << "\t\t\t\t\"MaxDistance\": " << asc.MaxDistance << ",\n";
+			out << "\t\t\t\t\"RollOff\": " << asc.RollOff << "\n";
+			out << "\t\t\t}";
+		}
+
+		if (entity.HasComponent<AudioListenerComponent>())
+		{
+			const auto& alc = entity.GetComponent<AudioListenerComponent>();
+			out << ",\n";
+			out << "\t\t\t\"AudioListener\": {\n";
+			out << "\t\t\t\t\"Primary\": " << (alc.Primary ? "true" : "false") << ",\n";
+			out << "\t\t\t\t\"Volume\": " << alc.Volume << "\n";
+			out << "\t\t\t}";
+		}
+
 		out << "\n\t\t}" << (entityIdx + 1 < totalEntities ? "," : "") << "\n";
 		entityIdx++;
 	}
@@ -575,6 +602,33 @@ bool SceneSerializer::Deserialize(const std::string& filepath)
 
 				mat.Properties.LoadTextures();
 				entity.AddComponent<MaterialComponent>(mat);
+			}
+
+			if (entVal.Has("AudioSource")) {
+				const auto& aVal = entVal.Get("AudioSource");
+				AudioSourceComponent asc;
+				asc.SoundPath = aVal.Get("SoundPath").AsString("");
+				asc.Volume = aVal.Get("Volume").AsFloat(1.0f);
+				asc.Pitch = aVal.Get("Pitch").AsFloat(1.0f);
+				asc.Loop = aVal.Get("Loop").AsBool(false);
+				asc.PlayOnAwake = aVal.Get("PlayOnAwake").AsBool(true);
+				asc.Spatial = aVal.Get("Spatial").AsBool(true);
+				asc.MinDistance = aVal.Get("MinDistance").AsFloat(1.0f);
+				asc.MaxDistance = aVal.Get("MaxDistance").AsFloat(50.0f);
+				asc.RollOff = aVal.Get("RollOff").AsFloat(1.0f);
+
+				if (!asc.SoundPath.empty()) {
+					asc.LoadSound(asc.SoundPath);
+				}
+				entity.AddComponent<AudioSourceComponent>(asc);
+			}
+
+			if (entVal.Has("AudioListener")) {
+				const auto& alVal = entVal.Get("AudioListener");
+				AudioListenerComponent alc;
+				alc.Primary = alVal.Get("Primary").AsBool(true);
+				alc.Volume = alVal.Get("Volume").AsFloat(1.0f);
+				entity.AddComponent<AudioListenerComponent>(alc);
 			}
 		}
 	}

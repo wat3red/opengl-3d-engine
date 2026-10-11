@@ -581,6 +581,7 @@ void Editor::DrawSceneHierarchyPanel()
 		std::string componentBadges = "";
 		if (entity.HasComponent<MeshComponent>()) componentBadges += "[Mesh] ";
 		if (entity.HasComponent<MaterialComponent>()) componentBadges += "[Mat] ";
+		if (entity.HasComponent<AudioSourceComponent>() || entity.HasComponent<AudioListenerComponent>()) componentBadges += "[Audio] ";
 		if (entity.HasComponent<LightComponent>()) componentBadges += "[Light] ";
 		if (entity.HasComponent<CameraComponent>()) componentBadges += "[Camera] ";
 		if (entity.HasComponent<BoxColliderComponent>() || entity.HasComponent<SphereColliderComponent>() || entity.HasComponent<CapsuleColliderComponent>() || entity.HasComponent<MeshColliderComponent>()) componentBadges += "[Col] ";
@@ -1115,6 +1116,142 @@ void Editor::DrawEntityInspectorPanel()
 		}
 	}
 
+	// Audio Source Component
+	if (selectedEntity.HasComponent<AudioSourceComponent>())
+	{
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("3D Audio Source", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			auto& asc = selectedEntity.GetComponent<AudioSourceComponent>();
+
+			char soundPathBuf[256];
+			strncpy_s(soundPathBuf, asc.SoundPath.c_str(), sizeof(soundPathBuf));
+			if (ImGui::InputText("Sound File", soundPathBuf, sizeof(soundPathBuf)))
+			{
+				asc.SoundPath = soundPathBuf;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Load##Audio"))
+			{
+				asc.LoadSound(soundPathBuf);
+			}
+
+			// Quick picker from res/audio/
+			std::vector<std::string> audioFiles;
+			std::error_code ec;
+			if (std::filesystem::exists("res/audio", ec))
+			{
+				for (const auto& entry : std::filesystem::recursive_directory_iterator("res/audio", ec))
+				{
+					if (entry.is_regular_file())
+					{
+						std::string ext = entry.path().extension().string();
+						std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+						if (ext == ".wav" || ext == ".mp3" || ext == ".ogg" || ext == ".flac")
+						{
+							audioFiles.push_back(entry.path().generic_string());
+						}
+					}
+				}
+			}
+
+			if (!audioFiles.empty())
+			{
+				std::vector<const char*> fileLabels;
+				fileLabels.push_back("Select Sound File...");
+				int currentItem = 0;
+				for (size_t i = 0; i < audioFiles.size(); ++i)
+				{
+					fileLabels.push_back(audioFiles[i].c_str());
+					if (audioFiles[i] == asc.SoundPath)
+					{
+						currentItem = static_cast<int>(i + 1);
+					}
+				}
+
+				if (ImGui::Combo("Quick Pick##Audio", &currentItem, fileLabels.data(), static_cast<int>(fileLabels.size())))
+				{
+					if (currentItem > 0)
+					{
+						asc.LoadSound(audioFiles[currentItem - 1]);
+					}
+				}
+			}
+
+			// Preview playback buttons
+			if (asc.IsPlaying())
+			{
+				if (ImGui::Button("Pause Preview"))
+				{
+					asc.Pause();
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Stop Preview"))
+				{
+					asc.Stop();
+				}
+				ImGui::SameLine();
+				ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "Playing...");
+			}
+			else
+			{
+				if (ImGui::Button("Play Preview"))
+				{
+					asc.Play();
+				}
+				ImGui::SameLine();
+				ImGui::TextDisabled("Stopped");
+			}
+
+			ImGui::SliderFloat("Volume##Audio", &asc.Volume, 0.0f, 2.0f);
+			if (asc.SoundInstance) asc.SoundInstance->SetVolume(asc.Volume);
+
+			ImGui::SliderFloat("Pitch##Audio", &asc.Pitch, 0.1f, 3.0f);
+			if (asc.SoundInstance) asc.SoundInstance->SetPitch(asc.Pitch);
+
+			ImGui::Checkbox("Loop##Audio", &asc.Loop);
+			if (asc.SoundInstance) asc.SoundInstance->SetLooping(asc.Loop);
+
+			ImGui::SameLine();
+			ImGui::Checkbox("Play On Awake##Audio", &asc.PlayOnAwake);
+
+			ImGui::Checkbox("3D Spatial##Audio", &asc.Spatial);
+			if (asc.SoundInstance) asc.SoundInstance->SetSpatial(asc.Spatial);
+
+			if (asc.Spatial)
+			{
+				ImGui::DragFloat("Min Distance", &asc.MinDistance, 0.1f, 0.01f, 100.0f);
+				ImGui::DragFloat("Max Distance", &asc.MaxDistance, 0.5f, 1.0f, 1000.0f);
+				ImGui::DragFloat("Roll-Off Factor", &asc.RollOff, 0.05f, 0.0f, 10.0f);
+				if (asc.SoundInstance) asc.SoundInstance->SetAttenuation(asc.MinDistance, asc.MaxDistance, asc.RollOff);
+			}
+
+			ImGui::Separator();
+			if (ImGui::Button("Remove Audio Source"))
+			{
+				asc.Stop();
+				selectedEntity.RemoveComponent<AudioSourceComponent>();
+			}
+		}
+	}
+
+	// Audio Listener Component
+	if (selectedEntity.HasComponent<AudioListenerComponent>())
+	{
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("3D Audio Listener", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			auto& alc = selectedEntity.GetComponent<AudioListenerComponent>();
+			ImGui::Checkbox("Primary Listener", &alc.Primary);
+			ImGui::SliderFloat("Listener Volume", &alc.Volume, 0.0f, 2.0f);
+
+			if (ImGui::Button("Remove Audio Listener"))
+			{
+				selectedEntity.RemoveComponent<AudioListenerComponent>();
+			}
+		}
+	}
+
 	// Add Component Button
 	ImGui::Separator();
 	if (ImGui::Button("Add Component...", ImVec2(-1.0f, 0.0f)))
@@ -1192,6 +1329,20 @@ void Editor::DrawEntityInspectorPanel()
 			if (ImGui::MenuItem("Native Script Component"))
 			{
 				selectedEntity.AddComponent<NativeScriptComponent>();
+			}
+		}
+		if (!selectedEntity.HasComponent<AudioSourceComponent>())
+		{
+			if (ImGui::MenuItem("Audio Source Component"))
+			{
+				selectedEntity.AddComponent<AudioSourceComponent>();
+			}
+		}
+		if (!selectedEntity.HasComponent<AudioListenerComponent>())
+		{
+			if (ImGui::MenuItem("Audio Listener Component"))
+			{
+				selectedEntity.AddComponent<AudioListenerComponent>();
 			}
 		}
 		ImGui::EndPopup();
@@ -1609,6 +1760,8 @@ void Editor::DrawContentBrowserPanel()
 	ImGui::SameLine();
 	if (ImGui::Button("scenes")) m_ContentBrowserCurrentPath = "res/scenes";
 	ImGui::SameLine();
+	if (ImGui::Button("audio")) m_ContentBrowserCurrentPath = "res/audio";
+	ImGui::SameLine();
 	if (ImGui::Button("shaders")) m_ContentBrowserCurrentPath = "shaders";
 	ImGui::SameLine();
 
@@ -1680,6 +1833,7 @@ void Editor::DrawContentBrowserPanel()
 					if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj") fileLabel = "[3D] " + filename;
 					else if (ext == ".scene") fileLabel = "[SCENE] " + filename;
 					else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga") fileLabel = "[TEX] " + filename;
+					else if (ext == ".wav" || ext == ".mp3" || ext == ".ogg" || ext == ".flac") fileLabel = "[AUD] " + filename;
 					else if (ext == ".shader") fileLabel = "[SHD] " + filename;
 					else fileLabel = "[FILE] " + filename;
 
@@ -1753,6 +1907,31 @@ void Editor::DrawContentBrowserPanel()
 						else
 						{
 							ImGui::TextDisabled("Select entity w/ Mat");
+						}
+					}
+					else if (ext == ".wav" || ext == ".mp3" || ext == ".ogg" || ext == ".flac")
+					{
+						if (ImGui::SmallButton(("Preview##" + filename).c_str()))
+						{
+							AudioEngine::Get().Play2D(fullPathStr);
+						}
+						if (selectedEntity)
+						{
+							ImGui::SameLine();
+							if (selectedEntity.HasComponent<AudioSourceComponent>())
+							{
+								if (ImGui::SmallButton(("Assign##" + filename).c_str()))
+								{
+									selectedEntity.GetComponent<AudioSourceComponent>().LoadSound(fullPathStr);
+								}
+							}
+							else
+							{
+								if (ImGui::SmallButton(("Add Audio##" + filename).c_str()))
+								{
+									selectedEntity.AddComponent<AudioSourceComponent>(fullPathStr);
+								}
+							}
 						}
 					}
 					else

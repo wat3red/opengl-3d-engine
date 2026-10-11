@@ -3,6 +3,7 @@
 #include "skybox.h"
 #include "light.h"
 #include "input.h"
+#include "audio_engine.h"
 
 #include <std_image/stb_image.h>
 #include <imgui/imgui.h>
@@ -48,6 +49,7 @@ void Engine::Initialize()
 	});
 
 	Input::Init(m_Window->GetNativeWindow());
+	AudioEngine::Get().Initialize();
 
 	m_Renderer = std::make_unique<Renderer>();
 	m_Renderer->Initialize();
@@ -61,6 +63,7 @@ void Engine::Initialize()
 void Engine::Shutdown()
 {
 	m_Scene.Clear();
+	AudioEngine::Get().Shutdown();
 	AssetManager::Get().Clear();
 
 	if (m_Editor)
