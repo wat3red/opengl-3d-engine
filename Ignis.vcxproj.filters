@@ -24,6 +24,9 @@
     <ClCompile Include="src\core\input_handler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\core\input.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\core\window.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -78,6 +81,9 @@
     <ClCompile Include="src\physics\rigidbody.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\physics\collision.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\editor\editor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -117,6 +123,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\core\input_handler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\input.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\key_codes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\mouse_codes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\core\window.h">
@@ -170,6 +185,12 @@
     <ClInclude Include="src\scene\entity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\scene\components.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\scene\scriptable_entity.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\scene\light.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -186,6 +207,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\physics\rigidbody.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\physics\collision.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\editor\editor.h">

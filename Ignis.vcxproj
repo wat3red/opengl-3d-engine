@@ -150,7 +150,9 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\core\engine.cpp" />
     <ClCompile Include="src\core\input_handler.cpp" />
+    <ClCompile Include="src\core\input.cpp" />
     <ClCompile Include="src\core\window.cpp" />
+    <ClCompile Include="src\physics\collision.cpp" />
     <ClCompile Include="src\renderer\framebuffer.cpp" />
     <ClCompile Include="src\renderer\index_buffer.cpp" />
     <ClCompile Include="src\renderer\bloom_renderer.cpp" />
@@ -186,6 +188,9 @@
     <ClInclude Include="src\core\engine.h" />
     <ClInclude Include="src\core\error_handler.h" />
     <ClInclude Include="src\core\input_handler.h" />
+    <ClInclude Include="src\core\input.h" />
+    <ClInclude Include="src\core\key_codes.h" />
+    <ClInclude Include="src\core\mouse_codes.h" />
     <ClInclude Include="src\core\window.h" />
     <ClInclude Include="src\renderer\camera.h" />
     <ClInclude Include="src\renderer\framebuffer.h" />
@@ -205,6 +210,8 @@
     <ClInclude Include="src\renderer\vertex_buffer.h" />
     <ClInclude Include="src\renderer\vertex_buffer_layout.h" />
     <ClInclude Include="src\scene\entity.h" />
+    <ClInclude Include="src\scene\components.h" />
+    <ClInclude Include="src\scene\scriptable_entity.h" />
     <ClInclude Include="src\scene\light.h" />
     <ClInclude Include="src\scene\model_entity.h" />
     <ClInclude Include="src\scene\scene.h" />
@@ -212,6 +219,7 @@
     <ClInclude Include="src\scene\scene_serializer.h" />
     <ClInclude Include="src\assets\asset_manager.h" />
     <ClInclude Include="src\physics\rigidbody.h" />
+    <ClInclude Include="src\physics\collision.h" />
     <ClInclude Include="src\editor\editor.h" />
     <ClInclude Include="vendor\assimp\aabb.h" />
     <ClInclude Include="vendor\assimp\ai_assert.h" />
