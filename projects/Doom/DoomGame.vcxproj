@@ -58,7 +58,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>IGNIS_BUILD_MODULE;GLEW_STATIC;_WINDOWS;_USRDLL;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>IGNIS_BUILD_MODULE;GLEW_STATIC;_WINDOWS;_USRDLL;_ITERATOR_DEBUG_LEVEL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp23</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir)..\..\include;$(ProjectDir)..\..\src;$(ProjectDir)..\..\src\core;$(ProjectDir)..\..\src\audio;$(ProjectDir)..\..\src\renderer;$(ProjectDir)..\..\src\scene;$(ProjectDir)..\..\src\assets;$(ProjectDir)..\..\src\physics;$(ProjectDir)..\..\vendor;$(ProjectDir)..\..\vendor\imgui;$(ProjectDir)..\..\deps\GLEW\include;$(ProjectDir)..\..\deps\GLFW\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
