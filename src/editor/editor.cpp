@@ -246,6 +246,16 @@ void Editor::ProcessInput(GLFWwindow* window, float deltaTime)
 		{
 			if (!s_CtrlActionFired) { NewScene(); s_CtrlActionFired = true; }
 		}
+		else if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS && (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS))
+		{
+			if (!s_CtrlActionFired)
+			{
+				m_ShowPackageModal = true;
+				m_PackageHasResult = false;
+				m_PackageSettings.StartingScene = m_CurrentScenePath;
+				s_CtrlActionFired = true;
+			}
+		}
 		else
 		{
 			s_CtrlActionFired = false;
@@ -412,7 +422,7 @@ void Editor::DrawToolbar()
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 6.0f);
 	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.12f, 0.12f, 0.14f, 0.95f));
 
-	ImVec2 centerPos(ImGui::GetIO().DisplaySize.x * 0.5f - 190.0f, 26.0f);
+	ImVec2 centerPos(ImGui::GetIO().DisplaySize.x * 0.5f - 250.0f, 26.0f);
 	ImGui::SetNextWindowPos(centerPos, ImGuiCond_Always);
 
 	if (ImGui::Begin("##Toolbar", nullptr, flags))
@@ -465,6 +475,22 @@ void Editor::DrawToolbar()
 		{
 			ImGui::SetTooltip("Recompile Game.dll with MSBuild (F7)");
 		}
+
+		ImGui::SameLine();
+		ImGui::TextDisabled("|");
+		ImGui::SameLine();
+
+		if (ImGui::Button(" Package Game "))
+		{
+			m_ShowPackageModal = true;
+			m_PackageHasResult = false;
+			m_PackageSettings.StartingScene = m_CurrentScenePath;
+		}
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::SetTooltip("Export and package standalone game build (Ctrl+Shift+P)");
+		}
+
 		ImGui::End();
 	}
 	ImGui::PopStyleColor();
@@ -2019,6 +2045,13 @@ void Editor::DrawMainMenuBar()
 			{
 				RestoreSceneBackup();
 			}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Package Standalone Game...", "Ctrl+Shift+P"))
+			{
+				m_ShowPackageModal = true;
+				m_PackageHasResult = false;
+				m_PackageSettings.StartingScene = m_CurrentScenePath;
+			}
 			ImGui::EndMenu();
 		}
 
@@ -2068,6 +2101,13 @@ void Editor::DrawMainMenuBar()
 			if (ImGui::MenuItem("Open Scripts Folder in File Explorer"))
 			{
 				OpenScriptsFolderInExplorer();
+			}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Package Game for Distribution...", "Ctrl+Shift+P"))
+			{
+				m_ShowPackageModal = true;
+				m_PackageHasResult = false;
+				m_PackageSettings.StartingScene = m_CurrentScenePath;
 			}
 			ImGui::EndMenu();
 		}
@@ -2246,6 +2286,176 @@ void Editor::DrawModals()
 		{
 			ImGui::CloseCurrentPopup();
 		}
+		ImGui::EndPopup();
+	}
+
+	DrawPackageModal();
+}
+
+void Editor::DrawPackageModal()
+{
+	if (m_ShowPackageModal)
+	{
+		ImGui::OpenPopup("Package Standalone Game");
+		m_ShowPackageModal = false;
+	}
+
+	ImGui::SetNextWindowSize(ImVec2(560, 0), ImGuiCond_Appearing);
+	if (ImGui::BeginPopupModal("Package Standalone Game", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.25f, 1.0f), "Standalone Distribution & Packaging");
+		ImGui::TextWrapped("Compile and export a standalone, zero-dependency release build of your game ready for distribution to players.");
+		ImGui::Separator();
+		ImGui::Spacing();
+
+		if (!m_PackageHasResult)
+		{
+			static char gameNameBuf[128] = "Doom";
+			static char exeNameBuf[128] = "Doom.exe";
+			static char outDirBuf[256] = "dist/Doom";
+			static char sceneBuf[256] = "res/scenes/default.scene";
+
+			static bool s_InitializedDefaults = false;
+			if (!s_InitializedDefaults)
+			{
+				m_PackageSettings.GameName = "Doom";
+				m_PackageSettings.ExecutableName = "Doom.exe";
+				m_PackageSettings.OutputDirectory = "dist/Doom";
+				m_PackageSettings.StartingScene = m_CurrentScenePath;
+				strncpy_s(gameNameBuf, m_PackageSettings.GameName.c_str(), sizeof(gameNameBuf) - 1);
+				strncpy_s(exeNameBuf, m_PackageSettings.ExecutableName.c_str(), sizeof(exeNameBuf) - 1);
+				strncpy_s(outDirBuf, m_PackageSettings.OutputDirectory.c_str(), sizeof(outDirBuf) - 1);
+				strncpy_s(sceneBuf, m_PackageSettings.StartingScene.c_str(), sizeof(sceneBuf) - 1);
+				s_InitializedDefaults = true;
+			}
+
+			if (ImGui::InputText("Game Title", gameNameBuf, sizeof(gameNameBuf)))
+			{
+				m_PackageSettings.GameName = gameNameBuf;
+				std::string cleanName = gameNameBuf;
+				cleanName.erase(std::remove_if(cleanName.begin(), cleanName.end(), [](char c) { return c == ' ' || c == ':' || c == '/'; }), cleanName.end());
+				if (!cleanName.empty())
+				{
+					m_PackageSettings.ExecutableName = cleanName + ".exe";
+					m_PackageSettings.OutputDirectory = "dist/" + cleanName;
+					strncpy_s(exeNameBuf, m_PackageSettings.ExecutableName.c_str(), sizeof(exeNameBuf) - 1);
+					strncpy_s(outDirBuf, m_PackageSettings.OutputDirectory.c_str(), sizeof(outDirBuf) - 1);
+				}
+			}
+
+			if (ImGui::InputText("Executable (.exe)", exeNameBuf, sizeof(exeNameBuf)))
+			{
+				m_PackageSettings.ExecutableName = exeNameBuf;
+			}
+
+			if (ImGui::InputText("Output Folder", outDirBuf, sizeof(outDirBuf)))
+			{
+				m_PackageSettings.OutputDirectory = outDirBuf;
+			}
+
+			if (ImGui::InputText("Starting Scene", sceneBuf, sizeof(sceneBuf)))
+			{
+				m_PackageSettings.StartingScene = sceneBuf;
+			}
+
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+
+			int res[2] = { static_cast<int>(m_PackageSettings.WindowWidth), static_cast<int>(m_PackageSettings.WindowHeight) };
+			if (ImGui::DragInt2("Target Resolution", res, 10, 640, 3840))
+			{
+				m_PackageSettings.WindowWidth = static_cast<uint32_t>(res[0]);
+				m_PackageSettings.WindowHeight = static_cast<uint32_t>(res[1]);
+			}
+
+			ImGui::Checkbox("Launch in Fullscreen Mode", &m_PackageSettings.Fullscreen);
+			ImGui::SameLine();
+			ImGui::Checkbox("Enable V-Sync", &m_PackageSettings.VSync);
+
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+
+			ImGui::Checkbox("Rebuild Game Scripts in Release (Game.dll)", &m_PackageSettings.RebuildGameDll);
+			ImGui::Checkbox("Create Standalone ZIP Archive (.zip)", &m_PackageSettings.CreateZipArchive);
+
+			ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+
+			if (ImGui::Button("  Package & Export Game  ", ImVec2(220, 36)))
+			{
+				m_PackageSettings.GameName = gameNameBuf;
+				m_PackageSettings.ExecutableName = exeNameBuf;
+				m_PackageSettings.OutputDirectory = outDirBuf;
+				m_PackageSettings.StartingScene = sceneBuf;
+
+				m_StatusMessage = "Packaging standalone release build...";
+				m_StatusTimer = 5.0f;
+
+				m_PackageResult = ProjectPackager::Package(m_PackageSettings);
+				m_PackageHasResult = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Cancel", ImVec2(100, 36)))
+			{
+				ImGui::CloseCurrentPopup();
+			}
+		}
+		else
+		{
+			if (m_PackageResult.Success)
+			{
+				ImGui::TextColored(ImVec4(0.2f, 0.9f, 0.3f, 1.0f), "Standalone Package Successfully Created!");
+				ImGui::Spacing();
+				ImGui::BulletText("Target Folder: %s", m_PackageResult.PackagePath.c_str());
+				ImGui::BulletText("Total Size: %.1f MB", m_PackageResult.TotalBytes / (1024.0f * 1024.0f));
+				ImGui::BulletText("Total Files: %zu", m_PackageResult.TotalFiles);
+				ImGui::BulletText("Duration: %.2f seconds", m_PackageResult.DurationSeconds);
+				if (!m_PackageResult.ZipPath.empty())
+				{
+					ImGui::BulletText("ZIP Archive: %s", m_PackageResult.ZipPath.c_str());
+				}
+				ImGui::Spacing();
+				ImGui::Separator();
+				ImGui::Spacing();
+
+				std::string targetExe = m_PackageResult.PackagePath + "/" + m_PackageSettings.ExecutableName;
+				if (ImGui::Button("Launch Packaged Game", ImVec2(200, 36)))
+				{
+					ProjectPackager::LaunchPackagedGame(targetExe);
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Open in Explorer", ImVec2(160, 36)))
+				{
+					ProjectPackager::OpenFolderInExplorer(m_PackageResult.PackagePath);
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Done", ImVec2(100, 36)))
+				{
+					m_PackageHasResult = false;
+					ImGui::CloseCurrentPopup();
+				}
+			}
+			else
+			{
+				ImGui::TextColored(ImVec4(1.0f, 0.25f, 0.25f, 1.0f), "Packaging Failed!");
+				ImGui::TextWrapped("%s", m_PackageResult.ErrorMessage.c_str());
+				ImGui::Spacing();
+				if (ImGui::Button("Back", ImVec2(120, 32)))
+				{
+					m_PackageHasResult = false;
+				}
+				ImGui::SameLine();
+				if (ImGui::Button("Close", ImVec2(120, 32)))
+				{
+					m_PackageHasResult = false;
+					ImGui::CloseCurrentPopup();
+				}
+			}
+		}
+
 		ImGui::EndPopup();
 	}
 }

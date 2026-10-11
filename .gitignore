@@ -409,4 +409,5 @@ Game.exp
 Game.lib
 Game_runtime.dll
 bin-int/
+dist/
 

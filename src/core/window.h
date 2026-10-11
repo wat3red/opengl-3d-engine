@@ -38,6 +38,11 @@ public:
 	[[nodiscard]] bool IsVSync() const { return m_Properties.VSync; }
 	void SetVSync(bool enabled);
 
+	[[nodiscard]] bool IsFullscreen() const { return m_IsFullscreen; }
+	void SetFullscreen(bool fullscreen);
+	void ToggleFullscreen() { SetFullscreen(!m_IsFullscreen); }
+	void SetTitle(const std::string& title);
+
 	[[nodiscard]] GLFWwindow* GetNativeWindow() const { return m_Window; }
 
 private:
@@ -46,6 +51,10 @@ private:
 
 	GLFWwindow* m_Window = nullptr;
 	WindowProperties m_Properties;
+
+	bool m_IsFullscreen = false;
+	glm::ivec2 m_WindowedPos{ 100, 100 };
+	glm::ivec2 m_WindowedSize{ 1600, 900 };
 
 	static int s_GLFWWindowCount;
 };

@@ -17,6 +17,7 @@ set(ENGINE_SOURCES
 
     # Core
     src/core/engine.cpp
+    src/core/project_packager.cpp
     src/core/window.cpp
     src/core/input_handler.cpp
     src/core/input.cpp

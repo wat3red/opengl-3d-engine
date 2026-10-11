@@ -160,3 +160,42 @@ void Window::SetVSync(bool enabled)
 	m_Properties.VSync = enabled;
 	glfwSwapInterval(enabled ? 1 : 0);
 }
+
+void Window::SetFullscreen(bool fullscreen)
+{
+	if (!m_Window || fullscreen == m_IsFullscreen)
+		return;
+
+	m_IsFullscreen = fullscreen;
+	if (m_IsFullscreen)
+	{
+		glfwGetWindowPos(m_Window, &m_WindowedPos.x, &m_WindowedPos.y);
+		glfwGetWindowSize(m_Window, &m_WindowedSize.x, &m_WindowedSize.y);
+
+		GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+		if (monitor)
+		{
+			const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+			if (mode)
+			{
+				glfwSetWindowMonitor(m_Window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+			}
+		}
+	}
+	else
+	{
+		glfwSetWindowMonitor(m_Window, nullptr, m_WindowedPos.x, m_WindowedPos.y, m_WindowedSize.x, m_WindowedSize.y, 0);
+	}
+
+	SetVSync(m_Properties.VSync);
+}
+
+void Window::SetTitle(const std::string& title)
+{
+	m_Properties.Title = title;
+	if (m_Window)
+	{
+		glfwSetWindowTitle(m_Window, title.c_str());
+	}
+}
+

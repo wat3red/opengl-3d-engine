@@ -6,6 +6,7 @@
 #include "framebuffer.h"
 #include "input_handler.h"
 #include "bloom_renderer.h"
+#include "project_packager.h"
 #include <glm/glm.hpp>
 #include <memory>
 #include <filesystem>
@@ -135,8 +136,14 @@ private:
 	bool m_ShowContentBrowser = true;
 	std::filesystem::path m_ContentBrowserCurrentPath = "res";
 
+	bool m_ShowPackageModal = false;
+	PackageSettings m_PackageSettings;
+	PackageResult m_PackageResult;
+	bool m_PackageHasResult = false;
+
 	void DrawMainMenuBar();
 	void DrawModals();
+	void DrawPackageModal();
 	void DrawToolbar();
 	void DrawViewportPanel();
 	void DrawSceneHierarchyPanel();
