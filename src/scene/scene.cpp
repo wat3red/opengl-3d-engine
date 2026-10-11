@@ -384,11 +384,7 @@ Entity Scene::GetSunLight()
 Entity Scene::CreateModelEntity(const std::string& name, const std::string& modelPath, bool flipUVs)
 {
 	Entity entity = CreateEntity(name);
-	auto& mesh = entity.AddComponent<MeshComponent>(modelPath, flipUVs);
-	if (mesh.ModelAsset)
-	{
-		entity.AddComponent<RigidbodyComponent>(mesh.ModelAsset.get());
-	}
+	entity.AddComponent<MeshComponent>(modelPath, flipUVs);
 	if (!m_SelectedEntity)
 	{
 		m_SelectedEntity = entity;

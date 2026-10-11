@@ -131,9 +131,9 @@ public:
 					glm::vec3 flyDir = glm::normalize(toPlayer);
 					tc.Position += flyDir * (MoveSpeed * deltaTime);
 					tc.Position.y += std::sin(m_FlyBobTimer * 3.5f) * 0.015f;
-					if (tc.Position.y < 13.5f)
+					if (tc.Position.y < 2.5f)
 					{
-						tc.Position.y = 13.5f;
+						tc.Position.y = 2.5f;
 					}
 				}
 				else

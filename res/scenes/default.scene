@@ -33,7 +33,7 @@
 		{
 			"Name": "Courtyard Floor Collider",
 			"Active": true,
-			"Position": [0.0, 10.73, 45.0],
+			"Position": [0.0, -0.5, 45.0],
 			"Rotation": [0.0, 0.0, 0.0],
 			"Scale": [1.0, 1.0, 1.0],
 			"BoxCollider": {
@@ -47,7 +47,7 @@
 		{
 			"Name": "North Wall Collider",
 			"Active": true,
-			"Position": [0.0, 16.0, 10.0],
+			"Position": [0.0, 6.0, 10.0],
 			"Rotation": [0.0, 0.0, 0.0],
 			"Scale": [1.0, 1.0, 1.0],
 			"BoxCollider": {
@@ -61,7 +61,7 @@
 		{
 			"Name": "South Wall Collider",
 			"Active": true,
-			"Position": [0.0, 16.0, 75.0],
+			"Position": [0.0, 6.0, 75.0],
 			"Rotation": [0.0, 0.0, 0.0],
 			"Scale": [1.0, 1.0, 1.0],
 			"BoxCollider": {
@@ -75,7 +75,7 @@
 		{
 			"Name": "West Wall Collider",
 			"Active": true,
-			"Position": [-35.0, 16.0, 42.5],
+			"Position": [-35.0, 6.0, 42.5],
 			"Rotation": [0.0, 0.0, 0.0],
 			"Scale": [1.0, 1.0, 1.0],
 			"BoxCollider": {
@@ -89,7 +89,7 @@
 		{
 			"Name": "East Wall Collider",
 			"Active": true,
-			"Position": [35.0, 16.0, 42.5],
+			"Position": [35.0, 6.0, 42.5],
 			"Rotation": [0.0, 0.0, 0.0],
 			"Scale": [1.0, 1.0, 1.0],
 			"BoxCollider": {
@@ -103,7 +103,7 @@
 		{
 			"Name": "Doom Slayer (Player)",
 			"Active": true,
-			"Position": [0.0, 11.23, 56.0],
+			"Position": [0.0, 0.05, 56.0],
 			"Rotation": [0.0, -90.0, 0.0],
 			"Scale": [1.0, 1.0, 1.0],
 			"Camera": {
@@ -132,7 +132,7 @@
 		{
 			"Name": "Shotgun Viewmodel",
 			"Active": true,
-			"Position": [0.15, 11.0, 56.4],
+			"Position": [0.15, 1.4, 56.4],
 			"Rotation": [0.0, 90.0, 0.0],
 			"Scale": [0.016, 0.016, 0.016],
 			"ModelPath": "res/models/shotgun/shotgun.glb",
@@ -145,7 +145,7 @@
 		{
 			"Name": "Cacodemon",
 			"Active": true,
-			"Position": [0.0, 16.5, 30.0],
+			"Position": [0.0, 4.5, 25.0],
 			"Rotation": [0.0, 0.0, 0.0],
 			"Scale": [0.012, 0.012, 0.012],
 			"ModelPath": "res/models/cacodemon/cacodemon.glb",
@@ -165,7 +165,7 @@
 		{
 			"Name": "Imp 1",
 			"Active": true,
-			"Position": [-8.0, 11.23, 38.0],
+			"Position": [-7.0, 0.05, 36.0],
 			"Rotation": [0.0, 0.0, 0.0],
 			"Scale": [0.013, 0.013, 0.013],
 			"ModelPath": "res/models/imp/imp.glb",
@@ -196,7 +196,7 @@
 		{
 			"Name": "Imp 2",
 			"Active": true,
-			"Position": [8.0, 11.23, 38.0],
+			"Position": [7.0, 0.05, 36.0],
 			"Rotation": [0.0, 0.0, 0.0],
 			"Scale": [0.013, 0.013, 0.013],
 			"ModelPath": "res/models/imp/imp.glb",
@@ -227,7 +227,7 @@
 		{
 			"Name": "Medkit 1",
 			"Active": true,
-			"Position": [-5.0, 11.6, 48.0],
+			"Position": [-5.0, 0.5, 46.0],
 			"Rotation": [0.0, 0.0, 0.0],
 			"Scale": [0.04, 0.04, 0.04],
 			"ModelPath": "res/models/medkit/medkit.glb",
@@ -240,7 +240,7 @@
 		{
 			"Name": "Ammo Shells 1",
 			"Active": true,
-			"Position": [5.0, 11.6, 48.0],
+			"Position": [5.0, 0.5, 46.0],
 			"Rotation": [0.0, 0.0, 0.0],
 			"Scale": [0.04, 0.04, 0.04],
 			"ModelPath": "res/models/medkit/medkit.glb",
@@ -267,7 +267,7 @@
 		{
 			"Name": "Courtyard Torch Left",
 			"Active": true,
-			"Position": [-6.0, 14.0, 42.0],
+			"Position": [-6.0, 4.0, 40.0],
 			"Rotation": [0.0, 0.0, 0.0],
 			"Scale": [1.0, 1.0, 1.0],
 			"LightType": "Point",
@@ -281,7 +281,7 @@
 		{
 			"Name": "Courtyard Torch Right",
 			"Active": true,
-			"Position": [6.0, 14.0, 42.0],
+			"Position": [6.0, 4.0, 40.0],
 			"Rotation": [0.0, 0.0, 0.0],
 			"Scale": [1.0, 1.0, 1.0],
 			"LightType": "Point",
@@ -295,7 +295,7 @@
 		{
 			"Name": "Tower Core Light",
 			"Active": true,
-			"Position": [0.0, 22.0, 18.0],
+			"Position": [0.0, 15.0, 15.0],
 			"Rotation": [0.0, 0.0, 0.0],
 			"Scale": [1.0, 1.0, 1.0],
 			"LightType": "Point",

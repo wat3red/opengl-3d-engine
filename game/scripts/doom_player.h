@@ -62,7 +62,7 @@ public:
 		if ((DoomGameState::GameOver || DoomGameState::Victory) && Input::IsKeyPressed(KeyCode::R))
 		{
 			DoomGameState::Reset();
-			GetComponent<TransformComponent>().Position = glm::vec3(0.0f, 12.0f, 58.0f);
+			GetComponent<TransformComponent>().Position = glm::vec3(0.0f, 0.05f, 56.0f);
 		}
 
 		// Cursor toggle on Escape / Left click

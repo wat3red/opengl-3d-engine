@@ -31,7 +31,7 @@ public:
 		auto& camTc = primaryCam.GetTransform();
 		auto& camComp = primaryCam.GetComponent<CameraComponent>();
 
-		glm::vec3 camPos = camTc.Position;
+		glm::vec3 camPos = camComp.CameraInstance.Position;
 		glm::vec3 camFront = camComp.CameraInstance.Front;
 		glm::vec3 camRight = glm::normalize(glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f)));
 		glm::vec3 camUp = glm::normalize(glm::cross(camRight, camFront));

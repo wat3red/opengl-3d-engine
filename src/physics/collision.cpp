@@ -44,6 +44,8 @@ bool IntersectRayAABB(const Ray& ray, const glm::vec3& aabbMin, const glm::vec3&
 	float tmin = 0.0f;
 	float tmax = std::numeric_limits<float>::max();
 	glm::vec3 normal(0.0f);
+	float largestT1 = std::numeric_limits<float>::lowest();
+	glm::vec3 largestT1Normal(0.0f);
 
 	for (int i = 0; i < 3; ++i)
 	{
@@ -73,7 +75,13 @@ bool IntersectRayAABB(const Ray& ray, const glm::vec3& aabbMin, const glm::vec3&
 				n[i] = 1.0f;
 			}
 
-			if (t1 > tmin)
+			if (t1 > largestT1)
+			{
+				largestT1 = t1;
+				largestT1Normal = n;
+			}
+
+			if (t1 >= tmin)
 			{
 				tmin = t1;
 				normal = n;
@@ -89,8 +97,13 @@ bool IntersectRayAABB(const Ray& ray, const glm::vec3& aabbMin, const glm::vec3&
 	if (tmax < 0.0f)
 		return false;
 
+	if (glm::length(normal) < 0.5f)
+	{
+		normal = (glm::length(largestT1Normal) > 0.5f) ? largestT1Normal : -ray.Direction;
+	}
+
 	outDistance = (tmin >= 0.0f) ? tmin : tmax;
-	outNormal = (tmin >= 0.0f) ? normal : -normal;
+	outNormal = normal;
 	return true;
 }
 

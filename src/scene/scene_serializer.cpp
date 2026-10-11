@@ -525,10 +525,19 @@ bool SceneSerializer::Deserialize(const std::string& filepath)
 				if (!path.empty()) {
 					bool flip = entVal.Get("FlipUVs").AsBool(false);
 					bool castsShadow = entVal.Get("CastsShadow").AsBool(true);
-					auto& mesh = entity.AddComponent<MeshComponent>(path, flip, castsShadow);
-					if (mesh.ModelAsset) {
-						entity.AddComponent<RigidbodyComponent>(mesh.ModelAsset.get());
-					}
+					entity.AddComponent<MeshComponent>(path, flip, castsShadow);
+				}
+			}
+
+			if (entVal.Has("Rigidbody")) {
+				const auto& rbVal = entVal.Get("Rigidbody");
+				auto& rb = entity.AddComponent<RigidbodyComponent>();
+				rb.Mass = rbVal.Get("Mass").AsFloat(1.0f);
+				rb.UseGravity = rbVal.Get("UseGravity").AsBool(true);
+				if (entity.HasComponent<MeshComponent>() && entity.GetComponent<MeshComponent>().ModelAsset) {
+					rb.Body = std::make_unique<Rigidbody>(entity.GetComponent<MeshComponent>().ModelAsset.get());
+					rb.Body->SetPosition(entity.GetPosition());
+					rb.Body->SetMass(rb.Mass);
 				}
 			}
 

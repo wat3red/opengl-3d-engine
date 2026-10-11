@@ -257,7 +257,8 @@ void Editor::RenderSceneViewport()
 		{
 			auto& tc = primaryCam.GetTransform();
 			auto& cc = primaryCam.GetComponent<CameraComponent>();
-			cc.CameraInstance.Position = tc.Position;
+			float eyeOffset = primaryCam.HasComponent<CharacterControllerComponent>() ? 1.6f : 0.0f;
+			cc.CameraInstance.Position = tc.Position + glm::vec3(0.0f, eyeOffset, 0.0f);
 			cc.CameraInstance.SetYawAndPitch(tc.Rotation.y, tc.Rotation.x);
 			activeCamera = cc.CameraInstance;
 		}
