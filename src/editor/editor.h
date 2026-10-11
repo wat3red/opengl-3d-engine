@@ -67,6 +67,7 @@ public:
 	void RequestNewScene();
 	void ConfirmNewScene();
 	void NewScene();
+	void RestoreDoomTemplate();
 	void ResetDefaultLayout() { m_ResetLayout = true; }
 
 	// Visual Studio & Game Scripting Integration
@@ -125,6 +126,9 @@ private:
 	bool m_ShowOpenModal = false;
 	bool m_ShowNewSceneModal = false;
 	bool m_ShowEmptySaveWarningModal = false;
+	bool m_ShowDegradedSaveWarningModal = false;
+	bool m_ShowRestoreTemplateModal = false;
+	size_t m_PendingDiskEntityCount = 0;
 	std::string m_PendingSavePath = "";
 	std::string m_StatusMessage = "";
 	float m_StatusTimer = 0.0f;

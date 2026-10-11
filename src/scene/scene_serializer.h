@@ -13,6 +13,8 @@ public:
 	bool Serialize(const std::string& filepath);
 	bool Deserialize(const std::string& filepath);
 
+	static size_t GetEntityCountInFile(const std::string& filepath);
+
 private:
 	Scene& m_Scene;
 	Renderer* m_Renderer;

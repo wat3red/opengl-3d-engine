@@ -20,7 +20,7 @@ public:
 
 	void OnCreate() override
 	{
-		DoomGameState::DemonsRemaining++;
+		++DoomGameState::DemonsRemaining;
 
 		std::string tag = "Demon";
 		if (HasComponent<TagComponent>())

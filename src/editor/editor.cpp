@@ -1862,18 +1862,41 @@ void Editor::SaveScene(const std::string& filepath)
 		return;
 	}
 
-	if (filepath.empty())
+	// Protect template from accidental overwrite
+	if (filepath == "res/scenes/doom_template.scene")
+	{
+		m_StatusMessage = "Cannot overwrite template 'doom_template.scene'! Use Save Scene As...";
+		m_StatusTimer = 4.0f;
+		m_ShowSaveAsModal = true;
+		return;
+	}
+
+	if (filepath.empty() || filepath == "res/scenes/untitled.scene" || filepath == "res/scenes/Untitled.scene")
 	{
 		m_ShowSaveAsModal = true;
 		return;
 	}
 
-	// Safety check: protect against saving an empty scene over an existing full scene
+	// Safety check 1: protect against saving an empty scene over an existing full scene
 	if (m_Scene.GetEntityCount() == 0 && std::filesystem::exists(filepath))
 	{
 		m_PendingSavePath = filepath;
 		m_ShowEmptySaveWarningModal = true;
 		return;
+	}
+
+	// Safety check 2: protect against saving a degraded scene (e.g. lost entities) over an existing rich scene
+	if (std::filesystem::exists(filepath))
+	{
+		size_t diskCount = SceneSerializer::GetEntityCountInFile(filepath);
+		size_t currentCount = m_Scene.GetEntityCount();
+		if (diskCount >= 8 && currentCount < 8)
+		{
+			m_PendingSavePath = filepath;
+			m_PendingDiskEntityCount = diskCount;
+			m_ShowDegradedSaveWarningModal = true;
+			return;
+		}
 	}
 
 	PerformSave(filepath);
@@ -2005,6 +2028,7 @@ void Editor::ConfirmNewScene()
 {
 	m_Scene.Clear();
 	m_CurrentScenePath = "res/scenes/untitled.scene";
+	strncpy_s(m_ScenePathBuffer, "res/scenes/untitled.scene", sizeof(m_ScenePathBuffer) - 1);
 	m_StatusMessage = "New empty scene created";
 	m_StatusTimer = 3.0f;
 }
@@ -2012,6 +2036,23 @@ void Editor::ConfirmNewScene()
 void Editor::NewScene()
 {
 	RequestNewScene();
+}
+
+void Editor::RestoreDoomTemplate()
+{
+	if (!std::filesystem::exists("res/scenes/doom_template.scene"))
+	{
+		m_StatusMessage = "Template file 'res/scenes/doom_template.scene' not found!";
+		m_StatusTimer = 4.0f;
+		return;
+	}
+
+	std::error_code ec;
+	std::filesystem::copy_file("res/scenes/doom_template.scene", "res/scenes/default.scene", std::filesystem::copy_options::overwrite_existing, ec);
+
+	LoadScene("res/scenes/default.scene");
+	m_StatusMessage = "Restored factory Doom Arena scene (17 entities).";
+	m_StatusTimer = 4.0f;
 }
 
 void Editor::DrawMainMenuBar()
@@ -2044,6 +2085,10 @@ void Editor::DrawMainMenuBar()
 			if (ImGui::MenuItem("Restore from Backup (.bak)"))
 			{
 				RestoreSceneBackup();
+			}
+			if (ImGui::MenuItem("Restore Doom Arena Template"))
+			{
+				m_ShowRestoreTemplateModal = true;
 			}
 			ImGui::Separator();
 			if (ImGui::MenuItem("Package Standalone Game...", "Ctrl+Shift+P"))
@@ -2279,6 +2324,63 @@ void Editor::DrawModals()
 		if (ImGui::Button("Overwrite Anyway", ImVec2(140, 0)))
 		{
 			PerformSave(m_PendingSavePath);
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel", ImVec2(100, 0)))
+		{
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+
+	if (m_ShowDegradedSaveWarningModal)
+	{
+		ImGui::OpenPopup("Warning: Scene Entity Count Drop##Modal");
+		m_ShowDegradedSaveWarningModal = false;
+	}
+
+	if (ImGui::BeginPopupModal("Warning: Scene Entity Count Drop##Modal", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "CRITICAL WARNING: Significant Entity Count Drop!");
+		ImGui::Text("The target scene file '%s' has %zu entities on disk,\nbut the current scene only has %zu entities in memory!\nSaving will overwrite the disk file and delete missing entities.\n\nAre you sure you want to proceed?",
+			m_PendingSavePath.c_str(), m_PendingDiskEntityCount, m_Scene.GetEntityCount());
+		ImGui::Separator();
+
+		if (ImGui::Button("Overwrite Anyway", ImVec2(150, 0)))
+		{
+			PerformSave(m_PendingSavePath);
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Save As New File...", ImVec2(150, 0)))
+		{
+			m_ShowSaveAsModal = true;
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel", ImVec2(100, 0)))
+		{
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+
+	if (m_ShowRestoreTemplateModal)
+	{
+		ImGui::OpenPopup("Restore Doom Arena Template?##Modal");
+		m_ShowRestoreTemplateModal = false;
+	}
+
+	if (ImGui::BeginPopupModal("Restore Doom Arena Template?##Modal", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.2f, 1.0f), "Restore Factory Doom Scene Setup");
+		ImGui::Text("This will reload all 17 Doom Arena entities (Doom Slayer, Shotguns,\nImps, Cacodemon, Colliders, Pickups, Blood Sun, and Torches)\nfrom 'res/scenes/doom_template.scene'.\n\nAny unsaved edits in the current scene will be replaced.\nDo you want to restore now?");
+		ImGui::Separator();
+
+		if (ImGui::Button("Restore Factory Setup", ImVec2(180, 0)))
+		{
+			RestoreDoomTemplate();
 			ImGui::CloseCurrentPopup();
 		}
 		ImGui::SameLine();

@@ -13,6 +13,7 @@
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_opengl3.h>
 #include <GLFW/glfw3.h>
+#include <filesystem>
 #include <cassert>
 #include <print>
 
@@ -70,9 +71,35 @@ void Engine::Initialize()
 
 	if (m_Config.Mode == AppMode::Editor)
 	{
-		InitializeScene();
 		m_Editor = std::make_unique<Editor>(m_Scene, *m_Renderer);
 		m_Editor->Initialize(m_Window->GetNativeWindow());
+
+		std::string sceneToLoad = m_Config.StartingScene.empty() ? "res/scenes/default.scene" : m_Config.StartingScene;
+
+		// Guard: If starting scene does not exist or has degraded (fewer than 10 entities), restore from factory template
+		if (!std::filesystem::exists(sceneToLoad) || SceneSerializer::GetEntityCountInFile(sceneToLoad) < 10)
+		{
+			if (std::filesystem::exists("res/scenes/doom_template.scene"))
+			{
+				std::println("[Engine] Starting scene '{}' missing or degraded. Restoring from factory template 'res/scenes/doom_template.scene'...", sceneToLoad);
+				std::error_code ec;
+				std::filesystem::copy_file("res/scenes/doom_template.scene", sceneToLoad, std::filesystem::copy_options::overwrite_existing, ec);
+			}
+		}
+
+		if (std::filesystem::exists(sceneToLoad))
+		{
+			m_Editor->LoadScene(sceneToLoad);
+		}
+		else if (std::filesystem::exists("res/scenes/doom_template.scene"))
+		{
+			m_Editor->LoadScene("res/scenes/doom_template.scene");
+		}
+		else
+		{
+			std::println(stderr, "[Engine] No scene files found. Falling back to default scene setup.");
+			InitializeScene();
+		}
 	}
 	else
 	{
@@ -108,19 +135,36 @@ void Engine::InitializeStandalone()
 
 	GameModule::Get().SyncImGuiContext(ImGui::GetCurrentContext());
 
-	// Load starting scene
-	SceneSerializer serializer(m_Scene, m_Renderer.get());
-	if (!serializer.Deserialize(m_Config.StartingScene))
+	// Load starting scene (restore from template if missing or degraded)
+	std::string sceneToLoad = m_Config.StartingScene.empty() ? "res/scenes/default.scene" : m_Config.StartingScene;
+	if (!std::filesystem::exists(sceneToLoad) || SceneSerializer::GetEntityCountInFile(sceneToLoad) < 10)
 	{
-		std::println(stderr, "[Engine] Could not load starting scene '{}'. Falling back to default scene setup.", m_Config.StartingScene);
-		InitializeScene();
+		if (std::filesystem::exists("res/scenes/doom_template.scene"))
+		{
+			std::error_code ec;
+			std::filesystem::copy_file("res/scenes/doom_template.scene", sceneToLoad, std::filesystem::copy_options::overwrite_existing, ec);
+		}
+	}
+
+	SceneSerializer serializer(m_Scene, m_Renderer.get());
+	if (!serializer.Deserialize(sceneToLoad))
+	{
+		if (std::filesystem::exists("res/scenes/doom_template.scene") && serializer.Deserialize("res/scenes/doom_template.scene"))
+		{
+			std::println("[Engine] Loaded fallback template 'res/scenes/doom_template.scene'.");
+		}
+		else
+		{
+			std::println(stderr, "[Engine] Could not load starting scene '{}'. Falling back to default scene setup.", sceneToLoad);
+			InitializeScene();
+		}
 	}
 
 	// Start game runtime immediately
 	m_Scene.OnRuntimeStart();
 	Input::SetCursorMode(CursorMode::Locked);
 
-	std::println("[Engine] Running in Standalone Mode: '{}' (Scene: '{}')", m_Config.GameTitle, m_Config.StartingScene);
+	std::println("[Engine] Running in Standalone Mode: '{}' (Scene: '{}')", m_Config.GameTitle, sceneToLoad);
 }
 
 void Engine::Shutdown()
@@ -159,6 +203,16 @@ void Engine::Shutdown()
 
 void Engine::InitializeScene()
 {
+	SceneSerializer serializer(m_Scene, m_Renderer.get(), m_Editor.get());
+	if (std::filesystem::exists("res/scenes/default.scene") && serializer.Deserialize("res/scenes/default.scene"))
+	{
+		return;
+	}
+	if (std::filesystem::exists("res/scenes/doom_template.scene") && serializer.Deserialize("res/scenes/doom_template.scene"))
+	{
+		return;
+	}
+
 	auto houseEntity = m_Scene.CreateModelEntity(
 		"Clock Tower Map",
 		"res/models/house/source/free_fire_maxx_new_clock_tower_map_download_free.glb"

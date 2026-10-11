@@ -725,3 +725,25 @@ bool SceneSerializer::Deserialize(const std::string& filepath)
 
 	return true;
 }
+
+size_t SceneSerializer::GetEntityCountInFile(const std::string& filepath)
+{
+	std::ifstream in(filepath);
+	if (!in.is_open())
+		return 0;
+
+	std::stringstream ss;
+	ss << in.rdbuf();
+	std::string content = ss.str();
+
+	JsonValue root = SimpleJsonParser::Parse(content);
+	if (root.type != JsonType::Object || !root.Has("Entities"))
+		return 0;
+
+	const auto& entities = root.Get("Entities");
+	if (entities.type == JsonType::Array)
+		return entities.arrVal.size();
+
+	return 0;
+}
+
