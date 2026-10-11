@@ -69,74 +69,88 @@ unsigned int TextureFromFile(const std::wstring& path, const std::wstring& direc
 	std::string filenameUtf8 = resolvedPath.string();
 	std::println("Loading texture from file: {}", filenameUtf8);
 
-	unsigned int textureID;
-	glGenTextures(1, &textureID);
-
-	int width, height, nrComponents;
-	unsigned char* data = stbi_load(filenameUtf8.c_str(), &width, &height, &nrComponents, 0);
-	if (data) {
-		GLenum format = GL_RGBA;
-		if (nrComponents == 1) format = GL_RED;
-		else if (nrComponents == 3) format = GL_RGB;
-		else if (nrComponents == 4) format = GL_RGBA;
-
-		glBindTexture(GL_TEXTURE_2D, textureID);
-		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-		stbi_image_free(data);
-		std::println("Successfully loaded external texture with ID: {}", textureID);
-	}
-	else {
+	int width = 0, height = 0, nrComponents = 0;
+	// Always request 4 channels (RGBA) so that 1-, 2-, 3-, and 4-channel textures all decode
+	// to 4 bytes per pixel, preventing driver memory overreads.
+	unsigned char* data = stbi_load(filenameUtf8.c_str(), &width, &height, &nrComponents, 4);
+	if (!data || width <= 0 || height <= 0) {
 		std::println(stderr, "Failed to load texture from file: {}", filenameUtf8);
-		stbi_image_free(data);
+		return 0;
 	}
 
+	unsigned int textureID = 0;
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_2D, textureID);
+
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+	GLenum internalFormat = gamma ? GL_SRGB8_ALPHA8 : GL_RGBA8;
+	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	glGenerateMipmap(GL_TEXTURE_2D);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	stbi_image_free(data);
+	std::println("Successfully loaded external texture with ID: {} ({}x{})", textureID, width, height);
 	return textureID;
 }
 
 unsigned int TextureFromMemory(const aiTexture* texture, bool gamma = false) {
-	unsigned int textureID;
-	glGenTextures(1, &textureID);
+	if (!texture || !texture->pcData) {
+		std::println(stderr, "Error: Invalid texture pointer or empty data");
+		return 0;
+	}
 
-	int width, height, nrComponents;
+	int width = 0, height = 0, nrComponents = 0;
 	unsigned char* data = nullptr;
+	bool isStbiAllocated = false;
 
-	if (texture->mHeight == 0)
-		data = stbi_load_from_memory((unsigned char*)texture->pcData, texture->mWidth, &width, &height, &nrComponents, 0);
-
+	if (texture->mHeight == 0) {
+		// Compressed format (PNG, JPG, WebP, etc.).
+		// Force desired_channels = 4 (RGBA) so that 1-channel, 2-channel (like shotgun image 4),
+		// 3-channel, and 4-channel textures are all safely expanded to 4-byte RGBA pixel buffers.
+		data = stbi_load_from_memory(reinterpret_cast<const unsigned char*>(texture->pcData),
+		                             texture->mWidth, &width, &height, &nrComponents, 4);
+		isStbiAllocated = (data != nullptr);
+	}
 	else {
-		data = (unsigned char*)texture->pcData;
+		// Raw uncompressed pixels in Assimp aiTexel format (BGRA).
 		width = texture->mWidth;
 		height = texture->mHeight;
-		nrComponents = 4;
+		data = reinterpret_cast<unsigned char*>(const_cast<aiTexel*>(texture->pcData));
+		isStbiAllocated = false;
 	}
 
-	if (data) {
-		GLenum format = (nrComponents == 3) ? GL_RGB : GL_RGBA;
-		glBindTexture(GL_TEXTURE_2D, textureID);
-		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-		glGenerateMipmap(GL_TEXTURE_2D);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-		if (texture->mHeight == 0)
-			stbi_image_free(data);
-
-		std::println("Successfully loaded embedded texture with ID: {}", textureID);
+	if (!data || width <= 0 || height <= 0) {
+		std::println(stderr, "Failed to load embedded texture (hint: {})", texture->achFormatHint);
+		return 0;
 	}
-	else
-		std::println(stderr, "Failed to load embedded texture");
 
+	unsigned int textureID = 0;
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_2D, textureID);
 
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+	GLenum internalFormat = gamma ? GL_SRGB8_ALPHA8 : GL_RGBA8;
+	GLenum dataFormat = (texture->mHeight == 0) ? GL_RGBA : GL_BGRA;
+
+	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
+	glGenerateMipmap(GL_TEXTURE_2D);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	if (isStbiAllocated) {
+		stbi_image_free(data);
+	}
+
+	std::println("Successfully loaded embedded texture with ID: {} ({}x{})", textureID, width, height);
 	return textureID;
 }
 
@@ -411,7 +425,6 @@ std::vector<Texture> Model::loadMaterialTextures(const aiScene* scene, aiMateria
 
 		if (str.C_Str()[0] == '*') {
 			int textureIndex = atoi(str.C_Str() + 1);
-			if (!scene->mTextures) continue;
 
 			bool skip = false;
 			for (unsigned int j = 0; j < textures_loaded.size(); j++) {
@@ -423,15 +436,22 @@ std::vector<Texture> Model::loadMaterialTextures(const aiScene* scene, aiMateria
 			}
 
 			if (!skip) {
-				const aiTexture* texture = scene->mTextures[textureIndex];
+				const aiTexture* texture = scene->GetEmbeddedTexture(str.C_Str());
+				if (!texture && scene->mTextures && textureIndex >= 0 && (unsigned int)textureIndex < scene->mNumTextures) {
+					texture = scene->mTextures[textureIndex];
+				}
+
 				if (texture) {
 					std::println("Found embedded texture: {} (Index: {})", str.C_Str(), textureIndex);
-					Texture embeddedTexture;
-					embeddedTexture.id = TextureFromMemory(texture, gammaCorrection);
-					embeddedTexture.type = typeName;
-					embeddedTexture.path = str.C_Str();
-					textures.push_back(embeddedTexture);
-					textures_loaded.push_back(embeddedTexture);
+					unsigned int texID = TextureFromMemory(texture, gammaCorrection);
+					if (texID != 0) {
+						Texture embeddedTexture;
+						embeddedTexture.id = texID;
+						embeddedTexture.type = typeName;
+						embeddedTexture.path = str.C_Str();
+						textures.push_back(embeddedTexture);
+						textures_loaded.push_back(embeddedTexture);
+					}
 				}
 				else
 					std::println(stderr, "Error: Embedded texture {} not found.", str.C_Str());
@@ -451,12 +471,15 @@ std::vector<Texture> Model::loadMaterialTextures(const aiScene* scene, aiMateria
 
 			if (!skip) {
 				std::println("Loading external texture: {}", str.C_Str());
-				Texture texture;
-				texture.id = TextureFromFile(texturePath, directory);
-				texture.type = typeName;
-				texture.path = str.C_Str();
-				textures.push_back(texture);
-				textures_loaded.push_back(texture);
+				unsigned int texID = TextureFromFile(texturePath, directory, gammaCorrection);
+				if (texID != 0) {
+					Texture texture;
+					texture.id = texID;
+					texture.type = typeName;
+					texture.path = str.C_Str();
+					textures.push_back(texture);
+					textures_loaded.push_back(texture);
+				}
 			}
 		}
 	}
