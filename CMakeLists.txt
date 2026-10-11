@@ -19,6 +19,7 @@ set(ENGINE_SOURCES
     src/core/engine.cpp
     src/core/window.cpp
     src/core/input_handler.cpp
+    src/core/input.cpp
 
     # Renderer
     src/renderer/renderer.cpp
@@ -46,6 +47,7 @@ set(ENGINE_SOURCES
 
     # Physics
     src/physics/rigidbody.cpp
+    src/physics/collision.cpp
 
     # Editor
     src/editor/editor.cpp
@@ -69,6 +71,9 @@ set(ENGINE_HEADERS
     src/core/engine.h
     src/core/window.h
     src/core/input_handler.h
+    src/core/input.h
+    src/core/key_codes.h
+    src/core/mouse_codes.h
     src/core/error_handler.h
 
     # Renderer
@@ -92,6 +97,7 @@ set(ENGINE_HEADERS
     src/scene/scene.h
     src/scene/entity.h
     src/scene/components.h
+    src/scene/scriptable_entity.h
     src/scene/model_entity.h
     src/scene/light.h
     src/scene/transform.h
@@ -102,6 +108,7 @@ set(ENGINE_HEADERS
 
     # Physics
     src/physics/rigidbody.h
+    src/physics/collision.h
 
     # Editor
     src/editor/editor.h

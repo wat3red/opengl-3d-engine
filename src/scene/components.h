@@ -211,3 +211,65 @@ struct CameraComponent {
 	explicit CameraComponent(const Camera& cam, bool primary = true)
 		: CameraInstance(cam), Primary(primary) {}
 };
+
+class ScriptableEntity;
+
+// Native Script Component
+struct NativeScriptComponent {
+	ScriptableEntity* Instance = nullptr;
+	std::string ScriptName = "Script";
+
+	ScriptableEntity* (*InstantiateScript)() = nullptr;
+	void (*DestroyScript)(NativeScriptComponent*) = nullptr;
+
+	template<typename T>
+	void Bind(const std::string& name = "")
+	{
+		ScriptName = name.empty() ? "NativeScript" : name;
+		InstantiateScript = []() -> ScriptableEntity* { return static_cast<ScriptableEntity*>(new T()); };
+		DestroyScript = [](NativeScriptComponent* nsc) {
+			delete nsc->Instance;
+			nsc->Instance = nullptr;
+		};
+	}
+};
+
+// Collider Components
+struct BoxColliderComponent {
+	glm::vec3 Size{ 1.0f, 1.0f, 1.0f };
+	glm::vec3 Center{ 0.0f, 0.0f, 0.0f };
+	bool IsTrigger = false;
+
+	BoxColliderComponent() = default;
+	BoxColliderComponent(const glm::vec3& size, const glm::vec3& center = glm::vec3(0.0f), bool isTrigger = false)
+		: Size(size), Center(center), IsTrigger(isTrigger) {}
+};
+
+struct SphereColliderComponent {
+	float Radius = 0.5f;
+	glm::vec3 Center{ 0.0f, 0.0f, 0.0f };
+	bool IsTrigger = false;
+
+	SphereColliderComponent() = default;
+	SphereColliderComponent(float radius, const glm::vec3& center = glm::vec3(0.0f), bool isTrigger = false)
+		: Radius(radius), Center(center), IsTrigger(isTrigger) {}
+};
+
+struct CapsuleColliderComponent {
+	float Radius = 0.5f;
+	float Height = 1.0f;
+	glm::vec3 Center{ 0.0f, 0.0f, 0.0f };
+	bool IsTrigger = false;
+
+	CapsuleColliderComponent() = default;
+	CapsuleColliderComponent(float radius, float height, const glm::vec3& center = glm::vec3(0.0f), bool isTrigger = false)
+		: Radius(radius), Height(height), Center(center), IsTrigger(isTrigger) {}
+};
+
+struct MeshColliderComponent {
+	bool IsTrigger = false;
+
+	MeshColliderComponent() = default;
+	explicit MeshColliderComponent(bool isTrigger) : IsTrigger(isTrigger) {}
+};
+

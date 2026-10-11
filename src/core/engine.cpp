@@ -2,6 +2,7 @@
 #include "asset_manager.h"
 #include "skybox.h"
 #include "light.h"
+#include "input.h"
 
 #include <std_image/stb_image.h>
 #include <imgui/imgui.h>
@@ -45,6 +46,8 @@ void Engine::Initialize()
 		DEFAULT_WINDOW_HEIGHT,
 		true
 	});
+
+	Input::Init(m_Window->GetNativeWindow());
 
 	m_Renderer = std::make_unique<Renderer>();
 	m_Renderer->Initialize();
@@ -132,56 +135,70 @@ void Engine::ProcessInput(float deltaTime)
 	{
 		m_Editor->ProcessInput(m_Window->GetNativeWindow(), deltaTime);
 
-		// Align sun with editor camera view on pressing B
-		if (glfwGetKey(m_Window->GetNativeWindow(), GLFW_KEY_B) == GLFW_PRESS)
+		if (m_Editor->GetSceneState() == Editor::SceneState::Edit)
 		{
-			Entity sun = m_Scene.GetSunLight();
-			if (sun && sun.HasComponent<LightComponent>())
+			// Align sun with editor camera view on pressing B (Edit mode only)
+			if (glfwGetKey(m_Window->GetNativeWindow(), GLFW_KEY_B) == GLFW_PRESS)
 			{
-				auto& lc = sun.GetComponent<LightComponent>();
-				lc.Direction = m_Editor->GetCamera().Front;
-				sun.SetRotation(EulerFromDirection(m_Editor->GetCamera().Front));
-			}
-		}
-
-		// Toggle flashlight on pressing F
-		static bool s_FKeyWasPressed = false;
-		bool fPressed = (glfwGetKey(m_Window->GetNativeWindow(), GLFW_KEY_F) == GLFW_PRESS);
-		if (fPressed && !s_FKeyWasPressed && !ImGui::GetIO().WantTextInput)
-		{
-			auto view = m_Scene.GetRegistry().view<TagComponent, LightComponent>();
-			for (auto [handle, tag, light] : view.each())
-			{
-				if (light.Type == LightType::Spotlight && tag.Tag == "Flashlight")
+				Entity sun = m_Scene.GetSunLight();
+				if (sun && sun.HasComponent<LightComponent>())
 				{
-					if (light.Intensity > 0.001f)
-						light.Intensity = 0.0f;
-					else
-						light.Intensity = 2.5f;
+					auto& lc = sun.GetComponent<LightComponent>();
+					lc.Direction = m_Editor->GetCamera().Front;
+					sun.SetRotation(EulerFromDirection(m_Editor->GetCamera().Front));
 				}
 			}
+
+			// Toggle flashlight on pressing F (Edit mode only)
+			static bool s_FKeyWasPressed = false;
+			bool fPressed = (glfwGetKey(m_Window->GetNativeWindow(), GLFW_KEY_F) == GLFW_PRESS);
+			if (fPressed && !s_FKeyWasPressed && !ImGui::GetIO().WantTextInput)
+			{
+				auto view = m_Scene.GetRegistry().view<TagComponent, LightComponent>();
+				for (auto [handle, tag, light] : view.each())
+				{
+					if (light.Type == LightType::Spotlight && tag.Tag == "Flashlight")
+					{
+						if (light.Intensity > 0.001f)
+							light.Intensity = 0.0f;
+						else
+							light.Intensity = 2.5f;
+					}
+				}
+			}
+			s_FKeyWasPressed = fPressed;
 		}
-		s_FKeyWasPressed = fPressed;
 	}
 }
 
 void Engine::Update(float deltaTime)
 {
-	m_Scene.Update(deltaTime);
-
-	// Synchronize flashlight with editor camera
 	if (m_Editor)
 	{
-		auto view = m_Scene.GetRegistry().view<TagComponent, TransformComponent, LightComponent>();
-		for (auto [handle, tag, tc, light] : view.each())
+		if (m_Editor->GetSceneState() == Editor::SceneState::Play)
 		{
-			if (light.Type == LightType::Spotlight && tag.Tag == "Flashlight")
+			m_Scene.OnUpdateRuntime(deltaTime);
+		}
+		else if (m_Editor->GetSceneState() == Editor::SceneState::Edit)
+		{
+			m_Scene.OnUpdateEditor(deltaTime);
+
+			// Synchronize flashlight with editor camera in Edit mode
+			auto view = m_Scene.GetRegistry().view<TagComponent, TransformComponent, LightComponent>();
+			for (auto [handle, tag, tc, light] : view.each())
 			{
-				tc.Position = m_Editor->GetCamera().Position;
-				light.Direction = m_Editor->GetCamera().Front;
-				tc.Rotation = EulerFromDirection(m_Editor->GetCamera().Front);
+				if (light.Type == LightType::Spotlight && tag.Tag == "Flashlight")
+				{
+					tc.Position = m_Editor->GetCamera().Position;
+					light.Direction = m_Editor->GetCamera().Front;
+					tc.Rotation = EulerFromDirection(m_Editor->GetCamera().Front);
+				}
 			}
 		}
+	}
+	else
+	{
+		m_Scene.OnUpdateRuntime(deltaTime);
 	}
 }
 
@@ -210,6 +227,8 @@ void Engine::Run()
 		float currentFrameTime = static_cast<float>(glfwGetTime());
 		m_DeltaTime = currentFrameTime - m_LastFrameTime;
 		m_LastFrameTime = currentFrameTime;
+
+		Input::Update();
 
 		ProcessInput(m_DeltaTime);
 		Update(m_DeltaTime);

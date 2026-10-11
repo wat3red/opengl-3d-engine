@@ -20,6 +20,18 @@ public:
 	void Update(float deltaTime);
 	void Clear();
 
+	// Runtime Lifecycle
+	void OnRuntimeStart();
+	void OnUpdateRuntime(float deltaTime);
+	void OnRuntimeStop();
+	void OnUpdateEditor(float deltaTime);
+
+	Entity GetPrimaryCameraEntity();
+
+	// Scene Cloning / State Isolation
+	void DuplicateFrom(const Scene& other);
+	static std::shared_ptr<Scene> Copy(const std::shared_ptr<Scene>& other);
+
 	Entity GetSelectedEntity() const { return m_SelectedEntity; }
 	void SetSelectedEntity(Entity entity) { m_SelectedEntity = entity; }
 

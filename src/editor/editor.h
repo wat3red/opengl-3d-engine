@@ -62,6 +62,18 @@ public:
 	void NewScene();
 	void ResetDefaultLayout() { m_ResetLayout = true; }
 
+	// Runtime Scene State Management
+	enum class SceneState {
+		Edit = 0,
+		Play = 1,
+		Pause = 2
+	};
+
+	SceneState GetSceneState() const { return m_SceneState; }
+	void OnScenePlay();
+	void OnSceneStop();
+	void OnScenePause();
+
 private:
 	Scene& m_Scene;
 	Renderer& m_Renderer;
@@ -102,8 +114,12 @@ private:
 	float m_StatusTimer = 0.0f;
 	bool m_ResetLayout = false;
 
+	SceneState m_SceneState = SceneState::Edit;
+	std::unique_ptr<Scene> m_EditorSceneBackup = nullptr;
+
 	void DrawMainMenuBar();
 	void DrawModals();
+	void DrawToolbar();
 	void DrawViewportPanel();
 	void DrawSceneHierarchyPanel();
 	void DrawEntityInspectorPanel();

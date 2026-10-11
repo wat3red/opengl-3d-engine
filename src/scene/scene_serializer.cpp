@@ -288,6 +288,68 @@ bool SceneSerializer::Serialize(const std::string& filepath)
 			out << "\t\t\t\"OuterCutoff\": " << lc.OuterCutoff;
 		}
 
+		if (entity.HasComponent<CameraComponent>())
+		{
+			const auto& cc = entity.GetComponent<CameraComponent>();
+			out << ",\n";
+			out << "\t\t\t\"Camera\": {\n";
+			out << "\t\t\t\t\"Primary\": " << (cc.Primary ? "true" : "false") << ",\n";
+			out << "\t\t\t\t\"Fov\": " << cc.CameraInstance.Zoom << "\n";
+			out << "\t\t\t}";
+		}
+
+		if (entity.HasComponent<BoxColliderComponent>())
+		{
+			const auto& bc = entity.GetComponent<BoxColliderComponent>();
+			out << ",\n";
+			out << "\t\t\t\"BoxCollider\": {\n";
+			out << "\t\t\t\t\"Size\": [" << bc.Size.x << ", " << bc.Size.y << ", " << bc.Size.z << "],\n";
+			out << "\t\t\t\t\"Center\": [" << bc.Center.x << ", " << bc.Center.y << ", " << bc.Center.z << "],\n";
+			out << "\t\t\t\t\"IsTrigger\": " << (bc.IsTrigger ? "true" : "false") << "\n";
+			out << "\t\t\t}";
+		}
+
+		if (entity.HasComponent<SphereColliderComponent>())
+		{
+			const auto& sc = entity.GetComponent<SphereColliderComponent>();
+			out << ",\n";
+			out << "\t\t\t\"SphereCollider\": {\n";
+			out << "\t\t\t\t\"Radius\": " << sc.Radius << ",\n";
+			out << "\t\t\t\t\"Center\": [" << sc.Center.x << ", " << sc.Center.y << ", " << sc.Center.z << "],\n";
+			out << "\t\t\t\t\"IsTrigger\": " << (sc.IsTrigger ? "true" : "false") << "\n";
+			out << "\t\t\t}";
+		}
+
+		if (entity.HasComponent<CapsuleColliderComponent>())
+		{
+			const auto& cc = entity.GetComponent<CapsuleColliderComponent>();
+			out << ",\n";
+			out << "\t\t\t\"CapsuleCollider\": {\n";
+			out << "\t\t\t\t\"Radius\": " << cc.Radius << ",\n";
+			out << "\t\t\t\t\"Height\": " << cc.Height << ",\n";
+			out << "\t\t\t\t\"Center\": [" << cc.Center.x << ", " << cc.Center.y << ", " << cc.Center.z << "],\n";
+			out << "\t\t\t\t\"IsTrigger\": " << (cc.IsTrigger ? "true" : "false") << "\n";
+			out << "\t\t\t}";
+		}
+
+		if (entity.HasComponent<MeshColliderComponent>())
+		{
+			const auto& mc = entity.GetComponent<MeshColliderComponent>();
+			out << ",\n";
+			out << "\t\t\t\"MeshCollider\": {\n";
+			out << "\t\t\t\t\"IsTrigger\": " << (mc.IsTrigger ? "true" : "false") << "\n";
+			out << "\t\t\t}";
+		}
+
+		if (entity.HasComponent<NativeScriptComponent>())
+		{
+			const auto& nsc = entity.GetComponent<NativeScriptComponent>();
+			out << ",\n";
+			out << "\t\t\t\"NativeScript\": {\n";
+			out << "\t\t\t\t\"ScriptName\": \"" << nsc.ScriptName << "\"\n";
+			out << "\t\t\t}";
+		}
+
 		out << "\n\t\t}" << (entityIdx + 1 < totalEntities ? "," : "") << "\n";
 		entityIdx++;
 	}
@@ -405,6 +467,58 @@ bool SceneSerializer::Deserialize(const std::string& filepath)
 				lc.InnerCutoff = inner;
 				lc.OuterCutoff = outer;
 				entity.AddComponent<LightComponent>(lc);
+			}
+
+			if (entVal.Has("Camera")) {
+				const auto& camVal = entVal.Get("Camera");
+				CameraComponent cc;
+				cc.Primary = camVal.Get("Primary").AsBool(true);
+				if (camVal.Has("Fov")) {
+					cc.CameraInstance.Zoom = camVal.Get("Fov").AsFloat(60.0f);
+				}
+				entity.AddComponent<CameraComponent>(cc);
+			}
+
+			if (entVal.Has("BoxCollider")) {
+				const auto& bcVal = entVal.Get("BoxCollider");
+				BoxColliderComponent bc;
+				bc.Size = bcVal.Get("Size").AsVec3(glm::vec3(1.0f));
+				bc.Center = bcVal.Get("Center").AsVec3(glm::vec3(0.0f));
+				bc.IsTrigger = bcVal.Get("IsTrigger").AsBool(false);
+				entity.AddComponent<BoxColliderComponent>(bc);
+			}
+
+			if (entVal.Has("SphereCollider")) {
+				const auto& scVal = entVal.Get("SphereCollider");
+				SphereColliderComponent sc;
+				sc.Radius = scVal.Get("Radius").AsFloat(0.5f);
+				sc.Center = scVal.Get("Center").AsVec3(glm::vec3(0.0f));
+				sc.IsTrigger = scVal.Get("IsTrigger").AsBool(false);
+				entity.AddComponent<SphereColliderComponent>(sc);
+			}
+
+			if (entVal.Has("CapsuleCollider")) {
+				const auto& ccVal = entVal.Get("CapsuleCollider");
+				CapsuleColliderComponent cc;
+				cc.Radius = ccVal.Get("Radius").AsFloat(0.5f);
+				cc.Height = ccVal.Get("Height").AsFloat(1.0f);
+				cc.Center = ccVal.Get("Center").AsVec3(glm::vec3(0.0f));
+				cc.IsTrigger = ccVal.Get("IsTrigger").AsBool(false);
+				entity.AddComponent<CapsuleColliderComponent>(cc);
+			}
+
+			if (entVal.Has("MeshCollider")) {
+				const auto& mcVal = entVal.Get("MeshCollider");
+				MeshColliderComponent mc;
+				mc.IsTrigger = mcVal.Get("IsTrigger").AsBool(false);
+				entity.AddComponent<MeshColliderComponent>(mc);
+			}
+
+			if (entVal.Has("NativeScript")) {
+				const auto& nsVal = entVal.Get("NativeScript");
+				NativeScriptComponent nsc;
+				nsc.ScriptName = nsVal.Get("ScriptName").AsString("NativeScript");
+				entity.AddComponent<NativeScriptComponent>(nsc);
 			}
 		}
 	}

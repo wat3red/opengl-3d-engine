@@ -2,6 +2,7 @@
 #include "skybox.h"
 #include "primitive.h"
 #include "light.h"
+#include "core/input.h"
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
@@ -67,6 +68,11 @@ void Editor::Initialize(GLFWwindow* window)
 
 void Editor::Shutdown()
 {
+	if (m_SceneState != SceneState::Edit)
+	{
+		OnSceneStop();
+	}
+
 	m_BloomRenderer.Shutdown();
 	if (ImGui::GetCurrentContext())
 	{
@@ -78,8 +84,69 @@ void Editor::Shutdown()
 	m_LDRFramebuffer.reset();
 }
 
+void Editor::OnScenePlay()
+{
+	m_SceneState = SceneState::Play;
+	m_EditorSceneBackup = std::make_unique<Scene>();
+	m_EditorSceneBackup->DuplicateFrom(m_Scene);
+	m_Scene.OnRuntimeStart();
+	m_StatusMessage = "Play mode started";
+	m_StatusTimer = 2.0f;
+}
+
+void Editor::OnSceneStop()
+{
+	m_Scene.OnRuntimeStop();
+	m_SceneState = SceneState::Edit;
+	if (m_EditorSceneBackup)
+	{
+		m_Scene.DuplicateFrom(*m_EditorSceneBackup);
+		m_EditorSceneBackup.reset();
+	}
+	Input::SetCursorMode(CursorMode::Normal);
+	m_StatusMessage = "Returned to Edit mode";
+	m_StatusTimer = 2.0f;
+}
+
+void Editor::OnScenePause()
+{
+	if (m_SceneState == SceneState::Play)
+	{
+		m_SceneState = SceneState::Pause;
+		m_StatusMessage = "Simulation paused";
+		m_StatusTimer = 2.0f;
+	}
+	else if (m_SceneState == SceneState::Pause)
+	{
+		m_SceneState = SceneState::Play;
+		m_StatusMessage = "Simulation resumed";
+		m_StatusTimer = 2.0f;
+	}
+}
+
 void Editor::ProcessInput(GLFWwindow* window, float deltaTime)
 {
+	// Global hotkey: F5 toggles Play / Stop
+	static bool s_F5WasPressed = false;
+	bool f5Pressed = (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS);
+	if (f5Pressed && !s_F5WasPressed && !ImGui::GetIO().WantTextInput)
+	{
+		if (m_SceneState == SceneState::Edit)
+			OnScenePlay();
+		else
+			OnSceneStop();
+	}
+	s_F5WasPressed = f5Pressed;
+
+	if (m_SceneState == SceneState::Play)
+	{
+		if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+		{
+			Input::SetCursorMode(CursorMode::Normal);
+		}
+		return;
+	}
+
 	m_InputHandler.Update(window, deltaTime);
 
 	// Shortcuts for Save, Open, New (Ctrl+S, Ctrl+O, Ctrl+N)
@@ -128,47 +195,68 @@ void Editor::RenderSceneViewport()
 
 	auto start = std::chrono::high_resolution_clock::now();
 
+	Camera activeCamera = m_Camera;
+	if (m_SceneState == SceneState::Play || m_SceneState == SceneState::Pause)
+	{
+		Entity primaryCam = m_Scene.GetPrimaryCameraEntity();
+		if (primaryCam && primaryCam.HasComponent<CameraComponent>())
+		{
+			auto& tc = primaryCam.GetTransform();
+			auto& cc = primaryCam.GetComponent<CameraComponent>();
+			cc.CameraInstance.Position = tc.Position;
+			cc.CameraInstance.Front = DirectionFromEuler(tc.Rotation);
+			cc.CameraInstance.Yaw = tc.Rotation.y;
+			cc.CameraInstance.Pitch = tc.Rotation.x;
+			activeCamera = cc.CameraInstance;
+		}
+	}
+
 	if (m_ViewportSize.x > 0 && m_ViewportSize.y > 0)
 	{
 		// 1. Render 3D scene into HDR Framebuffer (GL_RGBA16F)
-		m_Renderer.RenderScene(m_ViewportSize, m_Camera, m_Scene, m_HDRFramebuffer->GetRendererID());
+		m_Renderer.RenderScene(m_ViewportSize, activeCamera, m_Scene, m_HDRFramebuffer->GetRendererID());
 
-		Shader& lightShader = m_Renderer.GetLightShader();
-		lightShader.Bind();
-
-		auto lightView = m_Scene.GetRegistry().view<TagComponent, LightComponent, TransformComponent>();
-		for (auto [handle, tag, light, tc] : lightView.each())
+		// Light debug cubes are only drawn in Edit mode
+		if (m_SceneState == SceneState::Edit)
 		{
-			if (!tag.Active)
-				continue;
+			Shader& lightShader = m_Renderer.GetLightShader();
+			lightShader.Bind();
 
-			// Do not render debug icon if light is closer than 0.5m to camera to avoid camera clipping
-			if (glm::distance(tc.Position, m_Camera.Position) < 0.5f)
-				continue;
-
-			lightShader.SetUniform4f("objectColor", glm::vec4(light.Color, 1.0f));
-
-			if (light.Type == LightType::Point)
+			auto lightView = m_Scene.GetRegistry().view<TagComponent, LightComponent, TransformComponent>();
+			for (auto [handle, tag, light, tc] : lightView.each())
 			{
-				glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), tc.Position);
-				modelMatrix = glm::scale(modelMatrix, glm::vec3(0.2f));
-				lightShader.SetUniformMat4f("model", modelMatrix);
-				lightShader.SetUniformMat4f("view", m_Camera.GetViewMatrix());
-				lightShader.SetUniformMat4f("projection", m_Camera.GetProjectionMatrix(m_ViewportSize));
-				m_Renderer.RenderCube();
+				if (!tag.Active)
+					continue;
+
+				// Do not render debug icon if light is closer than 0.5m to camera to avoid camera clipping
+				if (glm::distance(tc.Position, m_Camera.Position) < 0.5f)
+					continue;
+
+				lightShader.SetUniform4f("objectColor", glm::vec4(light.Color, 1.0f));
+
+				if (light.Type == LightType::Point)
+				{
+					glm::mat4 modelMatrix = glm::translate(glm::mat4(1.0f), tc.Position);
+					modelMatrix = glm::scale(modelMatrix, glm::vec3(0.2f));
+					lightShader.SetUniformMat4f("model", modelMatrix);
+					lightShader.SetUniformMat4f("view", m_Camera.GetViewMatrix());
+					lightShader.SetUniformMat4f("projection", m_Camera.GetProjectionMatrix(m_ViewportSize));
+					m_Renderer.RenderCube();
+				}
+				else if (light.Type == LightType::Spotlight)
+				{
+					glm::mat4 modelMatrix = tc.GetMatrix();
+					modelMatrix = glm::scale(modelMatrix, glm::vec3(0.15f, 0.15f, 0.4f));
+					lightShader.SetUniformMat4f("model", modelMatrix);
+					lightShader.SetUniformMat4f("view", m_Camera.GetViewMatrix());
+					lightShader.SetUniformMat4f("projection", m_Camera.GetProjectionMatrix(m_ViewportSize));
+					m_Renderer.RenderCube();
+				}
 			}
-			else if (light.Type == LightType::Spotlight)
-			{
-				glm::mat4 modelMatrix = tc.GetMatrix();
-				modelMatrix = glm::scale(modelMatrix, glm::vec3(0.15f, 0.15f, 0.4f));
-				lightShader.SetUniformMat4f("model", modelMatrix);
-				lightShader.SetUniformMat4f("view", m_Camera.GetViewMatrix());
-				lightShader.SetUniformMat4f("projection", m_Camera.GetProjectionMatrix(m_ViewportSize));
-				m_Renderer.RenderCube();
-			}
+
+			lightShader.Unbind();
 		}
 
-		lightShader.Unbind();
 		m_HDRFramebuffer->Unbind();
 
 		// 2. Post-processing Bloom pass (multi-scale Dual Filter Bloom)
@@ -222,6 +310,7 @@ void Editor::RenderUI(float deltaTime)
 	ImGuizmo::BeginFrame();
 
 	DrawMainMenuBar();
+	DrawToolbar();
 	DrawModals();
 	DrawViewportPanel();
 	DrawSceneHierarchyPanel();
@@ -233,6 +322,49 @@ void Editor::RenderUI(float deltaTime)
 
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
+void Editor::DrawToolbar()
+{
+	ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_AlwaysAutoResize;
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10.0f, 4.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 6.0f);
+	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.12f, 0.12f, 0.14f, 0.95f));
+
+	ImVec2 centerPos(ImGui::GetIO().DisplaySize.x * 0.5f - 80.0f, 26.0f);
+	ImGui::SetNextWindowPos(centerPos, ImGuiCond_Always);
+
+	if (ImGui::Begin("##Toolbar", nullptr, flags))
+	{
+		if (m_SceneState == SceneState::Edit)
+		{
+			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.6f, 0.25f, 0.9f));
+			if (ImGui::Button("  Play (F5)  "))
+			{
+				OnScenePlay();
+			}
+			ImGui::PopStyleColor();
+		}
+		else
+		{
+			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.75f, 0.2f, 0.2f, 0.9f));
+			if (ImGui::Button("  Stop (F5)  "))
+			{
+				OnSceneStop();
+			}
+			ImGui::PopStyleColor();
+
+			ImGui::SameLine();
+			const char* pauseLabel = (m_SceneState == SceneState::Play) ? "  Pause  " : "  Resume  ";
+			if (ImGui::Button(pauseLabel))
+			{
+				OnScenePause();
+			}
+		}
+		ImGui::End();
+	}
+	ImGui::PopStyleColor();
+	ImGui::PopStyleVar(2);
 }
 
 void Editor::DrawViewportPanel()
@@ -255,8 +387,8 @@ void Editor::DrawViewportPanel()
 	m_IsViewportFocused = ImGui::IsWindowFocused();
 	m_IsViewportHovered = ImGui::IsWindowHovered();
 
-	// Allow camera look-around only when right clicking inside the viewport and not currently manipulating gizmos
-	m_InputHandler.SetCanCaptureRightClick(m_IsViewportHovered && !ImGuizmo::IsUsing());
+	// Allow camera look-around only when right clicking inside the viewport in Edit mode and not manipulating gizmos
+	m_InputHandler.SetCanCaptureRightClick(m_SceneState == SceneState::Edit && m_IsViewportHovered && !ImGuizmo::IsUsing());
 
 	ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 	if (viewportPanelSize.x > 0 && viewportPanelSize.y > 0)
@@ -289,9 +421,9 @@ void Editor::DrawViewportPanel()
 		ImVec2 imagePos = ImGui::GetItemRectMin();
 		ImVec2 imageSize = ImGui::GetItemRectSize();
 
-		// 3D Viewport Gizmos
+		// 3D Viewport Gizmos (Edit mode only)
 		Entity selectedEntity = m_Scene.GetSelectedEntity();
-		if (selectedEntity && selectedEntity.HasComponent<TransformComponent>() && m_GizmoType != -1)
+		if (m_SceneState == SceneState::Edit && selectedEntity && selectedEntity.HasComponent<TransformComponent>() && m_GizmoType != -1)
 		{
 			ImGuizmo::SetOrthographic(false);
 			ImGuizmo::SetDrawlist();
@@ -396,6 +528,8 @@ void Editor::DrawSceneHierarchyPanel()
 		if (entity.HasComponent<MeshComponent>()) componentBadges += "[Mesh] ";
 		if (entity.HasComponent<LightComponent>()) componentBadges += "[Light] ";
 		if (entity.HasComponent<CameraComponent>()) componentBadges += "[Camera] ";
+		if (entity.HasComponent<BoxColliderComponent>() || entity.HasComponent<SphereColliderComponent>() || entity.HasComponent<CapsuleColliderComponent>() || entity.HasComponent<MeshColliderComponent>()) componentBadges += "[Col] ";
+		if (entity.HasComponent<NativeScriptComponent>()) componentBadges += "[Script] ";
 
 		std::string label = tag.Tag + " " + componentBadges + "##Entity" + std::to_string(static_cast<uint32_t>(entityHandle));
 		ImGui::TreeNodeEx(label.c_str(), flags);
@@ -412,6 +546,14 @@ void Editor::DrawSceneHierarchyPanel()
 		{
 			Entity e = m_Scene.CreateEntity("New Entity");
 			m_Scene.SetSelectedEntity(e);
+		}
+		if (ImGui::MenuItem("Add Camera"))
+		{
+			Entity cam = m_Scene.CreateEntity("Camera");
+			cam.SetPosition(m_Camera.Position);
+			cam.SetRotation(glm::vec3(m_Camera.Pitch, m_Camera.Yaw, 0.0f));
+			cam.AddComponent<CameraComponent>(m_Camera, true);
+			m_Scene.SetSelectedEntity(cam);
 		}
 		if (ImGui::MenuItem("Add Directional Light"))
 		{
@@ -625,10 +767,99 @@ void Editor::DrawEntityInspectorPanel()
 		{
 			auto& cc = selectedEntity.GetComponent<CameraComponent>();
 			ImGui::Checkbox("Primary Camera", &cc.Primary);
+			ImGui::SliderFloat("Field of View", &cc.CameraInstance.Zoom, 10.0f, 120.0f);
 
 			if (ImGui::Button("Remove Camera"))
 			{
 				selectedEntity.RemoveComponent<CameraComponent>();
+			}
+		}
+	}
+
+	// Box Collider Component
+	if (selectedEntity.HasComponent<BoxColliderComponent>())
+	{
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("Box Collider", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			auto& bc = selectedEntity.GetComponent<BoxColliderComponent>();
+			ImGui::DragFloat3("Size##Box", &bc.Size.x, 0.05f, 0.01f, 1000.0f);
+			ImGui::DragFloat3("Center##Box", &bc.Center.x, 0.05f);
+			ImGui::Checkbox("Is Trigger##Box", &bc.IsTrigger);
+
+			if (ImGui::Button("Remove Box Collider"))
+			{
+				selectedEntity.RemoveComponent<BoxColliderComponent>();
+			}
+		}
+	}
+
+	// Sphere Collider Component
+	if (selectedEntity.HasComponent<SphereColliderComponent>())
+	{
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("Sphere Collider", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			auto& sc = selectedEntity.GetComponent<SphereColliderComponent>();
+			ImGui::DragFloat("Radius##Sphere", &sc.Radius, 0.05f, 0.01f, 500.0f);
+			ImGui::DragFloat3("Center##Sphere", &sc.Center.x, 0.05f);
+			ImGui::Checkbox("Is Trigger##Sphere", &sc.IsTrigger);
+
+			if (ImGui::Button("Remove Sphere Collider"))
+			{
+				selectedEntity.RemoveComponent<SphereColliderComponent>();
+			}
+		}
+	}
+
+	// Capsule Collider Component
+	if (selectedEntity.HasComponent<CapsuleColliderComponent>())
+	{
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("Capsule Collider", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			auto& cc = selectedEntity.GetComponent<CapsuleColliderComponent>();
+			ImGui::DragFloat("Radius##Capsule", &cc.Radius, 0.05f, 0.01f, 500.0f);
+			ImGui::DragFloat("Height##Capsule", &cc.Height, 0.05f, 0.01f, 500.0f);
+			ImGui::DragFloat3("Center##Capsule", &cc.Center.x, 0.05f);
+			ImGui::Checkbox("Is Trigger##Capsule", &cc.IsTrigger);
+
+			if (ImGui::Button("Remove Capsule Collider"))
+			{
+				selectedEntity.RemoveComponent<CapsuleColliderComponent>();
+			}
+		}
+	}
+
+	// Mesh Collider Component
+	if (selectedEntity.HasComponent<MeshColliderComponent>())
+	{
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("Mesh Collider", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			auto& mc = selectedEntity.GetComponent<MeshColliderComponent>();
+			ImGui::Checkbox("Is Trigger##MeshCol", &mc.IsTrigger);
+
+			if (ImGui::Button("Remove Mesh Collider"))
+			{
+				selectedEntity.RemoveComponent<MeshColliderComponent>();
+			}
+		}
+	}
+
+	// Native Script Component
+	if (selectedEntity.HasComponent<NativeScriptComponent>())
+	{
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("Native Script", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			auto& nsc = selectedEntity.GetComponent<NativeScriptComponent>();
+			ImGui::Text("Script: %s", nsc.ScriptName.c_str());
+			ImGui::TextDisabled("Status: %s", (nsc.Instance ? "Active / Running" : "Idle (runs in Play mode)"));
+
+			if (ImGui::Button("Remove Script"))
+			{
+				selectedEntity.RemoveComponent<NativeScriptComponent>();
 			}
 		}
 	}
@@ -668,6 +899,41 @@ void Editor::DrawEntityInspectorPanel()
 			if (ImGui::MenuItem("Camera Component"))
 			{
 				selectedEntity.AddComponent<CameraComponent>();
+			}
+		}
+		if (!selectedEntity.HasComponent<BoxColliderComponent>())
+		{
+			if (ImGui::MenuItem("Box Collider"))
+			{
+				selectedEntity.AddComponent<BoxColliderComponent>();
+			}
+		}
+		if (!selectedEntity.HasComponent<SphereColliderComponent>())
+		{
+			if (ImGui::MenuItem("Sphere Collider"))
+			{
+				selectedEntity.AddComponent<SphereColliderComponent>();
+			}
+		}
+		if (!selectedEntity.HasComponent<CapsuleColliderComponent>())
+		{
+			if (ImGui::MenuItem("Capsule Collider"))
+			{
+				selectedEntity.AddComponent<CapsuleColliderComponent>();
+			}
+		}
+		if (!selectedEntity.HasComponent<MeshColliderComponent>())
+		{
+			if (ImGui::MenuItem("Mesh Collider"))
+			{
+				selectedEntity.AddComponent<MeshColliderComponent>();
+			}
+		}
+		if (!selectedEntity.HasComponent<NativeScriptComponent>())
+		{
+			if (ImGui::MenuItem("Native Script Component"))
+			{
+				selectedEntity.AddComponent<NativeScriptComponent>();
 			}
 		}
 		ImGui::EndPopup();
@@ -900,12 +1166,43 @@ void Editor::DrawMainMenuBar()
 			ImGui::EndMenu();
 		}
 
+		if (ImGui::BeginMenu("Scene"))
+		{
+			if (m_SceneState == SceneState::Edit)
+			{
+				if (ImGui::MenuItem("Play Mode", "F5"))
+				{
+					OnScenePlay();
+				}
+			}
+			else
+			{
+				if (ImGui::MenuItem("Stop Mode", "F5"))
+				{
+					OnSceneStop();
+				}
+				if (ImGui::MenuItem(m_SceneState == SceneState::Play ? "Pause Simulation" : "Resume Simulation"))
+				{
+					OnScenePause();
+				}
+			}
+			ImGui::EndMenu();
+		}
+
 		if (ImGui::BeginMenu("Add"))
 		{
 			if (ImGui::MenuItem("Create Empty Entity"))
 			{
 				Entity e = m_Scene.CreateEntity("New Entity");
 				m_Scene.SetSelectedEntity(e);
+			}
+			if (ImGui::MenuItem("Camera"))
+			{
+				Entity cam = m_Scene.CreateEntity("Camera");
+				cam.SetPosition(m_Camera.Position);
+				cam.SetRotation(glm::vec3(m_Camera.Pitch, m_Camera.Yaw, 0.0f));
+				cam.AddComponent<CameraComponent>(m_Camera, true);
+				m_Scene.SetSelectedEntity(cam);
 			}
 			if (ImGui::MenuItem("Directional Light"))
 			{
