@@ -61,6 +61,7 @@ public:
 	void SaveScene(const std::string& filepath = "res/scenes/default.scene");
 	void LoadScene(const std::string& filepath = "res/scenes/default.scene");
 	void NewScene();
+	void SetupDoomArenaLevel();
 	void ResetDefaultLayout() { m_ResetLayout = true; }
 
 	// Runtime Scene State Management

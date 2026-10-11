@@ -242,6 +242,8 @@ struct CameraComponent {
 	bool Primary = true;
 
 	CameraComponent() = default;
+	explicit CameraComponent(bool primary)
+		: Primary(primary) {}
 	explicit CameraComponent(const Camera& cam, bool primary = true)
 		: CameraInstance(cam), Primary(primary) {}
 };

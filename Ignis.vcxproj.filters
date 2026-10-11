@@ -233,6 +233,18 @@
     <ClInclude Include="src\scripts\fps_controller.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\scripts\doom_game_state.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\scripts\doom_player.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\scripts\doom_enemy.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\scripts\doom_pickup.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\editor\editor.h">
       <Filter>Header Files</Filter>
     </ClInclude>

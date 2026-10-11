@@ -227,6 +227,10 @@
     <ClInclude Include="src\physics\rigidbody.h" />
     <ClInclude Include="src\physics\collision.h" />
     <ClInclude Include="src\scripts\fps_controller.h" />
+    <ClInclude Include="src\scripts\doom_game_state.h" />
+    <ClInclude Include="src\scripts\doom_player.h" />
+    <ClInclude Include="src\scripts\doom_enemy.h" />
+    <ClInclude Include="src\scripts\doom_pickup.h" />
     <ClInclude Include="src\editor\editor.h" />
     <ClInclude Include="vendor\assimp\aabb.h" />
     <ClInclude Include="vendor\assimp\ai_assert.h" />

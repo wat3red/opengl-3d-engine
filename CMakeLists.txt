@@ -121,6 +121,10 @@ set(ENGINE_HEADERS
 
     # Scripts
     src/scripts/fps_controller.h
+    src/scripts/doom_game_state.h
+    src/scripts/doom_player.h
+    src/scripts/doom_enemy.h
+    src/scripts/doom_pickup.h
 
     # Editor
     src/editor/editor.h
