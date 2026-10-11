@@ -38,6 +38,7 @@ public:
 
 	entt::registry& GetRegistry() { return m_Registry; }
 	const entt::registry& GetRegistry() const { return m_Registry; }
+	size_t GetEntityCount() const { return m_Registry.view<TagComponent>().size(); }
 
 	std::shared_ptr<Skybox> GetSkybox() const { return m_Skybox; }
 	void SetSkybox(const std::shared_ptr<Skybox>& skybox) { m_Skybox = skybox; }

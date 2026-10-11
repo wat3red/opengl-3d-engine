@@ -10,6 +10,7 @@
 #include "game/scripts/doom_enemy.h"
 #include "game/scripts/doom_hud.h"
 #include <iostream>
+#include <print>
 #include <random>
 #include <cmath>
 #include <algorithm>
@@ -204,8 +205,8 @@ private:
 
 		glm::vec3 eyePos = GetComponent<TransformComponent>().Position + glm::vec3(0.0f, 1.6f, 0.0f);
 
-		// Fire 8 pellets with spread
-		const int pelletCount = 8;
+		// Fire 10 pellets with spread
+		const int pelletCount = 10;
 		const float spreadAngle = 0.045f;
 		uint32_t shootMask = Physics::Layer_All & ~Physics::Layer_Player;
 
@@ -216,19 +217,39 @@ private:
 
 			glm::vec3 pelletDir = glm::normalize(baseDir + right * randX + up * randY);
 			Physics::Ray ray(eyePos, pelletDir);
-			Physics::RaycastHit hit;
+			std::vector<Physics::RaycastHit> hits;
 
-			if (Physics::Raycast(*GetScene(), ray, 60.0f, hit, shootMask, false))
+			if (Physics::RaycastAll(*GetScene(), ray, 60.0f, hits, shootMask, false))
 			{
-				if (hit.HitEntity && hit.HitEntity.HasComponent<NativeScriptComponent>())
+				for (const auto& hit : hits)
 				{
-					auto& nsc = hit.HitEntity.GetComponent<NativeScriptComponent>();
-					if (nsc.Instance && nsc.ScriptName == "DoomEnemy")
+					if (hit.HitEntity)
 					{
-						auto* enemy = static_cast<DoomEnemy*>(nsc.Instance);
-						int pelletDamage = 14 + rand() % 8; // 14-21 damage per pellet
-						enemy->TakeDamage(pelletDamage, pelletDir);
-						DoomGameState::HitmarkerTimer = 0.15f;
+						if (hit.HitEntity.HasComponent<NativeScriptComponent>())
+						{
+							auto& nsc = hit.HitEntity.GetComponent<NativeScriptComponent>();
+							if (nsc.Instance && nsc.ScriptName == "DoomEnemy")
+							{
+								auto* enemy = static_cast<DoomEnemy*>(nsc.Instance);
+								int pelletDamage = 16 + rand() % 8; // 16-23 damage per pellet
+								enemy->TakeDamage(pelletDamage, pelletDir);
+								DoomGameState::HitmarkerTimer = 0.15f;
+								break;
+							}
+						}
+
+						bool isStatic = false;
+						if (hit.HitEntity.HasComponent<MeshColliderComponent>() && 
+							(hit.HitEntity.GetComponent<MeshColliderComponent>().Layer & Physics::Layer_Static))
+							isStatic = true;
+						if (hit.HitEntity.HasComponent<BoxColliderComponent>() && 
+							(hit.HitEntity.GetComponent<BoxColliderComponent>().Layer & Physics::Layer_Static))
+							isStatic = true;
+
+						if (isStatic)
+						{
+							break;
+						}
 					}
 				}
 			}

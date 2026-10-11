@@ -59,7 +59,12 @@ public:
 	bool& GetGizmoSnap() { return m_GizmoSnap; }
 
 	void SaveScene(const std::string& filepath = "res/scenes/default.scene");
+	void PerformSave(const std::string& filepath);
 	void LoadScene(const std::string& filepath = "res/scenes/default.scene");
+	void RevertScene();
+	void RestoreSceneBackup();
+	void RequestNewScene();
+	void ConfirmNewScene();
 	void NewScene();
 	void ResetDefaultLayout() { m_ResetLayout = true; }
 
@@ -111,6 +116,9 @@ private:
 	char m_ScenePathBuffer[256] = "res/scenes/default.scene";
 	bool m_ShowSaveAsModal = false;
 	bool m_ShowOpenModal = false;
+	bool m_ShowNewSceneModal = false;
+	bool m_ShowEmptySaveWarningModal = false;
+	std::string m_PendingSavePath = "";
 	std::string m_StatusMessage = "";
 	float m_StatusTimer = 0.0f;
 	bool m_ResetLayout = false;

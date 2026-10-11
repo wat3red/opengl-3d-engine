@@ -1762,18 +1762,91 @@ void Editor::DrawMetricsPanel(float deltaTime)
 
 void Editor::SaveScene(const std::string& filepath)
 {
-	SceneSerializer serializer(m_Scene, &m_Renderer, this);
-	if (serializer.Serialize(filepath))
+	if (m_SceneState != SceneState::Edit)
 	{
-		m_CurrentScenePath = filepath;
-		m_StatusMessage = "Scene saved: " + filepath;
-		m_StatusTimer = 3.5f;
-	}
-	else
-	{
-		m_StatusMessage = "Failed to save scene: " + filepath;
+		m_StatusMessage = "Cannot save while in Play or Pause mode! Press F5 to stop first.";
 		m_StatusTimer = 4.0f;
+		return;
 	}
+
+	if (filepath.empty())
+	{
+		m_ShowSaveAsModal = true;
+		return;
+	}
+
+	// Safety check: protect against saving an empty scene over an existing full scene
+	if (m_Scene.GetEntityCount() == 0 && std::filesystem::exists(filepath))
+	{
+		m_PendingSavePath = filepath;
+		m_ShowEmptySaveWarningModal = true;
+		return;
+	}
+
+	PerformSave(filepath);
+}
+
+void Editor::PerformSave(const std::string& filepath)
+{
+	namespace fs = std::filesystem;
+	std::error_code ec;
+
+	// 1. Create backups if file already exists
+	if (fs::exists(filepath, ec))
+	{
+		// a. Direct .bak backup
+		std::string bakPath = filepath + ".bak";
+		fs::copy_file(filepath, bakPath, fs::copy_options::overwrite_existing, ec);
+
+		// b. Timestamped backup in res/scenes/backups/
+		fs::path parent = fs::path(filepath).parent_path();
+		fs::path backupDir = parent / "backups";
+		fs::create_directories(backupDir, ec);
+
+		auto now = std::chrono::system_clock::now();
+		auto timeT = std::chrono::system_clock::to_time_t(now);
+		std::tm tmStruct;
+		localtime_s(&tmStruct, &timeT);
+		char timeStr[64];
+		std::strftime(timeStr, sizeof(timeStr), "%Y%m%d_%H%M%S", &tmStruct);
+
+		std::string stem = fs::path(filepath).stem().string();
+		std::string ext = fs::path(filepath).extension().string();
+		fs::path tsBackupPath = backupDir / (stem + "_" + timeStr + ext);
+		fs::copy_file(filepath, tsBackupPath, fs::copy_options::overwrite_existing, ec);
+	}
+
+	// 2. Atomic write to temporary file first
+	std::string tempPath = filepath + ".tmp";
+	SceneSerializer serializer(m_Scene, &m_Renderer, this);
+	if (!serializer.Serialize(tempPath))
+	{
+		m_StatusMessage = "Failed to serialize scene to temporary file!";
+		m_StatusTimer = 4.0f;
+		fs::remove(tempPath, ec);
+		return;
+	}
+
+	// Verify temp file has data
+	if (!fs::exists(tempPath, ec) || fs::file_size(tempPath, ec) < 10)
+	{
+		m_StatusMessage = "Serialization generated invalid or empty file. Save aborted.";
+		m_StatusTimer = 4.0f;
+		fs::remove(tempPath, ec);
+		return;
+	}
+
+	// Atomic replace: rename temp file to target file
+	fs::rename(tempPath, filepath, ec);
+	if (ec)
+	{
+		fs::copy_file(tempPath, filepath, fs::copy_options::overwrite_existing, ec);
+		fs::remove(tempPath, ec);
+	}
+
+	m_CurrentScenePath = filepath;
+	m_StatusMessage = "Scene saved safely (backup created): " + filepath;
+	m_StatusTimer = 3.5f;
 }
 
 void Editor::LoadScene(const std::string& filepath)
@@ -1792,12 +1865,60 @@ void Editor::LoadScene(const std::string& filepath)
 	}
 }
 
-void Editor::NewScene()
+void Editor::RevertScene()
+{
+	if (std::filesystem::exists(m_CurrentScenePath))
+	{
+		LoadScene(m_CurrentScenePath);
+		m_StatusMessage = "Reverted scene to disk version.";
+		m_StatusTimer = 3.0f;
+	}
+	else
+	{
+		m_StatusMessage = "Cannot revert: file does not exist on disk!";
+		m_StatusTimer = 3.5f;
+	}
+}
+
+void Editor::RestoreSceneBackup()
+{
+	std::string bakPath = m_CurrentScenePath + ".bak";
+	if (std::filesystem::exists(bakPath))
+	{
+		LoadScene(bakPath);
+		m_StatusMessage = "Restored scene from backup: " + bakPath;
+		m_StatusTimer = 3.5f;
+	}
+	else
+	{
+		m_StatusMessage = "No backup file found (.bak) for current scene!";
+		m_StatusTimer = 3.5f;
+	}
+}
+
+void Editor::RequestNewScene()
+{
+	if (m_Scene.GetEntityCount() > 0)
+	{
+		m_ShowNewSceneModal = true;
+	}
+	else
+	{
+		ConfirmNewScene();
+	}
+}
+
+void Editor::ConfirmNewScene()
 {
 	m_Scene.Clear();
 	m_CurrentScenePath = "res/scenes/untitled.scene";
 	m_StatusMessage = "New empty scene created";
 	m_StatusTimer = 3.0f;
+}
+
+void Editor::NewScene()
+{
+	RequestNewScene();
 }
 
 void Editor::DrawMainMenuBar()
@@ -1821,6 +1942,15 @@ void Editor::DrawMainMenuBar()
 			if (ImGui::MenuItem("Save Scene As..."))
 			{
 				m_ShowSaveAsModal = true;
+			}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Revert to Saved Scene"))
+			{
+				RevertScene();
+			}
+			if (ImGui::MenuItem("Restore from Backup (.bak)"))
+			{
+				RestoreSceneBackup();
 			}
 			ImGui::EndMenu();
 		}
@@ -1969,6 +2099,56 @@ void Editor::DrawModals()
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Cancel", ImVec2(120, 0)))
+		{
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+
+	if (m_ShowNewSceneModal)
+	{
+		ImGui::OpenPopup("Create New Scene?##Modal");
+		m_ShowNewSceneModal = false;
+	}
+
+	if (ImGui::BeginPopupModal("Create New Scene?##Modal", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "Warning: Unsaved Scene Content!");
+		ImGui::Text("Creating a new scene will clear all current entities.\nAre you sure you want to proceed?");
+		ImGui::Separator();
+
+		if (ImGui::Button("Create New Scene", ImVec2(140, 0)))
+		{
+			ConfirmNewScene();
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel", ImVec2(100, 0)))
+		{
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::EndPopup();
+	}
+
+	if (m_ShowEmptySaveWarningModal)
+	{
+		ImGui::OpenPopup("Warning: Saving Empty Scene##Modal");
+		m_ShowEmptySaveWarningModal = false;
+	}
+
+	if (ImGui::BeginPopupModal("Warning: Saving Empty Scene##Modal", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "CRITICAL WARNING: Empty Scene!");
+		ImGui::Text("The scene currently has 0 entities.\nSaving will overwrite '%s' on disk with an empty file.\nAre you sure you want to proceed?", m_PendingSavePath.c_str());
+		ImGui::Separator();
+
+		if (ImGui::Button("Overwrite Anyway", ImVec2(140, 0)))
+		{
+			PerformSave(m_PendingSavePath);
+			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel", ImVec2(100, 0)))
 		{
 			ImGui::CloseCurrentPopup();
 		}

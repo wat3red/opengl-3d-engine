@@ -54,13 +54,50 @@ public:
 			DetectionRadius = 38.0f;
 		}
 
-		if (!HasComponent<BoxColliderComponent>() && !HasComponent<SphereColliderComponent>())
+		glm::vec3 boxSize(2.2f, 2.2f, 2.2f);
+		glm::vec3 boxCenter(0.0f, 1.1f, 0.0f);
+		if (m_IsFlying)
 		{
-			GetEntity().AddComponent<BoxColliderComponent>(glm::vec3(1.5f, 2.2f, 1.5f), glm::vec3(0.0f, 1.1f, 0.0f), false, Physics::Layer_Enemy);
+			boxSize = glm::vec3(2.6f, 2.6f, 2.6f);
+			boxCenter = glm::vec3(0.0f, 0.0f, 0.0f);
 		}
-		else if (HasComponent<BoxColliderComponent>())
+
+		bool calibratedFromModel = false;
+		if (HasComponent<MeshComponent>())
 		{
-			GetComponent<BoxColliderComponent>().Layer = Physics::Layer_Enemy;
+			auto& mc = GetComponent<MeshComponent>();
+			if (mc.ModelAsset)
+			{
+				const auto& aabb = mc.ModelAsset->GetAABB();
+				glm::vec3 modelSize = aabb.max - aabb.min;
+				glm::vec3 modelCenter = (aabb.min + aabb.max) * 0.5f;
+				if (glm::length(modelSize) > 0.1f)
+				{
+					boxSize = modelSize * 1.15f; // Generous 15% margin matching visual demon
+					boxCenter = modelCenter;
+					calibratedFromModel = true;
+				}
+			}
+		}
+
+		if (!calibratedFromModel && HasComponent<TransformComponent>())
+		{
+			auto& tc = GetComponent<TransformComponent>();
+			glm::vec3 s = glm::max(glm::abs(tc.Scale), glm::vec3(0.0001f));
+			boxSize = boxSize / s;
+			boxCenter = boxCenter / s;
+		}
+
+		if (!HasComponent<BoxColliderComponent>())
+		{
+			GetEntity().AddComponent<BoxColliderComponent>(boxSize, boxCenter, false, Physics::Layer_Enemy);
+		}
+		else
+		{
+			auto& bc = GetComponent<BoxColliderComponent>();
+			bc.Size = boxSize;
+			bc.Center = boxCenter;
+			bc.Layer = Physics::Layer_Enemy;
 		}
 
 		if (!HasComponent<MaterialComponent>())
