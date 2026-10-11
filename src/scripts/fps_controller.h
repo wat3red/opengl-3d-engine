@@ -173,3 +173,5 @@ private:
 		}
 	}
 };
+
+REGISTER_SCRIPT(FPSController);

@@ -6,8 +6,9 @@
 #include "core/input.h"
 #include "physics/collision.h"
 #include "audio/audio_engine.h"
-#include "scripts/doom_game_state.h"
-#include "scripts/doom_enemy.h"
+#include "game/scripts/doom_game_state.h"
+#include "game/scripts/doom_enemy.h"
+#include "game/scripts/doom_hud.h"
 #include <iostream>
 #include <random>
 #include <cmath>
@@ -15,10 +16,10 @@
 
 class DoomPlayer : public ScriptableEntity {
 public:
-	float WalkSpeed = 6.5f;
-	float RunSpeed = 10.5f;
+	float WalkSpeed = 7.0f;
+	float RunSpeed = 11.0f;
 	float MouseSensitivity = 0.12f;
-	float JumpForce = 6.8f;
+	float JumpForce = 7.0f;
 
 	float Yaw = -90.0f;
 	float Pitch = 0.0f;
@@ -33,7 +34,9 @@ public:
 
 		if (!HasComponent<CharacterControllerComponent>())
 		{
-			GetEntity().AddComponent<CharacterControllerComponent>();
+			auto& cc = GetEntity().AddComponent<CharacterControllerComponent>();
+			cc.Radius = 0.45f;
+			cc.Height = 1.8f;
 		}
 
 		m_ShotgunSfx = AudioEngine::Get().CreateSound("res/audio/shotgun_fire.wav", false, false);
@@ -55,14 +58,14 @@ public:
 		if (DoomGameState::MuzzleFlashTimer > 0.0f)
 			DoomGameState::MuzzleFlashTimer -= deltaTime;
 
-		// Restart on R if GameOver
+		// Restart on R if GameOver / Victory
 		if ((DoomGameState::GameOver || DoomGameState::Victory) && Input::IsKeyPressed(KeyCode::R))
 		{
 			DoomGameState::Reset();
-			GetComponent<TransformComponent>().Position = glm::vec3(0.0f, 2.0f, 0.0f);
+			GetComponent<TransformComponent>().Position = glm::vec3(0.0f, 12.0f, 58.0f);
 		}
 
-		// Cursor toggle on Escape
+		// Cursor toggle on Escape / Left click
 		if (Input::IsKeyPressed(KeyCode::Escape))
 		{
 			CursorLocked = false;
@@ -134,8 +137,15 @@ public:
 				cc.SimpleMove(*GetScene(), GetEntity(), horizontalVel, deltaTime);
 			}
 
-			// Update global player position for AI and pickups
-			DoomGameState::PlayerPosition = GetComponent<TransformComponent>().Position;
+			// Update global player state for AI and weapon viewmodel
+			auto& playerTc = GetComponent<TransformComponent>();
+			DoomGameState::PlayerPosition = playerTc.Position;
+			float pitchRad = glm::radians(Pitch);
+			DoomGameState::PlayerForward = glm::normalize(glm::vec3(
+				std::cos(pitchRad) * std::cos(yawRad),
+				std::sin(pitchRad),
+				std::cos(pitchRad) * std::sin(yawRad)
+			));
 
 			// Shotgun Fire
 			if (CursorLocked && Input::IsMouseButtonPressed(MouseCode::ButtonLeft) && m_ShootCooldown <= 0.0f)
@@ -143,6 +153,11 @@ public:
 				FireShotgun();
 			}
 		}
+	}
+
+	void OnGUI() override
+	{
+		DrawRetroDoomHUD();
 	}
 
 	void OnDestroy() override
@@ -159,14 +174,13 @@ private:
 	{
 		if (DoomGameState::ShellsAmmo < 2)
 		{
-			return; // Click / empty!
+			return; // Out of shells
 		}
 
 		DoomGameState::ShellsAmmo -= 2;
-		m_ShootCooldown = 0.82f;
+		m_ShootCooldown = 0.78f;
 		DoomGameState::MuzzleFlashTimer = 0.08f;
 
-		// Play shotgun fire
 		if (m_ShotgunSfx)
 		{
 			m_ShotgunSfx->Play();
@@ -212,7 +226,7 @@ private:
 					if (nsc.Instance && nsc.ScriptName == "DoomEnemy")
 					{
 						auto* enemy = static_cast<DoomEnemy*>(nsc.Instance);
-						int pelletDamage = 12 + rand() % 7; // 12-18 damage per pellet
+						int pelletDamage = 14 + rand() % 8; // 14-21 damage per pellet
 						enemy->TakeDamage(pelletDamage, pelletDir);
 						DoomGameState::HitmarkerTimer = 0.15f;
 					}

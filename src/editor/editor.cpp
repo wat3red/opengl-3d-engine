@@ -11,11 +11,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "scene_serializer.h"
 #include "physics/collision.h"
-#include "scripts/fps_controller.h"
-#include "scripts/doom_game_state.h"
-#include "scripts/doom_player.h"
-#include "scripts/doom_enemy.h"
-#include "scripts/doom_pickup.h"
+#include "script_registry.h"
 
 #include <chrono>
 #include <algorithm>
@@ -262,9 +258,7 @@ void Editor::RenderSceneViewport()
 			auto& tc = primaryCam.GetTransform();
 			auto& cc = primaryCam.GetComponent<CameraComponent>();
 			cc.CameraInstance.Position = tc.Position;
-			cc.CameraInstance.Front = DirectionFromEuler(tc.Rotation);
-			cc.CameraInstance.Yaw = tc.Rotation.y;
-			cc.CameraInstance.Pitch = tc.Rotation.x;
+			cc.CameraInstance.SetYawAndPitch(tc.Rotation.y, tc.Rotation.x);
 			activeCamera = cc.CameraInstance;
 		}
 	}
@@ -391,7 +385,7 @@ void Editor::DrawToolbar()
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 6.0f);
 	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.12f, 0.12f, 0.14f, 0.95f));
 
-	ImVec2 centerPos(ImGui::GetIO().DisplaySize.x * 0.5f - 140.0f, 26.0f);
+	ImVec2 centerPos(ImGui::GetIO().DisplaySize.x * 0.5f - 80.0f, 26.0f);
 	ImGui::SetNextWindowPos(centerPos, ImGuiCond_Always);
 
 	if (ImGui::Begin("##Toolbar", nullptr, flags))
@@ -402,14 +396,6 @@ void Editor::DrawToolbar()
 			if (ImGui::Button("  Play (F5)  "))
 			{
 				OnScenePlay();
-			}
-			ImGui::PopStyleColor();
-
-			ImGui::SameLine();
-			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.75f, 0.15f, 0.15f, 0.95f));
-			if (ImGui::Button(" [DOOM FPS ARENA] "))
-			{
-				SetupDoomArenaLevel();
 			}
 			ImGui::PopStyleColor();
 		}
@@ -673,104 +659,10 @@ void Editor::DrawViewportPanel()
 			}
 		}
 
-		// In-Game Retro Doom HUD (Play mode)
+		// Runtime Game Script GUI Hook
 		if (m_SceneState == SceneState::Play)
 		{
-			ImDrawList* drawList = ImGui::GetWindowDrawList();
-			ImVec2 center(imagePos.x + imageSize.x * 0.5f, imagePos.y + imageSize.y * 0.5f);
-
-			// 1. Crosshair
-			const float chSize = 7.0f;
-			const float chGap = 3.0f;
-			ImU32 chCol = IM_COL32(230, 40, 40, 240); // Red crosshair
-			drawList->AddLine(ImVec2(center.x - chSize - chGap, center.y), ImVec2(center.x - chGap, center.y), chCol, 2.0f);
-			drawList->AddLine(ImVec2(center.x + chGap, center.y), ImVec2(center.x + chSize + chGap, center.y), chCol, 2.0f);
-			drawList->AddLine(ImVec2(center.x, center.y - chSize - chGap), ImVec2(center.x, center.y - chGap), chCol, 2.0f);
-			drawList->AddLine(ImVec2(center.x, center.y + chGap), ImVec2(center.x, center.y + chSize + chGap), chCol, 2.0f);
-			drawList->AddCircleFilled(center, 1.5f, chCol);
-
-			// 2. Hitmarker (White X on demon hit)
-			if (DoomGameState::HitmarkerTimer > 0.0f)
-			{
-				float hmSize = 10.0f;
-				ImU32 hmCol = IM_COL32(255, 255, 255, (int)(std::min(1.0f, DoomGameState::HitmarkerTimer / 0.15f) * 255.0f));
-				drawList->AddLine(ImVec2(center.x - hmSize, center.y - hmSize), ImVec2(center.x + hmSize, center.y + hmSize), hmCol, 2.0f);
-				drawList->AddLine(ImVec2(center.x + hmSize, center.y - hmSize), ImVec2(center.x - hmSize, center.y + hmSize), hmCol, 2.0f);
-			}
-
-			// 3. Screen Damage Flash (Red overlay)
-			if (DoomGameState::DamageFlashTimer > 0.0f)
-			{
-				float alpha = std::min(1.0f, DoomGameState::DamageFlashTimer / 0.35f);
-				drawList->AddRectFilled(imagePos, ImVec2(imagePos.x + imageSize.x, imagePos.y + imageSize.y), IM_COL32(220, 20, 20, (int)(alpha * 125.0f)));
-			}
-
-			// 4. Muzzle Flash (Warm yellow/orange burst)
-			if (DoomGameState::MuzzleFlashTimer > 0.0f)
-			{
-				float alpha = std::min(1.0f, DoomGameState::MuzzleFlashTimer / 0.08f);
-				drawList->AddRectFilled(imagePos, ImVec2(imagePos.x + imageSize.x, imagePos.y + imageSize.y), IM_COL32(255, 210, 80, (int)(alpha * 65.0f)));
-			}
-
-			// 5. Retro Doom Status Bar (Bottom of viewport)
-			float barH = 50.0f;
-			float barMargin = 15.0f;
-			ImVec2 barMin(imagePos.x + barMargin, imagePos.y + imageSize.y - barH - barMargin);
-			ImVec2 barMax(imagePos.x + imageSize.x - barMargin, imagePos.y + imageSize.y - barMargin);
-
-			drawList->AddRectFilled(barMin, barMax, IM_COL32(18, 18, 22, 235), 4.0f);
-			drawList->AddRect(barMin, barMax, IM_COL32(180, 40, 40, 255), 4.0f, 0, 2.5f);
-
-			float textY = barMin.y + 16.0f;
-			float usableW = barMax.x - barMin.x;
-			float colW = usableW / 5.0f;
-
-			// HEALTH
-			ImU32 hpColor = (DoomGameState::PlayerHealth > 50) ? IM_COL32(60, 225, 70, 255) :
-			                (DoomGameState::PlayerHealth > 25) ? IM_COL32(245, 210, 40, 255) : IM_COL32(245, 40, 40, 255);
-			std::string hpStr = "+ HEALTH: " + std::to_string(DoomGameState::PlayerHealth) + "%";
-			drawList->AddText(ImVec2(barMin.x + 15.0f, textY), hpColor, hpStr.c_str());
-
-			// ARMOR
-			std::string armorStr = "SHIELD: " + std::to_string(DoomGameState::PlayerArmor) + "%";
-			drawList->AddText(ImVec2(barMin.x + colW + 10.0f, textY), IM_COL32(70, 180, 255, 255), armorStr.c_str());
-
-			// SHELLS
-			std::string ammoStr = "SHELLS: " + std::to_string(DoomGameState::ShellsAmmo) + " / " + std::to_string(DoomGameState::MaxShells);
-			drawList->AddText(ImVec2(barMin.x + colW * 2.0f + 10.0f, textY), IM_COL32(255, 200, 50, 255), ammoStr.c_str());
-
-			// DEMONS
-			std::string enemyStr = "DEMONS: " + std::to_string(DoomGameState::DemonsRemaining);
-			drawList->AddText(ImVec2(barMin.x + colW * 3.0f + 10.0f, textY), IM_COL32(240, 60, 60, 255), enemyStr.c_str());
-
-			// SCORE
-			std::string scoreStr = "SCORE: " + std::to_string(DoomGameState::Score);
-			drawList->AddText(ImVec2(barMin.x + colW * 4.0f + 10.0f, textY), IM_COL32(230, 230, 230, 255), scoreStr.c_str());
-
-			// 6. Game Over / Victory Overlays
-			if (DoomGameState::GameOver)
-			{
-				ImVec2 bannerMin(center.x - 220.0f, center.y - 70.0f);
-				ImVec2 bannerMax(center.x + 220.0f, center.y + 70.0f);
-				drawList->AddRectFilled(bannerMin, bannerMax, IM_COL32(40, 5, 5, 235), 8.0f);
-				drawList->AddRect(bannerMin, bannerMax, IM_COL32(230, 30, 30, 255), 8.0f, 0, 3.0f);
-
-				drawList->AddText(ImVec2(center.x - 85.0f, center.y - 45.0f), IM_COL32(255, 40, 40, 255), "=== YOU DIED ===");
-				drawList->AddText(ImVec2(center.x - 145.0f, center.y - 15.0f), IM_COL32(220, 200, 200, 255), "DEMONS CONSUMED YOUR FLESH & SOUL");
-				drawList->AddText(ImVec2(center.x - 110.0f, center.y + 18.0f), IM_COL32(255, 230, 80, 255), "Press [R] to Respawn & Restart");
-			}
-			else if (DoomGameState::Victory)
-			{
-				ImVec2 bannerMin(center.x - 220.0f, center.y - 70.0f);
-				ImVec2 bannerMax(center.x + 220.0f, center.y + 70.0f);
-				drawList->AddRectFilled(bannerMin, bannerMax, IM_COL32(15, 35, 15, 235), 8.0f);
-				drawList->AddRect(bannerMin, bannerMax, IM_COL32(60, 230, 60, 255), 8.0f, 0, 3.0f);
-
-				drawList->AddText(ImVec2(center.x - 105.0f, center.y - 45.0f), IM_COL32(60, 255, 80, 255), "*** VICTORY ACHIEVED ***");
-				drawList->AddText(ImVec2(center.x - 135.0f, center.y - 15.0f), IM_COL32(220, 240, 220, 255), "ARENA PURGED OF ALL HELLSPAWN!");
-				std::string finalScore = "Final Score: " + std::to_string(DoomGameState::Score) + "  |  Press [R] to Replay";
-				drawList->AddText(ImVec2(center.x - 140.0f, center.y + 18.0f), IM_COL32(255, 230, 80, 255), finalScore.c_str());
-			}
+			m_Scene.OnRuntimeGUI();
 		}
 	}
 
@@ -1402,31 +1294,35 @@ void Editor::DrawEntityInspectorPanel()
 			ImGui::TextDisabled("Status: %s", (nsc.Instance ? "Active / Running" : "Idle (runs in Play mode)"));
 
 			ImGui::Spacing();
-			if (ImGui::Button("Bind FPSController"))
+			const auto& registeredScripts = ScriptRegistry::GetRegisteredNames();
+			if (!registeredScripts.empty())
 			{
-				nsc.Bind<FPSController>("FPSController");
-				if (!selectedEntity.HasComponent<CharacterControllerComponent>())
+				std::string currentPreview = nsc.ScriptName.empty() ? "(Select Script to Bind)" : nsc.ScriptName;
+				if (ImGui::BeginCombo("Script Class", currentPreview.c_str()))
 				{
-					selectedEntity.AddComponent<CharacterControllerComponent>();
+					for (const auto& scriptName : registeredScripts)
+					{
+						bool isSelected = (nsc.ScriptName == scriptName);
+						if (ImGui::Selectable(scriptName.c_str(), isSelected))
+						{
+							nsc.Bind(scriptName);
+						}
+						if (isSelected)
+						{
+							ImGui::SetItemDefaultFocus();
+						}
+					}
+					ImGui::EndCombo();
 				}
 			}
-			ImGui::SameLine();
-			if (ImGui::Button("Bind DoomPlayer"))
+			else
 			{
-				nsc.Bind<DoomPlayer>("DoomPlayer");
-				if (!selectedEntity.HasComponent<CharacterControllerComponent>())
+				char scriptNameBuf[128];
+				strncpy_s(scriptNameBuf, nsc.ScriptName.c_str(), sizeof(scriptNameBuf));
+				if (ImGui::InputText("Script Name", scriptNameBuf, sizeof(scriptNameBuf)))
 				{
-					selectedEntity.AddComponent<CharacterControllerComponent>();
+					nsc.Bind(scriptNameBuf);
 				}
-			}
-			if (ImGui::Button("Bind DoomEnemy"))
-			{
-				nsc.Bind<DoomEnemy>("DoomEnemy");
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Bind DoomPickup"))
-			{
-				nsc.Bind<DoomPickup>("DoomPickup");
 			}
 
 			ImGui::Spacing();
@@ -1876,157 +1772,6 @@ void Editor::NewScene()
 	m_CurrentScenePath = "res/scenes/untitled.scene";
 	m_StatusMessage = "New empty scene created";
 	m_StatusTimer = 3.0f;
-}
-
-void Editor::SetupDoomArenaLevel()
-{
-	if (m_SceneState != SceneState::Edit)
-	{
-		OnSceneStop();
-	}
-
-	m_Scene.Clear();
-	m_CurrentScenePath = "res/scenes/doom_level.scene";
-
-	// 1. Editor Camera
-	m_Camera.Position = glm::vec3(0.0f, 12.0f, 32.0f);
-	m_Camera.Yaw = -90.0f;
-	m_Camera.Pitch = -15.0f;
-
-	// 2. Atmospheric Fog & Post-Processing (Doom Gothic Blood Mood)
-	m_Exposure = 1.35f;
-	m_BloomIntensity = 1.15f;
-	m_BloomEnabled = true;
-
-	auto& fog = m_Renderer.GetFogSettings();
-	fog.enabled = true;
-	fog.color = glm::vec3(0.14f, 0.04f, 0.04f); // Crimson fog
-	fog.density = 0.018f;
-	fog.start = 8.0f;
-	fog.end = 110.0f;
-
-	// 3. Castle Arena Geometry
-	const std::string mapPath = "res/models/house/source/free_fire_maxx_new_clock_tower_map_download_free.glb";
-	if (std::filesystem::exists(mapPath))
-	{
-		Entity arenaEntity = m_Scene.CreateModelEntity("Clock Tower Arena", mapPath);
-		arenaEntity.SetPosition(glm::vec3(0.0f, 0.0f, 0.0f));
-		arenaEntity.SetScale(glm::vec3(100.0f));
-	}
-
-	// 4. Ground Collider & Perimeter Walls
-	Entity ground = m_Scene.CreateEntity("Arena Floor Collider");
-	ground.SetPosition(glm::vec3(0.0f, -0.5f, 0.0f));
-	ground.AddComponent<BoxColliderComponent>(glm::vec3(260.0f, 1.0f, 260.0f), glm::vec3(0.0f), false, Physics::Layer_Static);
-
-	Entity wallN = m_Scene.CreateEntity("Boundary Wall North");
-	wallN.SetPosition(glm::vec3(0.0f, 6.0f, 85.0f));
-	wallN.AddComponent<BoxColliderComponent>(glm::vec3(180.0f, 16.0f, 4.0f), glm::vec3(0.0f), false, Physics::Layer_Static);
-
-	Entity wallS = m_Scene.CreateEntity("Boundary Wall South");
-	wallS.SetPosition(glm::vec3(0.0f, 6.0f, -85.0f));
-	wallS.AddComponent<BoxColliderComponent>(glm::vec3(180.0f, 16.0f, 4.0f), glm::vec3(0.0f), false, Physics::Layer_Static);
-
-	Entity wallE = m_Scene.CreateEntity("Boundary Wall East");
-	wallE.SetPosition(glm::vec3(85.0f, 6.0f, 0.0f));
-	wallE.AddComponent<BoxColliderComponent>(glm::vec3(4.0f, 16.0f, 180.0f), glm::vec3(0.0f), false, Physics::Layer_Static);
-
-	Entity wallW = m_Scene.CreateEntity("Boundary Wall West");
-	wallW.SetPosition(glm::vec3(-85.0f, 6.0f, 0.0f));
-	wallW.AddComponent<BoxColliderComponent>(glm::vec3(4.0f, 16.0f, 180.0f), glm::vec3(0.0f), false, Physics::Layer_Static);
-
-	// 5. Lighting (Blood Sun + Courtyard Torches)
-	Entity sun = m_Scene.CreateEntity("Blood Sun");
-	auto& sunLight = sun.AddComponent<LightComponent>();
-	sunLight.Type = LightType::Directional;
-	sunLight.Color = glm::vec3(0.95f, 0.35f, 0.15f);
-	sunLight.Intensity = 1.25f;
-	sunLight.Direction = glm::normalize(glm::vec3(-0.5f, -1.0f, -0.4f));
-
-	struct TorchData { const char* name; glm::vec3 pos; };
-	TorchData torches[] = {
-		{ "Courtyard Torch NE", { 14.0f, 4.0f, 14.0f } },
-		{ "Courtyard Torch NW", { -14.0f, 4.0f, 14.0f } },
-		{ "Courtyard Torch SE", { 14.0f, 4.0f, -14.0f } },
-		{ "Courtyard Torch SW", { -14.0f, 4.0f, -14.0f } },
-	};
-	for (const auto& t : torches)
-	{
-		Entity torch = m_Scene.CreateEntity(t.name);
-		torch.SetPosition(t.pos);
-		auto& pl = torch.AddComponent<LightComponent>();
-		pl.Type = LightType::Point;
-		pl.Color = glm::vec3(1.0f, 0.45f, 0.1f);
-		pl.Intensity = 3.5f;
-		pl.Range = 25.0f;
-	}
-
-	// 6. Player (Doom Slayer)
-	Entity player = m_Scene.CreateEntity("Doom Slayer (Player)");
-	player.SetPosition(glm::vec3(0.0f, 2.0f, 0.0f));
-	auto& camComp = player.AddComponent<CameraComponent>(true);
-	camComp.CameraInstance.Position = glm::vec3(0.0f, 2.0f, 0.0f);
-	player.AddComponent<CharacterControllerComponent>();
-	player.AddComponent<AudioListenerComponent>();
-	auto& playerScript = player.AddComponent<NativeScriptComponent>();
-	playerScript.Bind<DoomPlayer>("DoomPlayer");
-
-	// 7. Demon Enemies
-	struct DemonData { const char* name; glm::vec3 pos; };
-	DemonData demons[] = {
-		{ "Cacodemon (Heavy)",   { 0.0f, 1.2f, 26.0f } },
-		{ "Imp (Stalker East)",   { 20.0f, 1.2f, 14.0f } },
-		{ "Imp (Stalker West)",   { -20.0f, 1.2f, 14.0f } },
-		{ "Baron (North Hall)",   { 14.0f, 1.2f, -22.0f } },
-		{ "Baron (Crypt Path)",   { -14.0f, 1.2f, -22.0f } },
-	};
-	const std::string enemyModelPath = "res/models/sphere/source/office desk.fbx";
-	bool hasEnemyModel = std::filesystem::exists(enemyModelPath);
-
-	for (const auto& d : demons)
-	{
-		Entity demon = hasEnemyModel ? m_Scene.CreateModelEntity(d.name, enemyModelPath)
-		                             : m_Scene.CreateEntity(d.name);
-		demon.SetPosition(d.pos);
-		demon.SetScale(glm::vec3(1.2f));
-		demon.AddComponent<CharacterControllerComponent>();
-		demon.AddComponent<BoxColliderComponent>(glm::vec3(1.4f, 2.2f, 1.4f), glm::vec3(0.0f, 1.1f, 0.0f), false, Physics::Layer_Enemy);
-		if (!demon.HasComponent<MaterialComponent>())
-		{
-			demon.AddComponent<MaterialComponent>();
-		}
-		auto& mat = demon.GetComponent<MaterialComponent>();
-		mat.Properties.EmissionColor = glm::vec3(0.9f, 0.1f, 0.05f);
-		mat.Properties.EmissionIntensity = 2.0f;
-		auto& nsc = demon.AddComponent<NativeScriptComponent>();
-		nsc.Bind<DoomEnemy>("DoomEnemy");
-	}
-
-	// 8. Pickups (Health & Shells)
-	const std::string pickupModelPath = "res/models/bottle/source/Bottle_Water_perfect.glb";
-	bool hasPickupModel = std::filesystem::exists(pickupModelPath);
-
-	auto CreatePickup = [&](const char* name, const glm::vec3& pos) {
-		Entity item = hasPickupModel ? m_Scene.CreateModelEntity(name, pickupModelPath)
-		                             : m_Scene.CreateEntity(name);
-		item.SetPosition(pos);
-		item.SetScale(glm::vec3(0.35f));
-		auto& nsc = item.AddComponent<NativeScriptComponent>();
-		nsc.Bind<DoomPickup>("DoomPickup");
-		return item;
-	};
-
-	CreatePickup("Health Potion (East)", glm::vec3(12.0f, 1.0f, 6.0f));
-	CreatePickup("Health Potion (West)", glm::vec3(-14.0f, 1.0f, -8.0f));
-	CreatePickup("Ammo Shells (North)",  glm::vec3(-12.0f, 1.0f, 10.0f));
-	CreatePickup("Ammo Shells (South)",  glm::vec3(14.0f, 1.0f, -10.0f));
-
-	DoomGameState::Reset();
-
-	// 9. Persist to scene file
-	SaveScene("res/scenes/doom_level.scene");
-	m_StatusMessage = "Doom FPS arena assembled & saved to res/scenes/doom_level.scene! Press Play (F5) to test.";
-	m_StatusTimer = 5.0f;
 }
 
 void Editor::DrawMainMenuBar()

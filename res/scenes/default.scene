@@ -5,77 +5,304 @@
 		"Path": "res/models/skybox/source/basic_skybox_3d.fbx"
 	},
 	"Environment": {
-		"Exposure": 1.0,
+		"Exposure": 1.1,
 		"ToneMappingOperator": 0,
 		"Gamma": 2.2,
 		"BloomEnabled": true,
-		"BloomIntensity": 0.8,
+		"BloomIntensity": 1.0,
 		"BloomThreshold": 1.0,
 		"BloomRadius": 0.005,
-		"FogEnabled": false,
-		"FogColor": [0.65, 0.75, 0.85],
-		"FogDensity": 0.015,
-		"FogStart": 10.0,
-		"FogEnd": 120.0,
+		"FogEnabled": true,
+		"FogColor": [0.45, 0.12, 0.08],
+		"FogDensity": 0.018,
+		"FogStart": 15.0,
+		"FogEnd": 110.0,
 		"FogHeightFalloff": 0.02
 	},
 	"Entities": [
 		{
 			"Name": "Clock Tower Map",
-			"ModelPath": "res/models/house/source/free_fire_maxx_new_clock_tower_map_download_free.glb",
 			"Active": true,
-			"CastsShadow": true,
 			"Position": [0.0, 0.0, 0.0],
 			"Rotation": [0.0, 0.0, 0.0],
-			"Scale": [100.0, 100.0, 100.0]
-		}
-	],
-	"Lights": [
+			"Scale": [100.0, 100.0, 100.0],
+			"ModelPath": "res/models/house/source/free_fire_maxx_new_clock_tower_map_download_free.glb",
+			"CastsShadow": true,
+			"FlipUVs": false
+		},
 		{
-			"Name": "Sun",
-			"Type": "Directional",
+			"Name": "Courtyard Floor Collider",
 			"Active": true,
-			"Color": [1.0, 1.0, 0.95],
-			"Intensity": 0.8,
+			"Position": [0.0, 10.73, 45.0],
+			"Rotation": [0.0, 0.0, 0.0],
+			"Scale": [1.0, 1.0, 1.0],
+			"BoxCollider": {
+				"Size": [160.0, 1.0, 160.0],
+				"Center": [0.0, 0.0, 0.0],
+				"IsTrigger": false,
+				"Layer": 2,
+				"Mask": 4294967295
+			}
+		},
+		{
+			"Name": "North Wall Collider",
+			"Active": true,
+			"Position": [0.0, 16.0, 10.0],
+			"Rotation": [0.0, 0.0, 0.0],
+			"Scale": [1.0, 1.0, 1.0],
+			"BoxCollider": {
+				"Size": [100.0, 12.0, 2.0],
+				"Center": [0.0, 0.0, 0.0],
+				"IsTrigger": false,
+				"Layer": 2,
+				"Mask": 4294967295
+			}
+		},
+		{
+			"Name": "South Wall Collider",
+			"Active": true,
+			"Position": [0.0, 16.0, 75.0],
+			"Rotation": [0.0, 0.0, 0.0],
+			"Scale": [1.0, 1.0, 1.0],
+			"BoxCollider": {
+				"Size": [100.0, 12.0, 2.0],
+				"Center": [0.0, 0.0, 0.0],
+				"IsTrigger": false,
+				"Layer": 2,
+				"Mask": 4294967295
+			}
+		},
+		{
+			"Name": "West Wall Collider",
+			"Active": true,
+			"Position": [-35.0, 16.0, 42.5],
+			"Rotation": [0.0, 0.0, 0.0],
+			"Scale": [1.0, 1.0, 1.0],
+			"BoxCollider": {
+				"Size": [2.0, 12.0, 70.0],
+				"Center": [0.0, 0.0, 0.0],
+				"IsTrigger": false,
+				"Layer": 2,
+				"Mask": 4294967295
+			}
+		},
+		{
+			"Name": "East Wall Collider",
+			"Active": true,
+			"Position": [35.0, 16.0, 42.5],
+			"Rotation": [0.0, 0.0, 0.0],
+			"Scale": [1.0, 1.0, 1.0],
+			"BoxCollider": {
+				"Size": [2.0, 12.0, 70.0],
+				"Center": [0.0, 0.0, 0.0],
+				"IsTrigger": false,
+				"Layer": 2,
+				"Mask": 4294967295
+			}
+		},
+		{
+			"Name": "Doom Slayer (Player)",
+			"Active": true,
+			"Position": [0.0, 11.23, 56.0],
+			"Rotation": [0.0, -90.0, 0.0],
+			"Scale": [1.0, 1.0, 1.0],
+			"Camera": {
+				"Primary": true,
+				"Fov": 80.0
+			},
+			"CharacterController": {
+				"Radius": 0.45,
+				"Height": 1.8,
+				"StepOffset": 0.35,
+				"SlopeLimit": 45.0,
+				"SkinWidth": 0.04,
+				"Gravity": -20.0,
+				"Center": [0.0, 0.9, 0.0],
+				"Layer": 4,
+				"CollisionMask": 3
+			},
+			"AudioListener": {
+				"Primary": true,
+				"Volume": 1.0
+			},
+			"NativeScript": {
+				"ScriptName": "DoomPlayer"
+			}
+		},
+		{
+			"Name": "Shotgun Viewmodel",
+			"Active": true,
+			"Position": [0.15, 11.0, 56.4],
+			"Rotation": [0.0, 90.0, 0.0],
+			"Scale": [0.016, 0.016, 0.016],
+			"ModelPath": "res/models/shotgun/shotgun.glb",
+			"CastsShadow": false,
+			"FlipUVs": false,
+			"NativeScript": {
+				"ScriptName": "ShotgunViewModel"
+			}
+		},
+		{
+			"Name": "Cacodemon",
+			"Active": true,
+			"Position": [0.0, 16.5, 30.0],
+			"Rotation": [0.0, 0.0, 0.0],
+			"Scale": [0.012, 0.012, 0.012],
+			"ModelPath": "res/models/cacodemon/cacodemon.glb",
+			"CastsShadow": true,
+			"FlipUVs": false,
+			"BoxCollider": {
+				"Size": [2.2, 2.2, 2.2],
+				"Center": [0.0, 0.0, 0.0],
+				"IsTrigger": false,
+				"Layer": 8,
+				"Mask": 4294967295
+			},
+			"NativeScript": {
+				"ScriptName": "DoomEnemy"
+			}
+		},
+		{
+			"Name": "Imp 1",
+			"Active": true,
+			"Position": [-8.0, 11.23, 38.0],
+			"Rotation": [0.0, 0.0, 0.0],
+			"Scale": [0.013, 0.013, 0.013],
+			"ModelPath": "res/models/imp/imp.glb",
+			"CastsShadow": true,
+			"FlipUVs": false,
+			"CharacterController": {
+				"Radius": 0.45,
+				"Height": 2.2,
+				"StepOffset": 0.35,
+				"SlopeLimit": 45.0,
+				"SkinWidth": 0.04,
+				"Gravity": -20.0,
+				"Center": [0.0, 1.1, 0.0],
+				"Layer": 8,
+				"CollisionMask": 3
+			},
+			"BoxCollider": {
+				"Size": [1.2, 2.2, 1.2],
+				"Center": [0.0, 1.1, 0.0],
+				"IsTrigger": false,
+				"Layer": 8,
+				"Mask": 4294967295
+			},
+			"NativeScript": {
+				"ScriptName": "DoomEnemy"
+			}
+		},
+		{
+			"Name": "Imp 2",
+			"Active": true,
+			"Position": [8.0, 11.23, 38.0],
+			"Rotation": [0.0, 0.0, 0.0],
+			"Scale": [0.013, 0.013, 0.013],
+			"ModelPath": "res/models/imp/imp.glb",
+			"CastsShadow": true,
+			"FlipUVs": false,
+			"CharacterController": {
+				"Radius": 0.45,
+				"Height": 2.2,
+				"StepOffset": 0.35,
+				"SlopeLimit": 45.0,
+				"SkinWidth": 0.04,
+				"Gravity": -20.0,
+				"Center": [0.0, 1.1, 0.0],
+				"Layer": 8,
+				"CollisionMask": 3
+			},
+			"BoxCollider": {
+				"Size": [1.2, 2.2, 1.2],
+				"Center": [0.0, 1.1, 0.0],
+				"IsTrigger": false,
+				"Layer": 8,
+				"Mask": 4294967295
+			},
+			"NativeScript": {
+				"ScriptName": "DoomEnemy"
+			}
+		},
+		{
+			"Name": "Medkit 1",
+			"Active": true,
+			"Position": [-5.0, 11.6, 48.0],
+			"Rotation": [0.0, 0.0, 0.0],
+			"Scale": [0.04, 0.04, 0.04],
+			"ModelPath": "res/models/medkit/medkit.glb",
+			"CastsShadow": true,
+			"FlipUVs": false,
+			"NativeScript": {
+				"ScriptName": "DoomPickup"
+			}
+		},
+		{
+			"Name": "Ammo Shells 1",
+			"Active": true,
+			"Position": [5.0, 11.6, 48.0],
+			"Rotation": [0.0, 0.0, 0.0],
+			"Scale": [0.04, 0.04, 0.04],
+			"ModelPath": "res/models/medkit/medkit.glb",
+			"CastsShadow": true,
+			"FlipUVs": false,
+			"NativeScript": {
+				"ScriptName": "DoomPickup"
+			}
+		},
+		{
+			"Name": "Blood Sun",
+			"Active": true,
 			"Position": [0.0, 0.0, 0.0],
-			"Direction": [-0.2, -1.0, -0.3],
+			"Rotation": [-65.0, 35.0, 0.0],
+			"Scale": [1.0, 1.0, 1.0],
+			"LightType": "Directional",
+			"Color": [1.0, 0.65, 0.5],
+			"Intensity": 2.2,
+			"Direction": [-0.25, -0.9, -0.3],
 			"Range": 25.0,
 			"InnerCutoff": 12.5,
 			"OuterCutoff": 17.5
 		},
 		{
-			"Name": "Courtyard Lamp",
-			"Type": "Point",
+			"Name": "Courtyard Torch Left",
 			"Active": true,
-			"Color": [1.0, 0.85, 0.6],
-			"Intensity": 2.0,
-			"Position": [0.0, 6.0, 0.0],
+			"Position": [-6.0, 14.0, 42.0],
+			"Rotation": [0.0, 0.0, 0.0],
+			"Scale": [1.0, 1.0, 1.0],
+			"LightType": "Point",
+			"Color": [1.0, 0.45, 0.15],
+			"Intensity": 3.0,
 			"Direction": [0.0, -1.0, 0.0],
-			"Range": 35.0,
+			"Range": 22.0,
 			"InnerCutoff": 12.5,
 			"OuterCutoff": 17.5
 		},
 		{
-			"Name": "Tower Lamp",
-			"Type": "Point",
+			"Name": "Courtyard Torch Right",
 			"Active": true,
-			"Color": [0.4, 0.7, 1.0],
-			"Intensity": 1.5,
-			"Position": [0.0, 18.0, 0.0],
+			"Position": [6.0, 14.0, 42.0],
+			"Rotation": [0.0, 0.0, 0.0],
+			"Scale": [1.0, 1.0, 1.0],
+			"LightType": "Point",
+			"Color": [1.0, 0.45, 0.15],
+			"Intensity": 3.0,
 			"Direction": [0.0, -1.0, 0.0],
-			"Range": 25.0,
+			"Range": 22.0,
 			"InnerCutoff": 12.5,
 			"OuterCutoff": 17.5
 		},
 		{
-			"Name": "Flashlight",
-			"Type": "Spotlight",
+			"Name": "Tower Core Light",
 			"Active": true,
-			"Color": [1.0, 1.0, 1.0],
-			"Intensity": 0.0,
-			"Position": [0.0, 15.0, 60.0],
-			"Direction": [0.0, 0.0, -1.0],
-			"Range": 25.0,
+			"Position": [0.0, 22.0, 18.0],
+			"Rotation": [0.0, 0.0, 0.0],
+			"Scale": [1.0, 1.0, 1.0],
+			"LightType": "Point",
+			"Color": [1.0, 0.2, 0.1],
+			"Intensity": 4.5,
+			"Direction": [0.0, -1.0, 0.0],
+			"Range": 40.0,
 			"InnerCutoff": 12.5,
 			"OuterCutoff": 17.5
 		}

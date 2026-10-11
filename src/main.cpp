@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "game/game.h"
 #include <print>
 #include <exception>
 #include <cstdlib>
@@ -7,6 +8,7 @@ int main()
 {
 	try
 	{
+		Game::Initialize();
 		Engine engine;
 		engine.Run();
 	}

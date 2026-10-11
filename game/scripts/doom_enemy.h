@@ -5,19 +5,20 @@
 #include "scene/scene.h"
 #include "physics/collision.h"
 #include "audio/audio_engine.h"
-#include "scripts/doom_game_state.h"
+#include "game/scripts/doom_game_state.h"
 #include <iostream>
 #include <cmath>
 #include <algorithm>
+#include <string>
 
 class DoomEnemy : public ScriptableEntity {
 public:
-	int Health = 70;
-	float MoveSpeed = 4.2f;
-	float DetectionRadius = 35.0f;
-	float AttackRadius = 2.2f;
-	int AttackDamage = 15;
-	float AttackCooldown = 1.1f;
+	int Health = 80;
+	float MoveSpeed = 4.5f;
+	float DetectionRadius = 40.0f;
+	float AttackRadius = 2.4f;
+	int AttackDamage = 16;
+	float AttackCooldown = 1.0f;
 
 	bool IsDead = false;
 
@@ -25,9 +26,37 @@ public:
 	{
 		DoomGameState::DemonsRemaining++;
 
+		std::string tag = "Demon";
+		if (HasComponent<TagComponent>())
+		{
+			tag = GetComponent<TagComponent>().Tag;
+		}
+
+		// Configure stats based on demon type
+		std::string lowerTag = tag;
+		for (auto& c : lowerTag) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+		if (lowerTag.find("caco") != std::string::npos)
+		{
+			Health = 140;
+			MoveSpeed = 4.0f;
+			AttackDamage = 24;
+			AttackRadius = 2.8f;
+			DetectionRadius = 50.0f;
+			m_IsFlying = true;
+		}
+		else if (lowerTag.find("imp") != std::string::npos)
+		{
+			Health = 70;
+			MoveSpeed = 5.2f;
+			AttackDamage = 14;
+			AttackRadius = 2.2f;
+			DetectionRadius = 38.0f;
+		}
+
 		if (!HasComponent<BoxColliderComponent>() && !HasComponent<SphereColliderComponent>())
 		{
-			GetEntity().AddComponent<BoxColliderComponent>(glm::vec3(1.2f, 2.0f, 1.2f), glm::vec3(0.0f, 1.0f, 0.0f), false, Physics::Layer_Enemy);
+			GetEntity().AddComponent<BoxColliderComponent>(glm::vec3(1.5f, 2.2f, 1.5f), glm::vec3(0.0f, 1.1f, 0.0f), false, Physics::Layer_Enemy);
 		}
 		else if (HasComponent<BoxColliderComponent>())
 		{
@@ -72,7 +101,7 @@ public:
 			if (tc.Position.y > -2.0f)
 			{
 				tc.Position.y -= 1.5f * deltaTime;
-				tc.Scale = glm::max(glm::vec3(0.01f), tc.Scale - glm::vec3(0.3f * deltaTime));
+				tc.Scale = glm::max(glm::vec3(0.001f), tc.Scale - glm::vec3(0.005f * deltaTime));
 			}
 			return;
 		}
@@ -83,7 +112,7 @@ public:
 
 		if (distToPlayer <= DetectionRadius && distToPlayer > 0.01f)
 		{
-			float angle = glm::degrees(std::atan2(toPlayer.x, toPlayer.z));
+			float angle = glm::degrees(std::atan2(-toPlayer.z, toPlayer.x));
 			tc.Rotation.y = angle;
 
 			if (distToPlayer <= AttackRadius)
@@ -96,16 +125,30 @@ public:
 			}
 			else
 			{
-				glm::vec3 dir = glm::normalize(glm::vec3(toPlayer.x, 0.0f, toPlayer.z));
-				glm::vec3 horizMove = dir * MoveSpeed;
-
-				if (HasComponent<CharacterControllerComponent>())
+				if (m_IsFlying)
 				{
-					GetComponent<CharacterControllerComponent>().SimpleMove(*GetScene(), GetEntity(), horizMove, deltaTime);
+					m_FlyBobTimer += deltaTime;
+					glm::vec3 flyDir = glm::normalize(toPlayer);
+					tc.Position += flyDir * (MoveSpeed * deltaTime);
+					tc.Position.y += std::sin(m_FlyBobTimer * 3.5f) * 0.015f;
+					if (tc.Position.y < 13.5f)
+					{
+						tc.Position.y = 13.5f;
+					}
 				}
 				else
 				{
-					tc.Position += horizMove * deltaTime;
+					glm::vec3 dir = glm::normalize(glm::vec3(toPlayer.x, 0.0f, toPlayer.z));
+					glm::vec3 horizMove = dir * MoveSpeed;
+
+					if (HasComponent<CharacterControllerComponent>())
+					{
+						GetComponent<CharacterControllerComponent>().SimpleMove(*GetScene(), GetEntity(), horizMove, deltaTime);
+					}
+					else
+					{
+						tc.Position += horizMove * deltaTime;
+					}
 				}
 			}
 		}
@@ -126,7 +169,7 @@ public:
 		}
 
 		auto& tc = GetComponent<TransformComponent>();
-		tc.Position += knockbackDir * 0.4f;
+		tc.Position += knockbackDir * 0.35f;
 
 		if (Health <= 0)
 		{
@@ -180,6 +223,8 @@ public:
 private:
 	float m_AttackTimer = 0.0f;
 	float m_HurtFlashTimer = 0.0f;
+	bool m_IsFlying = false;
+	float m_FlyBobTimer = 0.0f;
 	std::shared_ptr<Sound> m_AudioHurt;
 	std::shared_ptr<Sound> m_AudioDeath;
 	std::shared_ptr<Sound> m_AudioAttack;

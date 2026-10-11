@@ -116,7 +116,7 @@
       <PreprocessorDefinitions>GLEW_STATIC;_ITERATOR_DEBUG_LEVEL=0;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp23</LanguageStandard>
-      <AdditionalIncludeDirectories>src;src\core;src\audio;src\renderer;src\scene;src\assets;src\physics;src\editor;vendor;vendor\miniaudio;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;src;src\core;src\audio;src\renderer;src\scene;src\assets;src\physics;src\editor;vendor;vendor\miniaudio;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
     </ClCompile>
@@ -135,7 +135,7 @@
       <PreprocessorDefinitions>GLEW_STATIC;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp23</LanguageStandard>
-      <AdditionalIncludeDirectories>src;src\core;src\audio;src\renderer;src\scene;src\assets;src\physics;src\editor;vendor;vendor\miniaudio;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;src;src\core;src\audio;src\renderer;src\scene;src\assets;src\physics;src\editor;vendor;vendor\miniaudio;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -172,6 +172,7 @@
     <ClCompile Include="src\scene\light.cpp" />
     <ClCompile Include="src\scene\scene.cpp" />
     <ClCompile Include="src\scene\scene_serializer.cpp" />
+    <ClCompile Include="src\scene\script_registry.cpp" />
     <ClCompile Include="src\assets\asset_manager.cpp" />
     <ClCompile Include="src\audio\audio_engine.cpp" />
     <ClCompile Include="src\physics\rigidbody.cpp" />
@@ -186,6 +187,7 @@
     <ClCompile Include="vendor\imgui\imgui_widgets.cpp" />
     <ClCompile Include="vendor\imgui\ImGuizmo.cpp" />
     <ClCompile Include="vendor\std_image\stb_image.cpp" />
+    <ClCompile Include="game\game.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\core\engine.h" />
@@ -221,16 +223,20 @@
     <ClInclude Include="src\scene\scene.h" />
     <ClInclude Include="src\scene\transform.h" />
     <ClInclude Include="src\scene\scene_serializer.h" />
+    <ClInclude Include="src\scene\script_registry.h" />
     <ClInclude Include="src\assets\asset_manager.h" />
     <ClInclude Include="src\audio\audio_engine.h" />
     <ClInclude Include="vendor\miniaudio\miniaudio.h" />
     <ClInclude Include="src\physics\rigidbody.h" />
     <ClInclude Include="src\physics\collision.h" />
     <ClInclude Include="src\scripts\fps_controller.h" />
-    <ClInclude Include="src\scripts\doom_game_state.h" />
-    <ClInclude Include="src\scripts\doom_player.h" />
-    <ClInclude Include="src\scripts\doom_enemy.h" />
-    <ClInclude Include="src\scripts\doom_pickup.h" />
+    <ClInclude Include="game\game.h" />
+    <ClInclude Include="game\scripts\doom_game_state.h" />
+    <ClInclude Include="game\scripts\doom_player.h" />
+    <ClInclude Include="game\scripts\doom_enemy.h" />
+    <ClInclude Include="game\scripts\doom_pickup.h" />
+    <ClInclude Include="game\scripts\doom_hud.h" />
+    <ClInclude Include="game\scripts\shotgun_viewmodel.h" />
     <ClInclude Include="src\editor\editor.h" />
     <ClInclude Include="vendor\assimp\aabb.h" />
     <ClInclude Include="vendor\assimp\ai_assert.h" />

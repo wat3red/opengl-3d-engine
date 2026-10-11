@@ -78,6 +78,9 @@
     <ClCompile Include="src\scene\scene.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\scene\script_registry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\assets\asset_manager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -121,6 +124,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="vendor\std_image\stb_image.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="game\game.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -230,19 +236,31 @@
     <ClInclude Include="src\physics\collision.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\scene\script_registry.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="src\scripts\fps_controller.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\scripts\doom_game_state.h">
+    <ClInclude Include="game\game.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\scripts\doom_player.h">
+    <ClInclude Include="game\scripts\doom_game_state.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\scripts\doom_enemy.h">
+    <ClInclude Include="game\scripts\doom_player.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\scripts\doom_pickup.h">
+    <ClInclude Include="game\scripts\doom_enemy.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="game\scripts\doom_pickup.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="game\scripts\doom_hud.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="game\scripts\shotgun_viewmodel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\editor\editor.h">

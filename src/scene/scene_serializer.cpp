@@ -3,10 +3,6 @@
 #include "editor.h"
 #include "asset_manager.h"
 #include "skybox.h"
-#include "scripts/fps_controller.h"
-#include "scripts/doom_player.h"
-#include "scripts/doom_enemy.h"
-#include "scripts/doom_pickup.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -630,19 +626,9 @@ bool SceneSerializer::Deserialize(const std::string& filepath)
 
 			if (entVal.Has("NativeScript")) {
 				const auto& nsVal = entVal.Get("NativeScript");
-				std::string scriptName = nsVal.Get("ScriptName").AsString("NativeScript");
+				std::string scriptName = (nsVal.type == JsonType::String) ? nsVal.AsString() : nsVal.Get("ScriptName").AsString("");
 				auto& nsc = entity.AddComponent<NativeScriptComponent>();
-				if (scriptName == "FPSController") {
-					nsc.Bind<FPSController>(scriptName);
-				} else if (scriptName == "DoomPlayer") {
-					nsc.Bind<DoomPlayer>(scriptName);
-				} else if (scriptName == "DoomEnemy") {
-					nsc.Bind<DoomEnemy>(scriptName);
-				} else if (scriptName == "DoomPickup") {
-					nsc.Bind<DoomPickup>(scriptName);
-				} else {
-					nsc.ScriptName = scriptName;
-				}
+				nsc.Bind(scriptName);
 			}
 
 			if (entVal.Has("Material")) {

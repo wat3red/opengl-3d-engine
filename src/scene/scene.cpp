@@ -38,11 +38,19 @@ void Scene::OnRuntimeStart()
 	auto view = m_Registry.view<NativeScriptComponent>();
 	for (auto [entityHandle, nsc] : view.each())
 	{
-		if (nsc.InstantiateScript && !nsc.Instance)
+		if (!nsc.Instance)
 		{
-			nsc.Instance = nsc.InstantiateScript();
-			nsc.Instance->m_Entity = Entity{ entityHandle, this };
-			nsc.Instance->OnCreate();
+			if (!nsc.InstantiateScript && !nsc.ScriptName.empty())
+			{
+				nsc.Bind(nsc.ScriptName);
+			}
+
+			if (nsc.InstantiateScript)
+			{
+				nsc.Instance = nsc.InstantiateScript();
+				nsc.Instance->m_Entity = Entity{ entityHandle, this };
+				nsc.Instance->OnCreate();
+			}
 		}
 	}
 
@@ -153,6 +161,18 @@ void Scene::OnUpdateRuntime(float deltaTime)
 			{
 				audio.UpdateTransform(tc.Position);
 			}
+		}
+	}
+}
+
+void Scene::OnRuntimeGUI()
+{
+	auto view = m_Registry.view<TagComponent, NativeScriptComponent>();
+	for (auto [entityHandle, tag, nsc] : view.each())
+	{
+		if (tag.Active && nsc.Instance)
+		{
+			nsc.Instance->OnGUI();
 		}
 	}
 }

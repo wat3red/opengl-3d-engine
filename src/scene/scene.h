@@ -23,6 +23,7 @@ public:
 	// Runtime Lifecycle
 	void OnRuntimeStart();
 	void OnUpdateRuntime(float deltaTime);
+	void OnRuntimeGUI();
 	void OnRuntimeStop();
 	void OnUpdateEditor(float deltaTime);
 

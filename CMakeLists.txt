@@ -42,6 +42,7 @@ set(ENGINE_SOURCES
     src/scene/scene.cpp
     src/scene/light.cpp
     src/scene/scene_serializer.cpp
+    src/scene/script_registry.cpp
 
     # Assets
     src/assets/asset_manager.cpp
@@ -56,6 +57,9 @@ set(ENGINE_SOURCES
 
     # Editor
     src/editor/editor.cpp
+
+    # Game
+    game/game.cpp
     
     # Vendor sources
     vendor/glm/detail/glm.cpp
@@ -103,6 +107,7 @@ set(ENGINE_HEADERS
     src/scene/entity.h
     src/scene/components.h
     src/scene/scriptable_entity.h
+    src/scene/script_registry.h
     src/scene/model_entity.h
     src/scene/light.h
     src/scene/transform.h
@@ -119,12 +124,17 @@ set(ENGINE_HEADERS
     src/physics/rigidbody.h
     src/physics/collision.h
 
-    # Scripts
+    # Engine Scripts
     src/scripts/fps_controller.h
-    src/scripts/doom_game_state.h
-    src/scripts/doom_player.h
-    src/scripts/doom_enemy.h
-    src/scripts/doom_pickup.h
+
+    # Game Module & Scripts
+    game/game.h
+    game/scripts/doom_game_state.h
+    game/scripts/doom_player.h
+    game/scripts/doom_enemy.h
+    game/scripts/doom_pickup.h
+    game/scripts/doom_hud.h
+    game/scripts/shotgun_viewmodel.h
 
     # Editor
     src/editor/editor.h
@@ -141,6 +151,7 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${ENGINE_SOURCES} ${ENGINE
 
 # Include directories
 target_include_directories(Ignis PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/core
     ${CMAKE_CURRENT_SOURCE_DIR}/src/audio

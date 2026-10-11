@@ -3,9 +3,10 @@
 #include "scene/scriptable_entity.h"
 #include "scene/components.h"
 #include "audio/audio_engine.h"
-#include "scripts/doom_game_state.h"
+#include "game/scripts/doom_game_state.h"
 #include <cmath>
 #include <algorithm>
+#include <string>
 
 enum class PickupType {
 	Health,
@@ -23,7 +24,10 @@ public:
 		if (HasComponent<TagComponent>())
 		{
 			const auto& tag = GetComponent<TagComponent>().Tag;
-			if (tag.find("Ammo") != std::string::npos || tag.find("Shell") != std::string::npos)
+			std::string lowerTag = tag;
+			for (auto& c : lowerTag) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+			if (lowerTag.find("ammo") != std::string::npos || lowerTag.find("shell") != std::string::npos)
 			{
 				Type = PickupType::Ammo;
 				Amount = 12;
@@ -69,7 +73,7 @@ public:
 
 		// Check distance to player
 		float dist = glm::distance(tc.Position, DoomGameState::PlayerPosition);
-		if (dist <= 1.8f)
+		if (dist <= 2.0f)
 		{
 			bool canCollect = false;
 
@@ -97,7 +101,6 @@ public:
 				{
 					m_PickupSfx->Play();
 				}
-				// Hide pickup
 				tc.Scale = glm::vec3(0.001f);
 				tc.Position.y = -50.0f;
 			}

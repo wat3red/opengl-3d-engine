@@ -4,6 +4,7 @@
 #include <memory>
 #include <algorithm>
 #include <limits>
+#include <functional>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -255,8 +256,8 @@ struct NativeScriptComponent {
 	ScriptableEntity* Instance = nullptr;
 	std::string ScriptName = "Script";
 
-	ScriptableEntity* (*InstantiateScript)() = nullptr;
-	void (*DestroyScript)(NativeScriptComponent*) = nullptr;
+	std::function<ScriptableEntity*()> InstantiateScript = nullptr;
+	std::function<void(NativeScriptComponent*)> DestroyScript = nullptr;
 
 	template<typename T>
 	void Bind(const std::string& name = "")
@@ -268,6 +269,8 @@ struct NativeScriptComponent {
 			nsc->Instance = nullptr;
 		};
 	}
+
+	bool Bind(const std::string& name);
 };
 
 // Collider Components

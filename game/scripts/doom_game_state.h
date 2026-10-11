@@ -20,7 +20,8 @@ struct DoomGameState {
 	static inline bool GameOver = false;
 	static inline bool Victory = false;
 
-	static inline glm::vec3 PlayerPosition{ 0.0f, 1.0f, 0.0f };
+	static inline glm::vec3 PlayerPosition{ 0.0f, 1.8f, 0.0f };
+	static inline glm::vec3 PlayerForward{ 0.0f, 0.0f, -1.0f };
 
 	static void Reset()
 	{
@@ -37,6 +38,7 @@ struct DoomGameState {
 		MuzzleFlashTimer = 0.0f;
 		GameOver = false;
 		Victory = false;
-		PlayerPosition = glm::vec3(0.0f, 1.0f, 0.0f);
+		PlayerPosition = glm::vec3(0.0f, 1.8f, 0.0f);
+		PlayerForward = glm::vec3(0.0f, 0.0f, -1.0f);
 	}
 };

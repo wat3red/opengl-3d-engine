@@ -30,6 +30,7 @@ public:
 protected:
 	virtual void OnCreate() {}
 	virtual void OnUpdate(float deltaTime) {}
+	virtual void OnGUI() {}
 	virtual void OnDestroy() {}
 
 private:
