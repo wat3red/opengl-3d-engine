@@ -1,9 +1,7 @@
 #pragma once
 
-#include "scene/scriptable_entity.h"
-#include "scene/components.h"
-#include "scene/scene.h"
-#include "game/scripts/doom_game_state.h"
+#include <ignis/ignis.h>
+#include "doom_game_state.h"
 #include <glm/glm.hpp>
 #include <cmath>
 

@@ -1,5 +1,5 @@
 #include "engine.h"
-#include "game/game.h"
+#include "scene/game_module.h"
 #include <print>
 #include <exception>
 #include <cstdlib>
@@ -8,9 +8,13 @@ int main()
 {
 	try
 	{
-		Game::Initialize();
+		// Dynamically load Game module (e.g. Game.dll)
+		GameModule::Get().Load("Game.dll");
+
 		Engine engine;
 		engine.Run();
+
+		GameModule::Get().Unload();
 	}
 	catch (const std::exception& ex)
 	{

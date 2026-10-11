@@ -212,18 +212,7 @@ void Scene::Update(float deltaTime)
 	OnUpdateRuntime(deltaTime);
 }
 
-Entity Scene::GetPrimaryCameraEntity()
-{
-	auto view = m_Registry.view<TagComponent, CameraComponent>();
-	for (auto [entityHandle, tag, camera] : view.each())
-	{
-		if (tag.Active && camera.Primary)
-		{
-			return Entity{ entityHandle, this };
-		}
-	}
-	return {};
-}
+
 
 void Scene::DuplicateFrom(const Scene& other)
 {

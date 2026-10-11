@@ -1,11 +1,7 @@
 #pragma once
 
-#include "scene/scriptable_entity.h"
-#include "scene/components.h"
-#include "scene/scene.h"
-#include "physics/collision.h"
-#include "audio/audio_engine.h"
-#include "game/scripts/doom_game_state.h"
+#include <ignis/ignis.h>
+#include "doom_game_state.h"
 #include <iostream>
 #include <cmath>
 #include <algorithm>
@@ -105,7 +101,7 @@ public:
 			GetEntity().AddComponent<MaterialComponent>();
 		}
 		auto& mat = GetComponent<MaterialComponent>();
-		mat.Properties.EmissionColor = glm::vec3(0.8f, 0.1f, 0.05f);
+		mat.Properties.EmissionColor = glm::vec3(0.4f, 0.1f, 0.05f);
 		mat.Properties.EmissionIntensity = 1.5f;
 
 		m_AudioHurt = AudioEngine::Get().CreateSound("res/audio/demon_hurt.wav", true, false);

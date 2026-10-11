@@ -1,14 +1,9 @@
 #pragma once
 
-#include "scene/scriptable_entity.h"
-#include "scene/components.h"
-#include "scene/scene.h"
-#include "core/input.h"
-#include "physics/collision.h"
-#include "audio/audio_engine.h"
-#include "game/scripts/doom_game_state.h"
-#include "game/scripts/doom_enemy.h"
-#include "game/scripts/doom_hud.h"
+#include <ignis/ignis.h>
+#include "doom_game_state.h"
+#include "doom_enemy.h"
+#include "doom_hud.h"
 #include <iostream>
 #include <print>
 #include <random>

@@ -404,3 +404,9 @@ FodyWeavers.xsd
 
 # Executable outputs
 Ignis.exe
+Game.dll
+Game.exp
+Game.lib
+Game_runtime.dll
+bin-int/
+

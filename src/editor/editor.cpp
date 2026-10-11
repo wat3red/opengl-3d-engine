@@ -12,6 +12,12 @@
 #include "scene_serializer.h"
 #include "physics/collision.h"
 #include "script_registry.h"
+#include "scene/game_module.h"
+
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#include <shellapi.h>
 
 #include <chrono>
 #include <algorithm>
@@ -191,6 +197,24 @@ void Editor::ProcessInput(GLFWwindow* window, float deltaTime)
 			OnSceneStop();
 	}
 	s_F5WasPressed = f5Pressed;
+
+	// Global hotkey: F7 builds Game project (Game.dll)
+	static bool s_F7WasPressed = false;
+	bool f7Pressed = (glfwGetKey(window, GLFW_KEY_F7) == GLFW_PRESS);
+	if (f7Pressed && !s_F7WasPressed && !ImGui::GetIO().WantTextInput)
+	{
+		BuildGameSolution();
+	}
+	s_F7WasPressed = f7Pressed;
+
+	// Global hotkey: F8 reloads Game module (Game.dll)
+	static bool s_F8WasPressed = false;
+	bool f8Pressed = (glfwGetKey(window, GLFW_KEY_F8) == GLFW_PRESS);
+	if (f8Pressed && !s_F8WasPressed && !ImGui::GetIO().WantTextInput)
+	{
+		ReloadGameModule();
+	}
+	s_F8WasPressed = f8Pressed;
 
 	if (m_SceneState == SceneState::Play)
 	{
@@ -386,7 +410,7 @@ void Editor::DrawToolbar()
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 6.0f);
 	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.12f, 0.12f, 0.14f, 0.95f));
 
-	ImVec2 centerPos(ImGui::GetIO().DisplaySize.x * 0.5f - 80.0f, 26.0f);
+	ImVec2 centerPos(ImGui::GetIO().DisplaySize.x * 0.5f - 190.0f, 26.0f);
 	ImGui::SetNextWindowPos(centerPos, ImGuiCond_Always);
 
 	if (ImGui::Begin("##Toolbar", nullptr, flags))
@@ -415,6 +439,29 @@ void Editor::DrawToolbar()
 			{
 				OnScenePause();
 			}
+		}
+
+		ImGui::SameLine();
+		ImGui::TextDisabled("|");
+		ImGui::SameLine();
+
+		if (ImGui::Button(" VS Project "))
+		{
+			OpenVisualStudio("projects/Doom/DoomGame.sln");
+		}
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::SetTooltip("Open DoomGame.sln in Visual Studio");
+		}
+
+		ImGui::SameLine();
+		if (ImGui::Button(" Recompile (F7) "))
+		{
+			BuildGameSolution();
+		}
+		if (ImGui::IsItemHovered())
+		{
+			ImGui::SetTooltip("Recompile Game.dll with MSBuild (F7)");
 		}
 		ImGui::End();
 	}
@@ -1317,6 +1364,24 @@ void Editor::DrawEntityInspectorPanel()
 		{
 			auto& nsc = selectedEntity.GetComponent<NativeScriptComponent>();
 			ImGui::Text("Script: %s", nsc.ScriptName.c_str());
+			if (!nsc.ScriptName.empty())
+			{
+				ImGui::SameLine();
+				if (ImGui::SmallButton("Open in VS##Script"))
+				{
+					std::string lower = "";
+					for (size_t i = 0; i < nsc.ScriptName.length(); i++) {
+						char c = nsc.ScriptName[i];
+						if (isupper(c) && i > 0) lower += '_';
+						lower += (char)tolower(c);
+					}
+					std::string candidate1 = "projects/Doom/scripts/" + lower + ".h";
+					std::string candidate2 = "projects/Doom/scripts/" + nsc.ScriptName + ".h";
+					if (std::filesystem::exists(candidate1)) OpenVisualStudio(candidate1);
+					else if (std::filesystem::exists(candidate2)) OpenVisualStudio(candidate2);
+					else OpenVisualStudio("projects/Doom/DoomGame.sln");
+				}
+			}
 			ImGui::TextDisabled("Status: %s", (nsc.Instance ? "Active / Running" : "Idle (runs in Play mode)"));
 
 			ImGui::Spacing();
@@ -1978,6 +2043,33 @@ void Editor::DrawMainMenuBar()
 			ImGui::EndMenu();
 		}
 
+		if (ImGui::BeginMenu("Scripting"))
+		{
+			if (ImGui::MenuItem("Open Game Solution in Visual Studio", "Ctrl+Shift+V"))
+			{
+				OpenVisualStudio("projects/Doom/DoomGame.sln");
+			}
+			if (ImGui::MenuItem("Open Engine Solution in Visual Studio"))
+			{
+				OpenVisualStudio("Ignis.sln");
+			}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Recompile Game Scripts (Game.dll)", "F7"))
+			{
+				BuildGameSolution();
+			}
+			if (ImGui::MenuItem("Reload Game Module (Game.dll)", "F8"))
+			{
+				ReloadGameModule();
+			}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Open Scripts Folder in File Explorer"))
+			{
+				OpenScriptsFolderInExplorer();
+			}
+			ImGui::EndMenu();
+		}
+
 		if (ImGui::BeginMenu("Add"))
 		{
 			if (ImGui::MenuItem("Create Empty Entity"))
@@ -2194,6 +2286,10 @@ void Editor::DrawContentBrowserPanel()
 	ImGui::SameLine();
 	if (ImGui::Button("shaders")) m_ContentBrowserCurrentPath = "shaders";
 	ImGui::SameLine();
+	if (ImGui::Button("scripts")) m_ContentBrowserCurrentPath = "projects/Doom/scripts";
+	ImGui::SameLine();
+	if (ImGui::Button("projects")) m_ContentBrowserCurrentPath = "projects/Doom";
+	ImGui::SameLine();
 
 	ImGui::TextDisabled("| Path: %s", m_ContentBrowserCurrentPath.string().c_str());
 
@@ -2364,6 +2460,13 @@ void Editor::DrawContentBrowserPanel()
 							}
 						}
 					}
+					else if (ext == ".h" || ext == ".cpp" || ext == ".sln" || ext == ".vcxproj")
+					{
+						if (ImGui::SmallButton(("Open in VS##" + filename).c_str()))
+						{
+							OpenVisualStudio(fullPathStr);
+						}
+					}
 					else
 					{
 						ImGui::TextDisabled("-");
@@ -2385,4 +2488,106 @@ void Editor::DrawContentBrowserPanel()
 
 	ImGui::End();
 }
+
+void Editor::OpenVisualStudio(const std::string& targetPath)
+{
+	std::string fullTarget = targetPath.empty() ? "projects/Doom/DoomGame.sln" : targetPath;
+	std::error_code ec;
+	fullTarget = std::filesystem::absolute(fullTarget, ec).string();
+
+	std::string devenvPath = "D:\\Visual Studio Community 2026\\Common7\\IDE\\devenv.exe";
+	if (std::filesystem::exists(devenvPath, ec))
+	{
+		std::string cmd = "\"" + devenvPath + "\" \"" + fullTarget + "\"";
+		STARTUPINFOA si = { sizeof(si) };
+		PROCESS_INFORMATION pi;
+		if (CreateProcessA(NULL, cmd.data(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi))
+		{
+			CloseHandle(pi.hProcess);
+			CloseHandle(pi.hThread);
+			m_StatusMessage = "Launched in Visual Studio: " + std::filesystem::path(fullTarget).filename().string();
+			m_StatusTimer = 3.5f;
+			return;
+		}
+	}
+
+	HINSTANCE res = ShellExecuteA(NULL, "open", fullTarget.c_str(), NULL, NULL, SW_SHOWNORMAL);
+	if ((intptr_t)res > 32)
+	{
+		m_StatusMessage = "Opened in editor: " + std::filesystem::path(fullTarget).filename().string();
+		m_StatusTimer = 3.5f;
+	}
+	else
+	{
+		m_StatusMessage = "Failed to launch editor for: " + fullTarget;
+		m_StatusTimer = 4.0f;
+	}
+}
+
+void Editor::BuildGameSolution()
+{
+	m_StatusMessage = "Compiling Game scripts (Game.dll)...";
+	m_StatusTimer = 6.0f;
+
+	std::string msbuildPath = "D:\\Visual Studio Community 2026\\MSBuild\\Current\\Bin\\MSBuild.exe";
+	std::string projectPath = std::filesystem::absolute("projects/Doom/DoomGame.vcxproj").string();
+
+	std::string cmd = "\"" + msbuildPath + "\" \"" + projectPath + "\" /p:Configuration=Release /p:Platform=x64 /m /v:m";
+
+	STARTUPINFOA si = { sizeof(si) };
+	PROCESS_INFORMATION pi;
+	if (CreateProcessA(NULL, cmd.data(), NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi))
+	{
+		WaitForSingleObject(pi.hProcess, 45000);
+		DWORD exitCode = 1;
+		GetExitCodeProcess(pi.hProcess, &exitCode);
+		CloseHandle(pi.hProcess);
+		CloseHandle(pi.hThread);
+
+		if (exitCode == 0)
+		{
+			m_StatusMessage = "Game build succeeded! Reloading Game.dll...";
+			m_StatusTimer = 4.0f;
+			ReloadGameModule();
+		}
+		else
+		{
+			m_StatusMessage = "Game build failed with exit code " + std::to_string(exitCode);
+			m_StatusTimer = 5.0f;
+		}
+	}
+	else
+	{
+		m_StatusMessage = "Failed to execute MSBuild at: " + msbuildPath;
+		m_StatusTimer = 4.0f;
+	}
+}
+
+void Editor::ReloadGameModule()
+{
+	if (m_SceneState != SceneState::Edit)
+	{
+		m_StatusMessage = "Cannot reload Game module during Play mode! Press F5 to stop first.";
+		m_StatusTimer = 4.0f;
+		return;
+	}
+
+	if (GameModule::Get().Reload())
+	{
+		m_StatusMessage = "Game.dll reloaded successfully. Module: " + GameModule::Get().GetModuleName();
+		m_StatusTimer = 3.5f;
+	}
+	else
+	{
+		m_StatusMessage = "Failed to reload Game.dll! File missing or corrupted.";
+		m_StatusTimer = 4.0f;
+	}
+}
+
+void Editor::OpenScriptsFolderInExplorer()
+{
+	std::string dir = std::filesystem::absolute("projects/Doom/scripts").string();
+	ShellExecuteA(NULL, "explore", dir.c_str(), NULL, NULL, SW_SHOWNORMAL);
+}
+
 

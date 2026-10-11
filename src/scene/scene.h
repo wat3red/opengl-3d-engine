@@ -66,6 +66,35 @@ private:
 
 // --- Entity Template Implementations ---
 
+inline Entity Scene::GetPrimaryCameraEntity()
+{
+	auto view = m_Registry.view<TagComponent, CameraComponent>();
+	for (auto [entityHandle, tag, camera] : view.each())
+	{
+		if (tag.Active && camera.Primary)
+		{
+			return Entity{ entityHandle, this };
+		}
+	}
+return {};
+}
+
+#ifdef IGNIS_BUILD_MODULE
+inline glm::vec3 CharacterControllerComponent::Move(Scene& scene, Entity entity, const glm::vec3& displacement) { return displacement; }
+
+inline void CharacterControllerComponent::SimpleMove(Scene& scene, Entity entity, const glm::vec3& horizontalVelocity, float deltaTime)
+{
+	if (Ignis::GetContext() && Ignis::GetContext()->Physics.CharacterControllerSimpleMove)
+		Ignis::GetContext()->Physics.CharacterControllerSimpleMove(this, &scene, (uint32_t)entity.GetHandle(), horizontalVelocity, deltaTime);
+}
+
+inline void CharacterControllerComponent::Jump(float jumpForce)
+{
+	if (Ignis::GetContext() && Ignis::GetContext()->Physics.CharacterControllerJump)
+		Ignis::GetContext()->Physics.CharacterControllerJump(this, jumpForce);
+}
+#endif
+
 template<typename T, typename... Args>
 inline T& Entity::AddComponent(Args&&... args)
 {

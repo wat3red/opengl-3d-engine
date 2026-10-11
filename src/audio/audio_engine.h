@@ -4,6 +4,63 @@
 #include <string>
 #include <memory>
 
+#ifdef IGNIS_BUILD_MODULE
+#include "ignis/api.h"
+
+class Sound {
+public:
+	Sound() = default;
+	~Sound()
+	{
+		if (m_NativeSound && Ignis::GetContext() && Ignis::GetContext()->Audio.DestroySound)
+		{
+			Ignis::GetContext()->Audio.DestroySound(m_NativeSound);
+			m_NativeSound = nullptr;
+		}
+	}
+
+	void Play() { if (m_NativeSound && Ignis::GetContext()) Ignis::GetContext()->Audio.PlaySound(m_NativeSound); }
+	void Pause() { if (m_NativeSound && Ignis::GetContext()) Ignis::GetContext()->Audio.PauseSound(m_NativeSound); }
+	void Stop() { if (m_NativeSound && Ignis::GetContext()) Ignis::GetContext()->Audio.StopSound(m_NativeSound); }
+	[[nodiscard]] bool IsPlaying() const { return (m_NativeSound && Ignis::GetContext()) ? Ignis::GetContext()->Audio.IsSoundPlaying(m_NativeSound) : false; }
+
+	void SetPosition(const glm::vec3& pos) { if (m_NativeSound && Ignis::GetContext()) Ignis::GetContext()->Audio.SetSoundPosition(m_NativeSound, pos); }
+	void SetVelocity(const glm::vec3&) {}
+	void SetDirection(const glm::vec3&) {}
+	void SetVolume(float vol) { if (m_NativeSound && Ignis::GetContext()) Ignis::GetContext()->Audio.SetSoundVolume(m_NativeSound, vol); }
+	void SetPitch(float p) { if (m_NativeSound && Ignis::GetContext()) Ignis::GetContext()->Audio.SetSoundPitch(m_NativeSound, p); }
+	void SetLooping(bool loop) { if (m_NativeSound && Ignis::GetContext()) Ignis::GetContext()->Audio.SetSoundLooping(m_NativeSound, loop); }
+	void SetSpatial(bool) {}
+	void SetAttenuation(float, float, float = 1.0f) {}
+
+	void SetNativeHandle(void* handle) { m_NativeSound = handle; }
+	void* GetNativeHandle() const { return m_NativeSound; }
+
+private:
+	void* m_NativeSound = nullptr;
+};
+
+class AudioEngine {
+public:
+	static AudioEngine& Get()
+	{
+		static AudioEngine s_Instance;
+		return s_Instance;
+	}
+
+	std::shared_ptr<Sound> CreateSound(const std::string& path, bool spatial = true, bool loop = false)
+	{
+		if (!Ignis::GetContext() || !Ignis::GetContext()->Audio.CreateSound)
+			return nullptr;
+		void* handle = Ignis::GetContext()->Audio.CreateSound(path.c_str(), spatial, loop);
+		if (!handle) return nullptr;
+		auto s = std::make_shared<Sound>();
+		s->SetNativeHandle(handle);
+		return s;
+	}
+};
+#else
+
 struct ma_engine;
 struct ma_sound;
 
@@ -105,3 +162,5 @@ private:
 	float m_MasterVolume = 1.0f;
 	glm::vec3 m_ListenerPosition{ 0.0f };
 };
+#endif
+

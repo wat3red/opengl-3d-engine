@@ -13,12 +13,24 @@ public:
 	template<typename T>
 	static void Register(const std::string& name)
 	{
+		RegisterCustom(name, []() -> ScriptableEntity* { return static_cast<ScriptableEntity*>(new T()); });
+	}
+
+	static void RegisterCustom(const std::string& name, ScriptCreator creator)
+	{
 		auto& creators = GetCreators();
-		if (creators.find(name) == creators.end())
+		creators[name] = creator;
+		auto& names = GetRegisteredNamesList();
+		if (std::find(names.begin(), names.end(), name) == names.end())
 		{
-			creators[name] = []() -> ScriptableEntity* { return static_cast<ScriptableEntity*>(new T()); };
-			GetRegisteredNamesList().push_back(name);
+			names.push_back(name);
 		}
+	}
+
+	static void Clear()
+	{
+		GetCreators().clear();
+		GetRegisteredNamesList().clear();
 	}
 
 	static ScriptableEntity* Instantiate(const std::string& name)

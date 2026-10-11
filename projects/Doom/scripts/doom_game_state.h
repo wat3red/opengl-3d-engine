@@ -1,7 +1,7 @@
 #pragma once
 
 #include <glm/glm.hpp>
-
+#include <print>
 struct DoomGameState {
 	static inline int PlayerHealth = 100;
 	static inline int PlayerMaxHealth = 100;
@@ -40,5 +40,7 @@ struct DoomGameState {
 		Victory = false;
 		PlayerPosition = glm::vec3(0.0f, 1.8f, 0.0f);
 		PlayerForward = glm::vec3(0.0f, 0.0f, -1.0f);
+
+		std::println("Reset being called");
 	}
 };

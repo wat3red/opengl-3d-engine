@@ -1,8 +1,7 @@
 #pragma once
 
-#include "scene/scriptable_entity.h"
-#include "game/scripts/doom_game_state.h"
-#include <imgui/imgui.h>
+#include <ignis/ignis.h>
+#include "doom_game_state.h"
 #include <string>
 #include <algorithm>
 

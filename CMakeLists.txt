@@ -58,8 +58,8 @@ set(ENGINE_SOURCES
     # Editor
     src/editor/editor.cpp
 
-    # Game
-    game/game.cpp
+    # Scene Game Module
+    src/scene/game_module.cpp
     
     # Vendor sources
     vendor/glm/detail/glm.cpp
@@ -127,14 +127,8 @@ set(ENGINE_HEADERS
     # Engine Scripts
     src/scripts/fps_controller.h
 
-    # Game Module & Scripts
-    game/game.h
-    game/scripts/doom_game_state.h
-    game/scripts/doom_player.h
-    game/scripts/doom_enemy.h
-    game/scripts/doom_pickup.h
-    game/scripts/doom_hud.h
-    game/scripts/shotgun_viewmodel.h
+    # Game Module
+    src/scene/game_module.h
 
     # Editor
     src/editor/editor.h

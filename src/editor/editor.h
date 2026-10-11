@@ -68,6 +68,12 @@ public:
 	void NewScene();
 	void ResetDefaultLayout() { m_ResetLayout = true; }
 
+	// Visual Studio & Game Scripting Integration
+	void OpenVisualStudio(const std::string& targetPath = "");
+	void BuildGameSolution();
+	void ReloadGameModule();
+	void OpenScriptsFolderInExplorer();
+
 	// Runtime Scene State Management
 	enum class SceneState {
 		Edit = 0,
