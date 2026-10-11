@@ -1,6 +1,8 @@
 #include "collision.h"
 #include "scene/scene.h"
 #include "scene/components.h"
+#include "renderer/mesh.h"
+#include "renderer/model.h"
 #include <algorithm>
 #include <cmath>
 #include <unordered_set>
@@ -252,6 +254,85 @@ bool IntersectRayCapsule(const Ray& ray, const glm::vec3& center, float radius, 
 	return true;
 }
 
+bool IntersectRayTriangle(const Ray& ray, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, float& outDistance, glm::vec3& outNormal)
+{
+	glm::vec3 edge1 = b - a;
+	glm::vec3 edge2 = c - a;
+	glm::vec3 pvec = glm::cross(ray.Direction, edge2);
+	float det = glm::dot(edge1, pvec);
+
+	if (std::abs(det) < 1e-7f)
+		return false;
+
+	float invDet = 1.0f / det;
+	glm::vec3 tvec = ray.Origin - a;
+	float u = glm::dot(tvec, pvec) * invDet;
+	if (u < 0.0f || u > 1.0f)
+		return false;
+
+	glm::vec3 qvec = glm::cross(tvec, edge1);
+	float v = glm::dot(ray.Direction, qvec) * invDet;
+	if (v < 0.0f || u + v > 1.0f)
+		return false;
+
+	float t = glm::dot(edge2, qvec) * invDet;
+	if (t < 0.0f)
+		return false;
+
+	outDistance = t;
+	glm::vec3 rawNorm = glm::cross(edge1, edge2);
+	float len = glm::length(rawNorm);
+	glm::vec3 geomNorm = (len > 1e-6f) ? (rawNorm / len) : glm::vec3(0.0f, 1.0f, 0.0f);
+	outNormal = (glm::dot(geomNorm, ray.Direction) < 0.0f) ? geomNorm : -geomNorm;
+	return true;
+}
+
+glm::vec3 ClosestPointOnTriangle(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
+{
+	glm::vec3 ab = b - a;
+	glm::vec3 ac = c - a;
+	glm::vec3 ap = p - a;
+	float d1 = glm::dot(ab, ap);
+	float d2 = glm::dot(ac, ap);
+	if (d1 <= 0.0f && d2 <= 0.0f) return a;
+
+	glm::vec3 bp = p - b;
+	float d3 = glm::dot(ab, bp);
+	float d4 = glm::dot(ac, bp);
+	if (d3 >= 0.0f && d4 <= d3) return b;
+
+	float vc = d1 * d4 - d3 * d2;
+	if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f)
+	{
+		float v = d1 / (d1 - d3);
+		return a + v * ab;
+	}
+
+	glm::vec3 cp = p - c;
+	float d5 = glm::dot(ab, cp);
+	float d6 = glm::dot(ac, cp);
+	if (d6 >= 0.0f && d5 <= d6) return c;
+
+	float vb = d5 * d2 - d1 * d6;
+	if (vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f)
+	{
+		float w = d2 / (d2 - d6);
+		return a + w * ac;
+	}
+
+	float va = d3 * d6 - d5 * d4;
+	if (va <= 0.0f && (d4 - d3) >= 0.0f && (d5 - d6) >= 0.0f)
+	{
+		float w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+		return b + w * (c - b);
+	}
+
+	float denom = 1.0f / (va + vb + vc);
+	float v = vb * denom;
+	float w = vc * denom;
+	return a + ab * v + ac * w;
+}
+
 // ============================================================================
 // Swept Sphere Primitive Tests
 // ============================================================================
@@ -361,6 +442,378 @@ bool IntersectSweptSphereCapsule(const glm::vec3& start, const glm::vec3& displa
 	return true;
 }
 
+static bool IntersectSweptSphereSegment(const glm::vec3& start, const glm::vec3& dir, float dispLen, float radius,
+	const glm::vec3& p0, const glm::vec3& p1, float& outDist, glm::vec3& outNormal)
+{
+	glm::vec3 seg = p1 - p0;
+	float segLen = glm::length(seg);
+	if (segLen < 1e-6f) return false;
+	glm::vec3 ue = seg / segLen;
+
+	glm::vec3 w = (start - p0) - glm::dot(start - p0, ue) * ue;
+	glm::vec3 dPerp = dir - glm::dot(dir, ue) * ue;
+
+	float A = glm::dot(dPerp, dPerp);
+	if (A < 1e-7f) return false;
+
+	float B = 2.0f * glm::dot(w, dPerp);
+	float C = glm::dot(w, w) - radius * radius;
+	float disc = B * B - 4.0f * A * C;
+	if (disc < 0.0f) return false;
+
+	float t = (-B - std::sqrt(disc)) / (2.0f * A);
+	if (t >= 0.0f && t <= dispLen)
+	{
+		float s = glm::dot(start + t * dir - p0, ue);
+		if (s >= 0.0f && s <= segLen)
+		{
+			glm::vec3 ptOnSeg = p0 + s * ue;
+			glm::vec3 centerAtHit = start + t * dir;
+			glm::vec3 norm = centerAtHit - ptOnSeg;
+			float normLen = glm::length(norm);
+			outDist = t;
+			outNormal = (normLen > 1e-5f) ? (norm / normLen) : glm::vec3(0.0f, 1.0f, 0.0f);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool IntersectSweptSphereTriangle(const glm::vec3& start, const glm::vec3& displacement, float radius,
+	const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, float& outDistance, glm::vec3& outNormal)
+{
+	float dispLen = glm::length(displacement);
+	if (dispLen < 1e-7f) return false;
+	glm::vec3 dir = displacement / dispLen;
+	Ray ray(start, dir);
+
+	glm::vec3 edge1 = b - a;
+	glm::vec3 edge2 = c - a;
+	glm::vec3 rawNorm = glm::cross(edge1, edge2);
+	float nLen = glm::length(rawNorm);
+	if (nLen < 1e-6f) return false;
+	glm::vec3 normal = rawNorm / nLen;
+
+	float bestDist = dispLen + 1.0f;
+	glm::vec3 bestNormal(0.0f);
+	bool hit = false;
+
+	// Check if already touching or penetrating at start
+	float dStartPlane = glm::dot(normal, start - a);
+	if (std::abs(dStartPlane) <= radius + 0.05f)
+	{
+		glm::vec3 closest = ClosestPointOnTriangle(start, a, b, c);
+		float dClosest = glm::distance(start, closest);
+		if (dClosest <= radius)
+		{
+			glm::vec3 sepDir = (dClosest > 1e-5f) ? glm::normalize(start - closest) : normal;
+			if (glm::dot(dir, sepDir) <= 0.0f)
+			{
+				outDistance = 0.0f;
+				outNormal = sepDir;
+				return true;
+			}
+		}
+	}
+
+	// 1. Face test (both sides)
+	float ndotd = glm::dot(normal, dir);
+	if (std::abs(ndotd) > 1e-6f)
+	{
+		float dPlane = glm::dot(normal, a);
+		float startDist = glm::dot(normal, start) - dPlane;
+
+		if (startDist >= radius && ndotd < 0.0f)
+		{
+			float planeDist = (startDist - radius) / (-ndotd);
+			if (planeDist >= 0.0f && planeDist <= dispLen && planeDist < bestDist)
+			{
+				glm::vec3 spherePosAtHit = start + dir * planeDist;
+				glm::vec3 ptOnTri = spherePosAtHit - normal * radius;
+				glm::vec3 closest = ClosestPointOnTriangle(ptOnTri, a, b, c);
+				if (glm::distance(ptOnTri, closest) < 0.01f)
+				{
+					bestDist = planeDist;
+					bestNormal = normal;
+					hit = true;
+				}
+			}
+		}
+		else if (startDist <= -radius && ndotd > 0.0f)
+		{
+			float planeDist = (-startDist - radius) / ndotd;
+			if (planeDist >= 0.0f && planeDist <= dispLen && planeDist < bestDist)
+			{
+				glm::vec3 spherePosAtHit = start + dir * planeDist;
+				glm::vec3 ptOnTri = spherePosAtHit + normal * radius;
+				glm::vec3 closest = ClosestPointOnTriangle(ptOnTri, a, b, c);
+				if (glm::distance(ptOnTri, closest) < 0.01f)
+				{
+					bestDist = planeDist;
+					bestNormal = -normal;
+					hit = true;
+				}
+			}
+		}
+	}
+
+	// 2. Vertex tests
+	const glm::vec3 verts[3] = { a, b, c };
+	for (int i = 0; i < 3; ++i)
+	{
+		float dVert = 0.0f;
+		glm::vec3 nVert(0.0f);
+		if (IntersectRaySphere(ray, verts[i], radius, dVert, nVert))
+		{
+			if (dVert >= 0.0f && dVert <= dispLen && dVert < bestDist)
+			{
+				bestDist = dVert;
+				bestNormal = nVert;
+				hit = true;
+			}
+		}
+	}
+
+	// 3. Edge tests
+	float dEdge = 0.0f;
+	glm::vec3 nEdge(0.0f);
+	if (IntersectSweptSphereSegment(start, dir, dispLen, radius, a, b, dEdge, nEdge))
+	{
+		if (dEdge < bestDist) { bestDist = dEdge; bestNormal = nEdge; hit = true; }
+	}
+	if (IntersectSweptSphereSegment(start, dir, dispLen, radius, b, c, dEdge, nEdge))
+	{
+		if (dEdge < bestDist) { bestDist = dEdge; bestNormal = nEdge; hit = true; }
+	}
+	if (IntersectSweptSphereSegment(start, dir, dispLen, radius, c, a, dEdge, nEdge))
+	{
+		if (dEdge < bestDist) { bestDist = dEdge; bestNormal = nEdge; hit = true; }
+	}
+
+	if (hit)
+	{
+		outDistance = bestDist;
+		outNormal = bestNormal;
+		return true;
+	}
+	return false;
+}
+
+// ============================================================================
+// Mesh BVH Implementation
+// ============================================================================
+
+void MeshBVH::Build(const std::vector<::Mesh>& meshes)
+{
+	m_Triangles.clear();
+	m_Nodes.clear();
+
+	for (const auto& mesh : meshes)
+	{
+		if (!mesh.indices.empty())
+		{
+			for (size_t i = 0; i + 2 < mesh.indices.size(); i += 3)
+			{
+				unsigned int i0 = mesh.indices[i];
+				unsigned int i1 = mesh.indices[i + 1];
+				unsigned int i2 = mesh.indices[i + 2];
+				if (i0 < mesh.vertices.size() && i1 < mesh.vertices.size() && i2 < mesh.vertices.size())
+				{
+					BVHTriangle tri;
+					tri.V0 = mesh.vertices[i0].Position;
+					tri.V1 = mesh.vertices[i1].Position;
+					tri.V2 = mesh.vertices[i2].Position;
+					glm::vec3 rawNorm = glm::cross(tri.V1 - tri.V0, tri.V2 - tri.V0);
+					if (glm::length(rawNorm) < 1e-7f)
+						continue;
+
+					tri.Min = glm::min(glm::min(tri.V0, tri.V1), tri.V2);
+					tri.Max = glm::max(glm::max(tri.V0, tri.V1), tri.V2);
+					tri.Centroid = (tri.V0 + tri.V1 + tri.V2) * (1.0f / 3.0f);
+					m_Triangles.push_back(tri);
+				}
+			}
+		}
+		else
+		{
+			for (size_t i = 0; i + 2 < mesh.vertices.size(); i += 3)
+			{
+				BVHTriangle tri;
+				tri.V0 = mesh.vertices[i].Position;
+				tri.V1 = mesh.vertices[i + 1].Position;
+				tri.V2 = mesh.vertices[i + 2].Position;
+				glm::vec3 rawNorm = glm::cross(tri.V1 - tri.V0, tri.V2 - tri.V0);
+				if (glm::length(rawNorm) < 1e-7f)
+					continue;
+
+				tri.Min = glm::min(glm::min(tri.V0, tri.V1), tri.V2);
+				tri.Max = glm::max(glm::max(tri.V0, tri.V1), tri.V2);
+				tri.Centroid = (tri.V0 + tri.V1 + tri.V2) * (1.0f / 3.0f);
+				m_Triangles.push_back(tri);
+			}
+		}
+	}
+
+	if (!m_Triangles.empty())
+	{
+		m_Nodes.reserve(m_Triangles.size() * 2);
+		BuildRecursive(0, static_cast<int>(m_Triangles.size()), 0);
+	}
+}
+
+int MeshBVH::BuildRecursive(int start, int end, int depth)
+{
+	int count = end - start;
+	if (count <= 0) return -1;
+
+	int nodeIndex = static_cast<int>(m_Nodes.size());
+	m_Nodes.emplace_back();
+
+	glm::vec3 boxMin(std::numeric_limits<float>::max());
+	glm::vec3 boxMax(std::numeric_limits<float>::lowest());
+	glm::vec3 centroidMin(std::numeric_limits<float>::max());
+	glm::vec3 centroidMax(std::numeric_limits<float>::lowest());
+
+	for (int i = start; i < end; ++i)
+	{
+		boxMin = glm::min(boxMin, m_Triangles[i].Min);
+		boxMax = glm::max(boxMax, m_Triangles[i].Max);
+		centroidMin = glm::min(centroidMin, m_Triangles[i].Centroid);
+		centroidMax = glm::max(centroidMax, m_Triangles[i].Centroid);
+	}
+
+	m_Nodes[nodeIndex].AABBMin = boxMin;
+	m_Nodes[nodeIndex].AABBMax = boxMax;
+
+	constexpr int MAX_LEAF_TRIS = 4;
+	constexpr int MAX_DEPTH = 32;
+
+	if (count <= MAX_LEAF_TRIS || depth >= MAX_DEPTH)
+	{
+		m_Nodes[nodeIndex].LeftChild = ~start;
+		m_Nodes[nodeIndex].RightChild = count;
+		return nodeIndex;
+	}
+
+	glm::vec3 extent = centroidMax - centroidMin;
+	int axis = 0;
+	if (extent.y > extent.x && extent.y > extent.z) axis = 1;
+	else if (extent.z > extent.x && extent.z > extent.y) axis = 2;
+
+	int mid = (start + end) / 2;
+	std::nth_element(
+		m_Triangles.begin() + start,
+		m_Triangles.begin() + mid,
+		m_Triangles.begin() + end,
+		[axis](const BVHTriangle& a, const BVHTriangle& b) {
+			return a.Centroid[axis] < b.Centroid[axis];
+		}
+	);
+
+	int left = BuildRecursive(start, mid, depth + 1);
+	int right = BuildRecursive(mid, end, depth + 1);
+
+	m_Nodes[nodeIndex].LeftChild = left;
+	m_Nodes[nodeIndex].RightChild = right;
+	return nodeIndex;
+}
+
+bool MeshBVH::Raycast(const Ray& localRay, float maxDist, float& outDist, glm::vec3& outNormal) const
+{
+	if (m_Nodes.empty()) return false;
+
+	float bestDist = maxDist;
+	glm::vec3 bestNormal(0.0f);
+	bool hitAny = false;
+
+	int stack[64];
+	int stackPtr = 0;
+	stack[stackPtr++] = 0;
+
+	while (stackPtr > 0)
+	{
+		int nodeIdx = stack[--stackPtr];
+		const auto& node = m_Nodes[nodeIdx];
+
+		float boxDist = 0.0f;
+		glm::vec3 boxNorm(0.0f);
+		if (!IntersectRayAABB(localRay, node.AABBMin, node.AABBMax, boxDist, boxNorm))
+			continue;
+
+		if (boxDist > bestDist)
+			continue;
+
+		if (node.IsLeaf())
+		{
+			int start = ~node.LeftChild;
+			int count = node.RightChild;
+			for (int i = 0; i < count; ++i)
+			{
+				const auto& tri = m_Triangles[start + i];
+				float triDist = 0.0f;
+				glm::vec3 triNorm(0.0f);
+				if (IntersectRayTriangle(localRay, tri.V0, tri.V1, tri.V2, triDist, triNorm))
+				{
+					if (triDist >= 0.0f && triDist < bestDist)
+					{
+						bestDist = triDist;
+						bestNormal = triNorm;
+						hitAny = true;
+					}
+				}
+			}
+		}
+		else
+		{
+			if (node.RightChild >= 0) stack[stackPtr++] = node.RightChild;
+			if (node.LeftChild >= 0) stack[stackPtr++] = node.LeftChild;
+		}
+	}
+
+	if (hitAny)
+	{
+		outDist = bestDist;
+		outNormal = bestNormal;
+		return true;
+	}
+	return false;
+}
+
+void MeshBVH::QueryBox(const glm::vec3& localMin, const glm::vec3& localMax, std::vector<int>& outTriIndices) const
+{
+	if (m_Nodes.empty()) return;
+
+	int stack[64];
+	int stackPtr = 0;
+	stack[stackPtr++] = 0;
+
+	while (stackPtr > 0)
+	{
+		int nodeIdx = stack[--stackPtr];
+		const auto& node = m_Nodes[nodeIdx];
+
+		if (localMax.x < node.AABBMin.x || localMin.x > node.AABBMax.x ||
+			localMax.y < node.AABBMin.y || localMin.y > node.AABBMax.y ||
+			localMax.z < node.AABBMin.z || localMin.z > node.AABBMax.z)
+			continue;
+
+		if (node.IsLeaf())
+		{
+			int start = ~node.LeftChild;
+			int count = node.RightChild;
+			for (int i = 0; i < count; ++i)
+			{
+				outTriIndices.push_back(start + i);
+			}
+		}
+		else
+		{
+			if (node.RightChild >= 0) stack[stackPtr++] = node.RightChild;
+			if (node.LeftChild >= 0) stack[stackPtr++] = node.LeftChild;
+		}
+	}
+}
+
 // ============================================================================
 // Scene Raycasting Queries
 // ============================================================================
@@ -460,7 +913,7 @@ bool Raycast(Scene& scene, const Ray& ray, float maxDistance, RaycastHit& outHit
 		}
 	}
 
-	// 4. Mesh Colliders
+	// 4. Mesh Colliders (BVH Triangle Mesh)
 	{
 		auto view = registry.view<TagComponent, TransformComponent, MeshColliderComponent, MeshComponent>();
 		for (auto [handle, tag, tc, meshCol, mc] : view.each())
@@ -470,19 +923,40 @@ bool Raycast(Scene& scene, const Ray& ray, float maxDistance, RaycastHit& outHit
 			if (!includeTriggers && meshCol.IsTrigger)
 				continue;
 
-			glm::vec3 aabbMin(0.0f), aabbMax(0.0f);
-			mc.GetWorldAABB(tc.GetMatrix(), aabbMin, aabbMax);
+			const auto* bvh = mc.ModelAsset->GetBVH();
+			if (!bvh)
+				continue;
 
-			float dist = 0.0f;
-			glm::vec3 normal(0.0f);
-			if (IntersectRayAABB(ray, aabbMin, aabbMax, dist, normal))
+			glm::mat4 modelMatrix = tc.GetMatrix();
+			glm::mat4 invMatrix = glm::inverse(modelMatrix);
+
+			Ray localRay;
+			localRay.Origin = glm::vec3(invMatrix * glm::vec4(ray.Origin, 1.0f));
+			localRay.Direction = glm::vec3(invMatrix * glm::vec4(ray.Direction, 0.0f));
+			float localDirLen = glm::length(localRay.Direction);
+			if (localDirLen < 1e-6f)
+				continue;
+			localRay.Direction /= localDirLen;
+
+			float maxLocalDist = (maxDistance < std::numeric_limits<float>::max() * 0.5f) ? (maxDistance * localDirLen) : std::numeric_limits<float>::max();
+			float localDist = 0.0f;
+			glm::vec3 localNorm(0.0f);
+
+			if (bvh->Raycast(localRay, maxLocalDist, localDist, localNorm))
 			{
-				if (dist >= 0.0f && dist <= outHit.Distance)
+				glm::vec3 localHitPoint = localRay.GetPoint(localDist);
+				glm::vec3 worldHitPoint = glm::vec3(modelMatrix * glm::vec4(localHitPoint, 1.0f));
+				float worldDist = glm::distance(worldHitPoint, ray.Origin);
+
+				if (worldDist >= 0.0f && worldDist <= outHit.Distance)
 				{
+					glm::mat3 normMat = glm::transpose(glm::inverse(glm::mat3(modelMatrix)));
+					glm::vec3 worldNorm = glm::normalize(normMat * localNorm);
+
 					outHit.Hit = true;
-					outHit.Distance = dist;
-					outHit.Point = ray.GetPoint(dist);
-					outHit.Normal = normal;
+					outHit.Distance = worldDist;
+					outHit.Point = worldHitPoint;
+					outHit.Normal = worldNorm;
 					outHit.HitEntity = Entity{ handle, &scene };
 				}
 			}
@@ -585,7 +1059,7 @@ bool RaycastAll(Scene& scene, const Ray& ray, float maxDistance, std::vector<Ray
 		}
 	}
 
-	// Mesh
+	// Mesh Colliders (BVH Triangle Mesh)
 	{
 		auto view = registry.view<TagComponent, TransformComponent, MeshColliderComponent, MeshComponent>();
 		for (auto [handle, tag, tc, meshCol, mc] : view.each())
@@ -595,20 +1069,41 @@ bool RaycastAll(Scene& scene, const Ray& ray, float maxDistance, std::vector<Ray
 			if (!includeTriggers && meshCol.IsTrigger)
 				continue;
 
-			glm::vec3 aabbMin(0.0f), aabbMax(0.0f);
-			mc.GetWorldAABB(tc.GetMatrix(), aabbMin, aabbMax);
+			const auto* bvh = mc.ModelAsset->GetBVH();
+			if (!bvh)
+				continue;
 
-			float dist = 0.0f;
-			glm::vec3 normal(0.0f);
-			if (IntersectRayAABB(ray, aabbMin, aabbMax, dist, normal))
+			glm::mat4 modelMatrix = tc.GetMatrix();
+			glm::mat4 invMatrix = glm::inverse(modelMatrix);
+
+			Ray localRay;
+			localRay.Origin = glm::vec3(invMatrix * glm::vec4(ray.Origin, 1.0f));
+			localRay.Direction = glm::vec3(invMatrix * glm::vec4(ray.Direction, 0.0f));
+			float localDirLen = glm::length(localRay.Direction);
+			if (localDirLen < 1e-6f)
+				continue;
+			localRay.Direction /= localDirLen;
+
+			float maxLocalDist = (maxDistance < std::numeric_limits<float>::max() * 0.5f) ? (maxDistance * localDirLen) : std::numeric_limits<float>::max();
+			float localDist = 0.0f;
+			glm::vec3 localNorm(0.0f);
+
+			if (bvh->Raycast(localRay, maxLocalDist, localDist, localNorm))
 			{
-				if (dist >= 0.0f && dist <= maxDistance)
+				glm::vec3 localHitPoint = localRay.GetPoint(localDist);
+				glm::vec3 worldHitPoint = glm::vec3(modelMatrix * glm::vec4(localHitPoint, 1.0f));
+				float worldDist = glm::distance(worldHitPoint, ray.Origin);
+
+				if (worldDist <= maxDistance)
 				{
+					glm::mat3 normMat = glm::transpose(glm::inverse(glm::mat3(modelMatrix)));
+					glm::vec3 worldNorm = glm::normalize(normMat * localNorm);
+
 					RaycastHit hit;
 					hit.Hit = true;
-					hit.Distance = dist;
-					hit.Point = ray.GetPoint(dist);
-					hit.Normal = normal;
+					hit.Distance = worldDist;
+					hit.Point = worldHitPoint;
+					hit.Normal = worldNorm;
 					hit.HitEntity = Entity{ handle, &scene };
 					outHits.push_back(hit);
 				}
@@ -703,7 +1198,7 @@ bool OverlapSphere(Scene& scene, const glm::vec3& center, float radius, std::vec
 		}
 	}
 
-	// 4. Mesh Colliders
+	// 4. Mesh Colliders (BVH Triangle Mesh)
 	{
 		auto view = registry.view<TagComponent, TransformComponent, MeshColliderComponent, MeshComponent>();
 		for (auto [handle, tag, tc, meshCol, mc] : view.each())
@@ -713,14 +1208,47 @@ bool OverlapSphere(Scene& scene, const glm::vec3& center, float radius, std::vec
 			if (!includeTriggers && meshCol.IsTrigger)
 				continue;
 
-			glm::vec3 aabbMin(0.0f), aabbMax(0.0f);
-			mc.GetWorldAABB(tc.GetMatrix(), aabbMin, aabbMax);
+			const auto* bvh = mc.ModelAsset->GetBVH();
+			if (!bvh)
+				continue;
 
-			glm::vec3 clamped = glm::clamp(center, aabbMin, aabbMax);
-			if (glm::distance(center, clamped) <= radius)
+			glm::mat4 modelMatrix = tc.GetMatrix();
+			glm::mat4 invMatrix = glm::inverse(modelMatrix);
+
+			glm::vec3 wMin = center - glm::vec3(radius);
+			glm::vec3 wMax = center + glm::vec3(radius);
+
+			glm::vec3 lMin(std::numeric_limits<float>::max());
+			glm::vec3 lMax(std::numeric_limits<float>::lowest());
+			for (int c = 0; c < 8; ++c)
 			{
-				if (addedHandles.insert(handle).second)
-					outEntities.emplace_back(handle, &scene);
+				glm::vec3 corner(
+					(c & 1) ? wMax.x : wMin.x,
+					(c & 2) ? wMax.y : wMin.y,
+					(c & 4) ? wMax.z : wMin.z
+				);
+				glm::vec3 localCorner = glm::vec3(invMatrix * glm::vec4(corner, 1.0f));
+				lMin = glm::min(lMin, localCorner);
+				lMax = glm::max(lMax, localCorner);
+			}
+
+			std::vector<int> triIndices;
+			bvh->QueryBox(lMin, lMax, triIndices);
+
+			for (int triIdx : triIndices)
+			{
+				const auto& tri = bvh->GetTriangles()[triIdx];
+				glm::vec3 wA = glm::vec3(modelMatrix * glm::vec4(tri.V0, 1.0f));
+				glm::vec3 wB = glm::vec3(modelMatrix * glm::vec4(tri.V1, 1.0f));
+				glm::vec3 wC = glm::vec3(modelMatrix * glm::vec4(tri.V2, 1.0f));
+
+				glm::vec3 closest = ClosestPointOnTriangle(center, wA, wB, wC);
+				if (glm::distance(center, closest) <= radius)
+				{
+					if (addedHandles.insert(handle).second)
+						outEntities.emplace_back(handle, &scene);
+					break;
+				}
 			}
 		}
 	}
@@ -868,7 +1396,7 @@ bool SweepCapsule(Scene& scene, const glm::vec3& startPos, const glm::vec3& disp
 			}
 		}
 
-		// 4. Mesh Colliders
+		// 4. Mesh Colliders (BVH Triangle Mesh)
 		{
 			auto view = registry.view<TagComponent, TransformComponent, MeshColliderComponent, MeshComponent>();
 			for (auto [handle, tag, tc, meshCol, mc] : view.each())
@@ -876,20 +1404,52 @@ bool SweepCapsule(Scene& scene, const glm::vec3& startPos, const glm::vec3& disp
 				if (handle == ignoreHandle || !tag.Active || !mc.ModelAsset || meshCol.IsTrigger || (meshCol.Layer & layerMask) == 0)
 					continue;
 
-				glm::vec3 aabbMin(0.0f), aabbMax(0.0f);
-				mc.GetWorldAABB(tc.GetMatrix(), aabbMin, aabbMax);
+				const auto* bvh = mc.ModelAsset->GetBVH();
+				if (!bvh)
+					continue;
 
-				float dist = 0.0f;
-				glm::vec3 norm(0.0f);
-				if (IntersectSweptSphereAABB(spherePos, displacement, radius, aabbMin, aabbMax, dist, norm))
+				glm::mat4 modelMatrix = tc.GetMatrix();
+				glm::mat4 invMatrix = glm::inverse(modelMatrix);
+
+				glm::vec3 wMin = glm::min(spherePos, spherePos + displacement) - glm::vec3(radius);
+				glm::vec3 wMax = glm::max(spherePos, spherePos + displacement) + glm::vec3(radius);
+
+				glm::vec3 lMin(std::numeric_limits<float>::max());
+				glm::vec3 lMax(std::numeric_limits<float>::lowest());
+				for (int c = 0; c < 8; ++c)
 				{
-					if (dist >= 0.0f && dist < outHit.Distance)
+					glm::vec3 corner(
+						(c & 1) ? wMax.x : wMin.x,
+						(c & 2) ? wMax.y : wMin.y,
+						(c & 4) ? wMax.z : wMin.z
+					);
+					glm::vec3 localCorner = glm::vec3(invMatrix * glm::vec4(corner, 1.0f));
+					lMin = glm::min(lMin, localCorner);
+					lMax = glm::max(lMax, localCorner);
+				}
+
+				std::vector<int> triIndices;
+				bvh->QueryBox(lMin, lMax, triIndices);
+
+				for (int triIdx : triIndices)
+				{
+					const auto& tri = bvh->GetTriangles()[triIdx];
+					glm::vec3 wA = glm::vec3(modelMatrix * glm::vec4(tri.V0, 1.0f));
+					glm::vec3 wB = glm::vec3(modelMatrix * glm::vec4(tri.V1, 1.0f));
+					glm::vec3 wC = glm::vec3(modelMatrix * glm::vec4(tri.V2, 1.0f));
+
+					float dist = 0.0f;
+					glm::vec3 norm(0.0f);
+					if (IntersectSweptSphereTriangle(spherePos, displacement, radius, wA, wB, wC, dist, norm))
 					{
-						outHit.Hit = true;
-						outHit.Distance = dist;
-						outHit.Normal = norm;
-						outHit.Point = spherePos + glm::normalize(displacement) * dist;
-						outHit.HitEntity = Entity{ handle, &scene };
+						if (dist >= 0.0f && dist < outHit.Distance)
+						{
+							outHit.Hit = true;
+							outHit.Distance = dist;
+							outHit.Normal = norm;
+							outHit.Point = spherePos + glm::normalize(displacement) * dist;
+							outHit.HitEntity = Entity{ handle, &scene };
+						}
 					}
 				}
 			}
@@ -965,7 +1525,7 @@ bool CheckCapsuleOverlap(Scene& scene, const glm::vec3& pos, float radius, float
 			}
 		}
 
-		// Mesh AABB
+		// Mesh Colliders (BVH Triangle Mesh)
 		{
 			auto view = registry.view<TagComponent, TransformComponent, MeshColliderComponent, MeshComponent>();
 			for (auto [handle, tag, tc, meshCol, mc] : view.each())
@@ -973,17 +1533,52 @@ bool CheckCapsuleOverlap(Scene& scene, const glm::vec3& pos, float radius, float
 				if (handle == ignoreHandle || !tag.Active || !mc.ModelAsset || meshCol.IsTrigger || (meshCol.Layer & layerMask) == 0)
 					continue;
 
-				glm::vec3 aabbMin(0.0f), aabbMax(0.0f);
-				mc.GetWorldAABB(tc.GetMatrix(), aabbMin, aabbMax);
+				const auto* bvh = mc.ModelAsset->GetBVH();
+				if (!bvh)
+					continue;
 
-				glm::vec3 clamped = glm::clamp(spherePos, aabbMin, aabbMax);
-				float d = glm::distance(spherePos, clamped);
-				if (d < radius)
+				glm::mat4 modelMatrix = tc.GetMatrix();
+				glm::mat4 invMatrix = glm::inverse(modelMatrix);
+
+				glm::vec3 wMin = spherePos - glm::vec3(radius);
+				glm::vec3 wMax = spherePos + glm::vec3(radius);
+
+				glm::vec3 lMin(std::numeric_limits<float>::max());
+				glm::vec3 lMax(std::numeric_limits<float>::lowest());
+				for (int c = 0; c < 8; ++c)
 				{
-					float pen = radius - d;
-					glm::vec3 push = (d > 1e-5f) ? glm::normalize(spherePos - clamped) : glm::vec3(0.0f, 1.0f, 0.0f);
-					outPushVector += push * pen;
-					overlapped = true;
+					glm::vec3 corner(
+						(c & 1) ? wMax.x : wMin.x,
+						(c & 2) ? wMax.y : wMin.y,
+						(c & 4) ? wMax.z : wMin.z
+					);
+					glm::vec3 localCorner = glm::vec3(invMatrix * glm::vec4(corner, 1.0f));
+					lMin = glm::min(lMin, localCorner);
+					lMax = glm::max(lMax, localCorner);
+				}
+
+				std::vector<int> triIndices;
+				bvh->QueryBox(lMin, lMax, triIndices);
+
+				for (int triIdx : triIndices)
+				{
+					const auto& tri = bvh->GetTriangles()[triIdx];
+					glm::vec3 wA = glm::vec3(modelMatrix * glm::vec4(tri.V0, 1.0f));
+					glm::vec3 wB = glm::vec3(modelMatrix * glm::vec4(tri.V1, 1.0f));
+					glm::vec3 wC = glm::vec3(modelMatrix * glm::vec4(tri.V2, 1.0f));
+
+					glm::vec3 closest = ClosestPointOnTriangle(spherePos, wA, wB, wC);
+					float d = glm::distance(spherePos, closest);
+					if (d < radius)
+					{
+						float pen = radius - d;
+						glm::vec3 triNorm = glm::cross(wB - wA, wC - wA);
+						float triNormLen = glm::length(triNorm);
+						glm::vec3 fallbackNorm = (triNormLen > 1e-6f) ? (triNorm / triNormLen) : glm::vec3(0.0f, 1.0f, 0.0f);
+						glm::vec3 push = (d > 1e-5f) ? ((spherePos - closest) / d) : fallbackNorm;
+						outPushVector += push * pen;
+						overlapped = true;
+					}
 				}
 			}
 		}

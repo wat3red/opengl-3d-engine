@@ -869,10 +869,6 @@ void Editor::DrawEntityInspectorPanel()
 			if (ImGui::InputText("Model File", modelPathBuf, sizeof(modelPathBuf), ImGuiInputTextFlags_EnterReturnsTrue))
 			{
 				mc.LoadModel(modelPathBuf, mc.FlipUVs);
-				if (mc.ModelAsset && !selectedEntity.HasComponent<RigidbodyComponent>())
-				{
-					selectedEntity.AddComponent<RigidbodyComponent>(mc.ModelAsset.get());
-				}
 			}
 
 			// Discovered models dropdown / picker
@@ -885,10 +881,6 @@ void Editor::DrawEntityInspectorPanel()
 					if (ImGui::Selectable(modelPath.c_str(), isSelected))
 					{
 						mc.LoadModel(modelPath, mc.FlipUVs);
-						if (mc.ModelAsset && !selectedEntity.HasComponent<RigidbodyComponent>())
-						{
-							selectedEntity.AddComponent<RigidbodyComponent>(mc.ModelAsset.get());
-						}
 					}
 					if (isSelected)
 					{
@@ -901,15 +893,19 @@ void Editor::DrawEntityInspectorPanel()
 			if (ImGui::Button("Load / Reload"))
 			{
 				mc.LoadModel(std::string(modelPathBuf), mc.FlipUVs);
-				if (mc.ModelAsset && !selectedEntity.HasComponent<RigidbodyComponent>())
-				{
-					selectedEntity.AddComponent<RigidbodyComponent>(mc.ModelAsset.get());
-				}
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Rescan Folder"))
 			{
 				RescanDiscoveredModels();
+			}
+
+			if (!selectedEntity.HasComponent<MeshColliderComponent>())
+			{
+				if (ImGui::Button("Add Environment Mesh Collider"))
+				{
+					selectedEntity.AddComponent<MeshColliderComponent>(false, Physics::Layer_Static);
+				}
 			}
 
 			if (ImGui::Checkbox("Flip UVs##Mesh", &mc.FlipUVs))
@@ -1240,11 +1236,40 @@ void Editor::DrawEntityInspectorPanel()
 	if (selectedEntity.HasComponent<MeshColliderComponent>())
 	{
 		ImGui::Separator();
-		if (ImGui::CollapsingHeader("Mesh Collider", ImGuiTreeNodeFlags_DefaultOpen))
+		if (ImGui::CollapsingHeader("Mesh Collider (Static Environment)", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			auto& mc = selectedEntity.GetComponent<MeshColliderComponent>();
 			ImGui::Checkbox("Is Trigger##MeshCol", &mc.IsTrigger);
 			DrawLayerCombo("Layer##MeshCol", mc.Layer);
+
+			if (selectedEntity.HasComponent<MeshComponent>())
+			{
+				auto& meshComp = selectedEntity.GetComponent<MeshComponent>();
+				if (meshComp.ModelAsset)
+				{
+					const auto* bvh = meshComp.ModelAsset->GetBVH();
+					if (bvh)
+					{
+						ImGui::TextColored(ImVec4(0.3f, 0.9f, 0.4f, 1.0f), "Trimesh BVH: %zu Triangles, %zu Nodes", bvh->GetTriangleCount(), bvh->GetNodeCount());
+					}
+					else
+					{
+						ImGui::TextDisabled("BVH not built yet");
+					}
+				}
+				else
+				{
+					ImGui::TextDisabled("No 3D Model Asset assigned");
+				}
+			}
+
+			if (mc.Layer != Physics::Layer_Static)
+			{
+				if (ImGui::Button("Set to Static Environment Layer"))
+				{
+					mc.Layer = Physics::Layer_Static;
+				}
+			}
 
 			if (ImGui::Button("Remove Mesh Collider"))
 			{

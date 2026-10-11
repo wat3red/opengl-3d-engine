@@ -3,6 +3,11 @@
 #include "mesh.h"
 
 #include <assimp/scene.h>
+#include <memory>
+
+namespace Physics {
+	class MeshBVH;
+}
 
 class Model {
 public:
@@ -30,6 +35,8 @@ public:
 	std::vector<Mesh>& GetMeshes() { return meshes; }
 	size_t GetMeshCount() const { return meshes.size(); }
 
+	const Physics::MeshBVH* GetBVH() const;
+
 	void Draw(Shader& shader, const MaterialProperties* materialProps = nullptr);
 private:
 	void loadModel(const std::string& path, bool flipUVs = false);
@@ -42,4 +49,6 @@ private:
 	std::vector<Mesh> meshes;
 	AABB aabb;
 	OBB obb;
+
+	mutable std::shared_ptr<Physics::MeshBVH> m_BVH = nullptr;
 };

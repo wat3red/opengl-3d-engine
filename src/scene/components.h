@@ -27,10 +27,6 @@ enum class LightType {
 	Point,
 	Spotlight
 };
-
-inline constexpr LightType DIRECTIONAL = LightType::Directional;
-inline constexpr LightType POINT = LightType::Point;
-inline constexpr LightType SPOTLIGHT = LightType::Spotlight;
 #endif
 
 // Tag / Metadata Component
@@ -313,11 +309,11 @@ struct CapsuleColliderComponent {
 
 struct MeshColliderComponent {
 	bool IsTrigger = false;
-	uint32_t Layer = 1;
-	uint32_t Mask = 0xFFFFFFFF;
+	uint32_t Layer = 2; // Physics::Layer_Static (Static Environment)
+	uint32_t Mask = 0xFFFFFFFF; // Physics::Layer_All
 
 	MeshColliderComponent() = default;
-	explicit MeshColliderComponent(bool isTrigger, uint32_t layer = 1, uint32_t mask = 0xFFFFFFFF)
+	explicit MeshColliderComponent(bool isTrigger, uint32_t layer = 2, uint32_t mask = 0xFFFFFFFF)
 		: IsTrigger(isTrigger), Layer(layer), Mask(mask) {}
 };
 

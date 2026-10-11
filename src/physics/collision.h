@@ -7,6 +7,7 @@
 #include "scene/entity.h"
 
 class Scene;
+class Mesh;
 
 namespace Physics {
 
@@ -71,12 +72,59 @@ bool IntersectRaySphere(const Ray& ray, const glm::vec3& center, float radius, f
 bool IntersectRayAABB(const Ray& ray, const glm::vec3& aabbMin, const glm::vec3& aabbMax, float& outDistance, glm::vec3& outNormal);
 bool IntersectRayOBB(const Ray& ray, const glm::vec3& boxCenter, const glm::vec3& boxSize, const glm::mat4& worldTransform, float& outDistance, glm::vec3& outNormal);
 bool IntersectRayCapsule(const Ray& ray, const glm::vec3& center, float radius, float height, const glm::mat4& worldTransform, float& outDistance, glm::vec3& outNormal);
+bool IntersectRayTriangle(const Ray& ray, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, float& outDistance, glm::vec3& outNormal);
+
+// Geometric distance & closest point queries
+glm::vec3 ClosestPointOnTriangle(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c);
 
 // Swept primitive tests
 bool IntersectSweptSphereAABB(const glm::vec3& start, const glm::vec3& displacement, float radius, const glm::vec3& aabbMin, const glm::vec3& aabbMax, float& outDistance, glm::vec3& outNormal);
 bool IntersectSweptSphereOBB(const glm::vec3& start, const glm::vec3& displacement, float radius, const glm::vec3& boxCenter, const glm::vec3& boxSize, const glm::mat4& worldTransform, float& outDistance, glm::vec3& outNormal);
 bool IntersectSweptSphereSphere(const glm::vec3& start, const glm::vec3& displacement, float radius, const glm::vec3& sphereCenter, float sphereRadius, float& outDistance, glm::vec3& outNormal);
 bool IntersectSweptSphereCapsule(const glm::vec3& start, const glm::vec3& displacement, float radius, const glm::vec3& capsuleCenter, float capsuleRadius, float capsuleHeight, const glm::mat4& worldTransform, float& outDistance, glm::vec3& outNormal);
+bool IntersectSweptSphereTriangle(const glm::vec3& start, const glm::vec3& displacement, float radius, const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, float& outDistance, glm::vec3& outNormal);
+
+// ============================================================================
+// Mesh BVH (Bounding Volume Hierarchy for Triangle Mesh Collisions)
+// ============================================================================
+
+struct BVHTriangle {
+	glm::vec3 V0{ 0.0f };
+	glm::vec3 V1{ 0.0f };
+	glm::vec3 V2{ 0.0f };
+	glm::vec3 Centroid{ 0.0f };
+	glm::vec3 Min{ 0.0f };
+	glm::vec3 Max{ 0.0f };
+};
+
+struct BVHNode {
+	glm::vec3 AABBMin{ 0.0f };
+	glm::vec3 AABBMax{ 0.0f };
+	int LeftChild = -1;  // If < 0, leaf! First triangle index = ~LeftChild
+	int RightChild = 0;  // If leaf, triangle count. Otherwise index of right child node.
+	bool IsLeaf() const { return LeftChild < 0; }
+};
+
+class MeshBVH {
+public:
+	MeshBVH() = default;
+
+	void Build(const std::vector<::Mesh>& meshes);
+
+	bool Raycast(const Ray& localRay, float maxDist, float& outDist, glm::vec3& outNormal) const;
+	void QueryBox(const glm::vec3& localMin, const glm::vec3& localMax, std::vector<int>& outTriIndices) const;
+
+	size_t GetTriangleCount() const { return m_Triangles.size(); }
+	size_t GetNodeCount() const { return m_Nodes.size(); }
+	const std::vector<BVHTriangle>& GetTriangles() const { return m_Triangles; }
+	const std::vector<BVHNode>& GetNodes() const { return m_Nodes; }
+
+private:
+	std::vector<BVHTriangle> m_Triangles;
+	std::vector<BVHNode> m_Nodes;
+
+	int BuildRecursive(int start, int end, int depth);
+};
 
 // Scene raycasting queries
 bool Raycast(Scene& scene, const glm::vec3& origin, const glm::vec3& direction, float maxDistance, RaycastHit& outHit, uint32_t layerMask = Layer_All, bool includeTriggers = false);

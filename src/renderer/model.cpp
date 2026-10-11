@@ -11,6 +11,7 @@
 
 #include "mesh.h"
 #include "model.h"
+#include "physics/collision.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -505,3 +506,14 @@ void Model::CalculateBoundingVolumes()
 	obb.extents = (aabb.max - aabb.min) * 0.5f;
 	obb.orientation = glm::mat3(1.0f);
 }
+
+const Physics::MeshBVH* Model::GetBVH() const
+{
+	if (!m_BVH)
+	{
+		m_BVH = std::make_shared<Physics::MeshBVH>();
+		m_BVH->Build(meshes);
+	}
+	return m_BVH.get();
+}
+

@@ -28,7 +28,12 @@
 			"Scale": [100.0, 100.0, 100.0],
 			"ModelPath": "res/models/house/source/free_fire_maxx_new_clock_tower_map_download_free.glb",
 			"CastsShadow": true,
-			"FlipUVs": false
+			"FlipUVs": false,
+			"MeshCollider": {
+				"IsTrigger": false,
+				"Layer": 2,
+				"Mask": 4294967295
+			}
 		},
 		{
 			"Name": "Courtyard Floor Collider",
