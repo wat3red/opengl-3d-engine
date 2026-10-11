@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <algorithm>
 
 enum Camera_Movement {
 	FORWARD,
@@ -116,6 +117,13 @@ public:
 				Pitch = -89.0f;
 		}
 
+		updateCameraVectors();
+	}
+
+	void SetYawAndPitch(float yaw, float pitch)
+	{
+		Yaw = yaw;
+		Pitch = std::clamp(pitch, -89.0f, 89.0f);
 		updateCameraVectors();
 	}
 

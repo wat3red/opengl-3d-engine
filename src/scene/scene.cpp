@@ -77,7 +77,23 @@ void Scene::OnUpdateRuntime(float deltaTime)
 		}
 	}
 
-	// 2. Update Physics
+	// 2. Update Character Controllers (simulate gravity and grounding for unscripted controllers)
+	{
+		auto view = m_Registry.view<TagComponent, TransformComponent, CharacterControllerComponent>();
+		for (auto [entityHandle, tag, transform, cc] : view.each())
+		{
+			if (tag.Active && deltaTime > 0.0f)
+			{
+				bool hasScript = m_Registry.all_of<NativeScriptComponent>(entityHandle);
+				if (!hasScript)
+				{
+					cc.SimpleMove(*this, Entity{ entityHandle, this }, glm::vec3(0.0f), deltaTime);
+				}
+			}
+		}
+	}
+
+	// 3. Update Physics Rigidbody
 	{
 		auto view = m_Registry.view<TagComponent, TransformComponent, RigidbodyComponent>();
 		for (auto [entityHandle, tag, transform, rb] : view.each())
@@ -97,7 +113,7 @@ void Scene::OnUpdateRuntime(float deltaTime)
 		}
 	}
 
-	// 3. Update Audio Listener and Spatial Sources
+	// 4. Update Audio Listener and Spatial Sources
 	{
 		Entity listenerEntity = {};
 		auto listenerView = m_Registry.view<TagComponent, AudioListenerComponent, TransformComponent>();
@@ -243,6 +259,11 @@ void Scene::DuplicateFrom(const Scene& other)
 		if (other.m_Registry.all_of<MeshColliderComponent>(srcHandle))
 		{
 			dstEntity.AddComponent<MeshColliderComponent>(other.m_Registry.get<MeshColliderComponent>(srcHandle));
+		}
+
+		if (other.m_Registry.all_of<CharacterControllerComponent>(srcHandle))
+		{
+			dstEntity.AddComponent<CharacterControllerComponent>(other.m_Registry.get<CharacterControllerComponent>(srcHandle));
 		}
 
 		if (other.m_Registry.all_of<RigidbodyComponent>(srcHandle))

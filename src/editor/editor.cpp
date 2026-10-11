@@ -10,6 +10,8 @@
 #include <imgui/ImGuizmo.h>
 #include <glm/gtc/type_ptr.hpp>
 #include "scene_serializer.h"
+#include "physics/collision.h"
+#include "scripts/fps_controller.h"
 
 #include <chrono>
 #include <algorithm>
@@ -550,6 +552,114 @@ void Editor::DrawViewportPanel()
 
 			ImGuizmo::PopID();
 		}
+
+		// Draw Wireframe Collider & Character Controller Gizmos (Edit mode)
+		if (m_SceneState == SceneState::Edit && selectedEntity && selectedEntity.HasComponent<TransformComponent>())
+		{
+			ImDrawList* drawList = ImGui::GetWindowDrawList();
+			glm::mat4 cameraView = m_Camera.GetViewMatrix();
+			glm::mat4 cameraProj = m_Camera.GetProjectionMatrix(m_ViewportSize);
+			glm::mat4 viewProj = cameraProj * cameraView;
+
+			auto WorldToScreen = [&](const glm::vec3& worldPos, ImVec2& outScreen) -> bool {
+				glm::vec4 clip = viewProj * glm::vec4(worldPos, 1.0f);
+				if (clip.w <= 0.001f) return false;
+				glm::vec3 ndc = glm::vec3(clip) / clip.w;
+				if (ndc.z < -1.0f || ndc.z > 1.0f) return false;
+				outScreen.x = imagePos.x + (ndc.x * 0.5f + 0.5f) * imageSize.x;
+				outScreen.y = imagePos.y + (1.0f - (ndc.y * 0.5f + 0.5f)) * imageSize.y;
+				return true;
+			};
+
+			auto Draw3DLine = [&](const glm::vec3& p0, const glm::vec3& p1, ImU32 col, float thickness = 1.5f) {
+				ImVec2 s0, s1;
+				if (WorldToScreen(p0, s0) && WorldToScreen(p1, s1))
+				{
+					drawList->AddLine(s0, s1, col, thickness);
+				}
+			};
+
+			const auto& tc = selectedEntity.GetComponent<TransformComponent>();
+			glm::mat4 entityWorld = tc.GetMatrix();
+
+			// Character Controller (Capsule)
+			if (selectedEntity.HasComponent<CharacterControllerComponent>())
+			{
+				const auto& cc = selectedEntity.GetComponent<CharacterControllerComponent>();
+				glm::vec3 baseCenter = tc.Position + cc.Center;
+				float r = cc.Radius;
+				float h = cc.Height;
+				float halfH = std::max(0.0f, h * 0.5f - r);
+				glm::vec3 topCenter = baseCenter + glm::vec3(0.0f, halfH, 0.0f);
+				glm::vec3 botCenter = baseCenter - glm::vec3(0.0f, halfH, 0.0f);
+				ImU32 col = IM_COL32(80, 240, 100, 220); // bright green
+
+				const int segs = 16;
+				for (int i = 0; i < segs; ++i)
+				{
+					float a0 = (i * 2.0f * 3.14159265f) / segs;
+					float a1 = ((i + 1) * 2.0f * 3.14159265f) / segs;
+
+					Draw3DLine(topCenter + glm::vec3(std::cos(a0) * r, 0.0f, std::sin(a0) * r),
+					           topCenter + glm::vec3(std::cos(a1) * r, 0.0f, std::sin(a1) * r), col);
+					Draw3DLine(botCenter + glm::vec3(std::cos(a0) * r, 0.0f, std::sin(a0) * r),
+					           botCenter + glm::vec3(std::cos(a1) * r, 0.0f, std::sin(a1) * r), col);
+				}
+
+				Draw3DLine(topCenter + glm::vec3( r, 0.0f, 0.0f), botCenter + glm::vec3( r, 0.0f, 0.0f), col);
+				Draw3DLine(topCenter + glm::vec3(-r, 0.0f, 0.0f), botCenter + glm::vec3(-r, 0.0f, 0.0f), col);
+				Draw3DLine(topCenter + glm::vec3(0.0f, 0.0f,  r), botCenter + glm::vec3(0.0f, 0.0f,  r), col);
+				Draw3DLine(topCenter + glm::vec3(0.0f, 0.0f, -r), botCenter + glm::vec3(0.0f, 0.0f, -r), col);
+			}
+
+			// Box Collider
+			if (selectedEntity.HasComponent<BoxColliderComponent>())
+			{
+				const auto& bc = selectedEntity.GetComponent<BoxColliderComponent>();
+				glm::mat4 boxWorld = entityWorld * glm::translate(glm::mat4(1.0f), bc.Center);
+				glm::vec3 h = bc.Size * 0.5f;
+				ImU32 col = IM_COL32(240, 200, 60, 220); // yellow
+
+				glm::vec3 c[8] = {
+					glm::vec3(boxWorld * glm::vec4(-h.x, -h.y, -h.z, 1.0f)),
+					glm::vec3(boxWorld * glm::vec4( h.x, -h.y, -h.z, 1.0f)),
+					glm::vec3(boxWorld * glm::vec4( h.x,  h.y, -h.z, 1.0f)),
+					glm::vec3(boxWorld * glm::vec4(-h.x,  h.y, -h.z, 1.0f)),
+					glm::vec3(boxWorld * glm::vec4(-h.x, -h.y,  h.z, 1.0f)),
+					glm::vec3(boxWorld * glm::vec4( h.x, -h.y,  h.z, 1.0f)),
+					glm::vec3(boxWorld * glm::vec4( h.x,  h.y,  h.z, 1.0f)),
+					glm::vec3(boxWorld * glm::vec4(-h.x,  h.y,  h.z, 1.0f))
+				};
+
+				Draw3DLine(c[0], c[1], col); Draw3DLine(c[1], c[2], col); Draw3DLine(c[2], c[3], col); Draw3DLine(c[3], c[0], col);
+				Draw3DLine(c[4], c[5], col); Draw3DLine(c[5], c[6], col); Draw3DLine(c[6], c[7], col); Draw3DLine(c[7], c[4], col);
+				Draw3DLine(c[0], c[4], col); Draw3DLine(c[1], c[5], col); Draw3DLine(c[2], c[6], col); Draw3DLine(c[3], c[7], col);
+			}
+
+			// Sphere Collider
+			if (selectedEntity.HasComponent<SphereColliderComponent>())
+			{
+				const auto& sc = selectedEntity.GetComponent<SphereColliderComponent>();
+				glm::vec3 center = glm::vec3(entityWorld * glm::vec4(sc.Center, 1.0f));
+				float maxScale = std::max({ tc.Scale.x, tc.Scale.y, tc.Scale.z });
+				float r = sc.Radius * maxScale;
+				ImU32 col = IM_COL32(60, 200, 240, 220); // cyan
+
+				const int segs = 16;
+				for (int i = 0; i < segs; ++i)
+				{
+					float a0 = (i * 2.0f * 3.14159265f) / segs;
+					float a1 = ((i + 1) * 2.0f * 3.14159265f) / segs;
+
+					Draw3DLine(center + glm::vec3(std::cos(a0) * r, 0.0f, std::sin(a0) * r),
+					           center + glm::vec3(std::cos(a1) * r, 0.0f, std::sin(a1) * r), col);
+					Draw3DLine(center + glm::vec3(std::cos(a0) * r, std::sin(a0) * r, 0.0f),
+					           center + glm::vec3(std::cos(a1) * r, std::sin(a1) * r, 0.0f), col);
+					Draw3DLine(center + glm::vec3(0.0f, std::cos(a0) * r, std::sin(a0) * r),
+					           center + glm::vec3(0.0f, std::cos(a1) * r, std::sin(a1) * r), col);
+				}
+			}
+		}
 	}
 
 	ImGui::End();
@@ -585,6 +695,7 @@ void Editor::DrawSceneHierarchyPanel()
 		if (entity.HasComponent<LightComponent>()) componentBadges += "[Light] ";
 		if (entity.HasComponent<CameraComponent>()) componentBadges += "[Camera] ";
 		if (entity.HasComponent<BoxColliderComponent>() || entity.HasComponent<SphereColliderComponent>() || entity.HasComponent<CapsuleColliderComponent>() || entity.HasComponent<MeshColliderComponent>()) componentBadges += "[Col] ";
+		if (entity.HasComponent<CharacterControllerComponent>()) componentBadges += "[Controller] ";
 		if (entity.HasComponent<NativeScriptComponent>()) componentBadges += "[Script] ";
 
 		std::string label = tag.Tag + " " + componentBadges + "##Entity" + std::to_string(static_cast<uint32_t>(entityHandle));
@@ -1028,6 +1139,40 @@ void Editor::DrawEntityInspectorPanel()
 		}
 	}
 
+	auto DrawLayerCombo = [](const char* label, uint32_t& layer) {
+		const char* layerNames[] = {
+			"Default",
+			"Static Environment",
+			"Player",
+			"Enemy",
+			"Projectile",
+			"Trigger"
+		};
+		const uint32_t layerValues[] = {
+			Physics::Layer_Default,
+			Physics::Layer_Static,
+			Physics::Layer_Player,
+			Physics::Layer_Enemy,
+			Physics::Layer_Projectile,
+			Physics::Layer_Trigger
+		};
+
+		int currentIdx = 0;
+		for (int i = 0; i < 6; ++i)
+		{
+			if (layer == layerValues[i])
+			{
+				currentIdx = i;
+				break;
+			}
+		}
+
+		if (ImGui::Combo(label, &currentIdx, layerNames, 6))
+		{
+			layer = layerValues[currentIdx];
+		}
+	};
+
 	// Box Collider Component
 	if (selectedEntity.HasComponent<BoxColliderComponent>())
 	{
@@ -1038,6 +1183,7 @@ void Editor::DrawEntityInspectorPanel()
 			ImGui::DragFloat3("Size##Box", &bc.Size.x, 0.05f, 0.01f, 1000.0f);
 			ImGui::DragFloat3("Center##Box", &bc.Center.x, 0.05f);
 			ImGui::Checkbox("Is Trigger##Box", &bc.IsTrigger);
+			DrawLayerCombo("Layer##Box", bc.Layer);
 
 			if (ImGui::Button("Remove Box Collider"))
 			{
@@ -1056,6 +1202,7 @@ void Editor::DrawEntityInspectorPanel()
 			ImGui::DragFloat("Radius##Sphere", &sc.Radius, 0.05f, 0.01f, 500.0f);
 			ImGui::DragFloat3("Center##Sphere", &sc.Center.x, 0.05f);
 			ImGui::Checkbox("Is Trigger##Sphere", &sc.IsTrigger);
+			DrawLayerCombo("Layer##Sphere", sc.Layer);
 
 			if (ImGui::Button("Remove Sphere Collider"))
 			{
@@ -1075,6 +1222,7 @@ void Editor::DrawEntityInspectorPanel()
 			ImGui::DragFloat("Height##Capsule", &cc.Height, 0.05f, 0.01f, 500.0f);
 			ImGui::DragFloat3("Center##Capsule", &cc.Center.x, 0.05f);
 			ImGui::Checkbox("Is Trigger##Capsule", &cc.IsTrigger);
+			DrawLayerCombo("Layer##Capsule", cc.Layer);
 
 			if (ImGui::Button("Remove Capsule Collider"))
 			{
@@ -1091,10 +1239,42 @@ void Editor::DrawEntityInspectorPanel()
 		{
 			auto& mc = selectedEntity.GetComponent<MeshColliderComponent>();
 			ImGui::Checkbox("Is Trigger##MeshCol", &mc.IsTrigger);
+			DrawLayerCombo("Layer##MeshCol", mc.Layer);
 
 			if (ImGui::Button("Remove Mesh Collider"))
 			{
 				selectedEntity.RemoveComponent<MeshColliderComponent>();
+			}
+		}
+	}
+
+	// Character Controller Component
+	if (selectedEntity.HasComponent<CharacterControllerComponent>())
+	{
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("Character Controller", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			auto& cc = selectedEntity.GetComponent<CharacterControllerComponent>();
+			ImGui::DragFloat("Radius##CC", &cc.Radius, 0.02f, 0.05f, 5.0f, "%.2f m");
+			ImGui::DragFloat("Height##CC", &cc.Height, 0.05f, 0.2f, 10.0f, "%.2f m");
+			ImGui::DragFloat("Step Offset##CC", &cc.StepOffset, 0.02f, 0.0f, 2.0f, "%.2f m");
+			ImGui::SliderFloat("Slope Limit##CC", &cc.SlopeLimit, 0.0f, 89.0f, "%.1f deg");
+			ImGui::DragFloat("Skin Width##CC", &cc.SkinWidth, 0.005f, 0.001f, 0.2f, "%.3f m");
+			ImGui::DragFloat("Gravity##CC", &cc.Gravity, 0.5f, -100.0f, 0.0f, "%.1f m/s2");
+			ImGui::DragFloat3("Center Offset##CC", &cc.Center.x, 0.05f);
+
+			DrawLayerCombo("Layer##CC", cc.Layer);
+
+			ImGui::Spacing();
+			ImGui::TextColored(ImVec4(0.3f, 0.8f, 1.0f, 1.0f), "Live Physics Status:");
+			ImGui::Text("  Grounded: %s", cc.IsGrounded ? "YES" : "NO (Airborne)");
+			ImGui::Text("  Ground Normal: (%.2f, %.2f, %.2f)", cc.GroundNormal.x, cc.GroundNormal.y, cc.GroundNormal.z);
+			ImGui::Text("  Velocity: (%.2f, %.2f, %.2f) m/s", cc.Velocity.x, cc.Velocity.y, cc.Velocity.z);
+
+			ImGui::Spacing();
+			if (ImGui::Button("Remove Character Controller"))
+			{
+				selectedEntity.RemoveComponent<CharacterControllerComponent>();
 			}
 		}
 	}
@@ -1108,6 +1288,16 @@ void Editor::DrawEntityInspectorPanel()
 			auto& nsc = selectedEntity.GetComponent<NativeScriptComponent>();
 			ImGui::Text("Script: %s", nsc.ScriptName.c_str());
 			ImGui::TextDisabled("Status: %s", (nsc.Instance ? "Active / Running" : "Idle (runs in Play mode)"));
+
+			ImGui::Spacing();
+			if (ImGui::Button("Bind FPSController Script"))
+			{
+				nsc.Bind<FPSController>("FPSController");
+				if (!selectedEntity.HasComponent<CharacterControllerComponent>())
+				{
+					selectedEntity.AddComponent<CharacterControllerComponent>();
+				}
+			}
 
 			if (ImGui::Button("Remove Script"))
 			{
@@ -1322,6 +1512,13 @@ void Editor::DrawEntityInspectorPanel()
 			if (ImGui::MenuItem("Mesh Collider"))
 			{
 				selectedEntity.AddComponent<MeshColliderComponent>();
+			}
+		}
+		if (!selectedEntity.HasComponent<CharacterControllerComponent>())
+		{
+			if (ImGui::MenuItem("Character Controller"))
+			{
+				selectedEntity.AddComponent<CharacterControllerComponent>();
 			}
 		}
 		if (!selectedEntity.HasComponent<NativeScriptComponent>())

@@ -319,7 +319,9 @@ bool SceneSerializer::Serialize(const std::string& filepath)
 			out << "\t\t\t\"BoxCollider\": {\n";
 			out << "\t\t\t\t\"Size\": [" << bc.Size.x << ", " << bc.Size.y << ", " << bc.Size.z << "],\n";
 			out << "\t\t\t\t\"Center\": [" << bc.Center.x << ", " << bc.Center.y << ", " << bc.Center.z << "],\n";
-			out << "\t\t\t\t\"IsTrigger\": " << (bc.IsTrigger ? "true" : "false") << "\n";
+			out << "\t\t\t\t\"IsTrigger\": " << (bc.IsTrigger ? "true" : "false") << ",\n";
+			out << "\t\t\t\t\"Layer\": " << bc.Layer << ",\n";
+			out << "\t\t\t\t\"Mask\": " << bc.Mask << "\n";
 			out << "\t\t\t}";
 		}
 
@@ -330,7 +332,9 @@ bool SceneSerializer::Serialize(const std::string& filepath)
 			out << "\t\t\t\"SphereCollider\": {\n";
 			out << "\t\t\t\t\"Radius\": " << sc.Radius << ",\n";
 			out << "\t\t\t\t\"Center\": [" << sc.Center.x << ", " << sc.Center.y << ", " << sc.Center.z << "],\n";
-			out << "\t\t\t\t\"IsTrigger\": " << (sc.IsTrigger ? "true" : "false") << "\n";
+			out << "\t\t\t\t\"IsTrigger\": " << (sc.IsTrigger ? "true" : "false") << ",\n";
+			out << "\t\t\t\t\"Layer\": " << sc.Layer << ",\n";
+			out << "\t\t\t\t\"Mask\": " << sc.Mask << "\n";
 			out << "\t\t\t}";
 		}
 
@@ -342,7 +346,9 @@ bool SceneSerializer::Serialize(const std::string& filepath)
 			out << "\t\t\t\t\"Radius\": " << cc.Radius << ",\n";
 			out << "\t\t\t\t\"Height\": " << cc.Height << ",\n";
 			out << "\t\t\t\t\"Center\": [" << cc.Center.x << ", " << cc.Center.y << ", " << cc.Center.z << "],\n";
-			out << "\t\t\t\t\"IsTrigger\": " << (cc.IsTrigger ? "true" : "false") << "\n";
+			out << "\t\t\t\t\"IsTrigger\": " << (cc.IsTrigger ? "true" : "false") << ",\n";
+			out << "\t\t\t\t\"Layer\": " << cc.Layer << ",\n";
+			out << "\t\t\t\t\"Mask\": " << cc.Mask << "\n";
 			out << "\t\t\t}";
 		}
 
@@ -351,7 +357,26 @@ bool SceneSerializer::Serialize(const std::string& filepath)
 			const auto& mc = entity.GetComponent<MeshColliderComponent>();
 			out << ",\n";
 			out << "\t\t\t\"MeshCollider\": {\n";
-			out << "\t\t\t\t\"IsTrigger\": " << (mc.IsTrigger ? "true" : "false") << "\n";
+			out << "\t\t\t\t\"IsTrigger\": " << (mc.IsTrigger ? "true" : "false") << ",\n";
+			out << "\t\t\t\t\"Layer\": " << mc.Layer << ",\n";
+			out << "\t\t\t\t\"Mask\": " << mc.Mask << "\n";
+			out << "\t\t\t}";
+		}
+
+		if (entity.HasComponent<CharacterControllerComponent>())
+		{
+			const auto& ccc = entity.GetComponent<CharacterControllerComponent>();
+			out << ",\n";
+			out << "\t\t\t\"CharacterController\": {\n";
+			out << "\t\t\t\t\"Radius\": " << ccc.Radius << ",\n";
+			out << "\t\t\t\t\"Height\": " << ccc.Height << ",\n";
+			out << "\t\t\t\t\"StepOffset\": " << ccc.StepOffset << ",\n";
+			out << "\t\t\t\t\"SlopeLimit\": " << ccc.SlopeLimit << ",\n";
+			out << "\t\t\t\t\"SkinWidth\": " << ccc.SkinWidth << ",\n";
+			out << "\t\t\t\t\"Gravity\": " << ccc.Gravity << ",\n";
+			out << "\t\t\t\t\"Center\": [" << ccc.Center.x << ", " << ccc.Center.y << ", " << ccc.Center.z << "],\n";
+			out << "\t\t\t\t\"Layer\": " << ccc.Layer << ",\n";
+			out << "\t\t\t\t\"CollisionMask\": " << ccc.CollisionMask << "\n";
 			out << "\t\t\t}";
 		}
 
@@ -547,6 +572,8 @@ bool SceneSerializer::Deserialize(const std::string& filepath)
 				bc.Size = bcVal.Get("Size").AsVec3(glm::vec3(1.0f));
 				bc.Center = bcVal.Get("Center").AsVec3(glm::vec3(0.0f));
 				bc.IsTrigger = bcVal.Get("IsTrigger").AsBool(false);
+				if (bcVal.Has("Layer")) bc.Layer = static_cast<uint32_t>(bcVal.Get("Layer").AsInt(1));
+				if (bcVal.Has("Mask")) bc.Mask = static_cast<uint32_t>(bcVal.Get("Mask").AsInt(-1));
 				entity.AddComponent<BoxColliderComponent>(bc);
 			}
 
@@ -556,6 +583,8 @@ bool SceneSerializer::Deserialize(const std::string& filepath)
 				sc.Radius = scVal.Get("Radius").AsFloat(0.5f);
 				sc.Center = scVal.Get("Center").AsVec3(glm::vec3(0.0f));
 				sc.IsTrigger = scVal.Get("IsTrigger").AsBool(false);
+				if (scVal.Has("Layer")) sc.Layer = static_cast<uint32_t>(scVal.Get("Layer").AsInt(1));
+				if (scVal.Has("Mask")) sc.Mask = static_cast<uint32_t>(scVal.Get("Mask").AsInt(-1));
 				entity.AddComponent<SphereColliderComponent>(sc);
 			}
 
@@ -566,6 +595,8 @@ bool SceneSerializer::Deserialize(const std::string& filepath)
 				cc.Height = ccVal.Get("Height").AsFloat(1.0f);
 				cc.Center = ccVal.Get("Center").AsVec3(glm::vec3(0.0f));
 				cc.IsTrigger = ccVal.Get("IsTrigger").AsBool(false);
+				if (ccVal.Has("Layer")) cc.Layer = static_cast<uint32_t>(ccVal.Get("Layer").AsInt(1));
+				if (ccVal.Has("Mask")) cc.Mask = static_cast<uint32_t>(ccVal.Get("Mask").AsInt(-1));
 				entity.AddComponent<CapsuleColliderComponent>(cc);
 			}
 
@@ -573,7 +604,24 @@ bool SceneSerializer::Deserialize(const std::string& filepath)
 				const auto& mcVal = entVal.Get("MeshCollider");
 				MeshColliderComponent mc;
 				mc.IsTrigger = mcVal.Get("IsTrigger").AsBool(false);
+				if (mcVal.Has("Layer")) mc.Layer = static_cast<uint32_t>(mcVal.Get("Layer").AsInt(1));
+				if (mcVal.Has("Mask")) mc.Mask = static_cast<uint32_t>(mcVal.Get("Mask").AsInt(-1));
 				entity.AddComponent<MeshColliderComponent>(mc);
+			}
+
+			if (entVal.Has("CharacterController")) {
+				const auto& cccVal = entVal.Get("CharacterController");
+				CharacterControllerComponent ccc;
+				ccc.Radius = cccVal.Get("Radius").AsFloat(0.4f);
+				ccc.Height = cccVal.Get("Height").AsFloat(1.8f);
+				ccc.StepOffset = cccVal.Get("StepOffset").AsFloat(0.35f);
+				ccc.SlopeLimit = cccVal.Get("SlopeLimit").AsFloat(45.0f);
+				ccc.SkinWidth = cccVal.Get("SkinWidth").AsFloat(0.04f);
+				ccc.Gravity = cccVal.Get("Gravity").AsFloat(-20.0f);
+				ccc.Center = cccVal.Get("Center").AsVec3(glm::vec3(0.0f, 0.9f, 0.0f));
+				if (cccVal.Has("Layer")) ccc.Layer = static_cast<uint32_t>(cccVal.Get("Layer").AsInt(4));
+				if (cccVal.Has("CollisionMask")) ccc.CollisionMask = static_cast<uint32_t>(cccVal.Get("CollisionMask").AsInt(3));
+				entity.AddComponent<CharacterControllerComponent>(ccc);
 			}
 
 			if (entVal.Has("NativeScript")) {

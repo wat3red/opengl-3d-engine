@@ -25,6 +25,7 @@ public:
 	}
 
 	Entity GetEntity() const { return m_Entity; }
+	Scene* GetScene() const { return m_Entity.GetScene(); }
 
 protected:
 	virtual void OnCreate() {}

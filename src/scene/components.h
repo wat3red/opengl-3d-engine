@@ -15,6 +15,9 @@
 #include "physics/rigidbody.h"
 #include "audio_engine.h"
 
+class Scene;
+class Entity;
+
 // Forward declaration of LightType enum (or defined here/in light.h)
 #ifndef LIGHT_TYPE_ENUM_DEFINED
 #define LIGHT_TYPE_ENUM_DEFINED
@@ -270,20 +273,24 @@ struct BoxColliderComponent {
 	glm::vec3 Size{ 1.0f, 1.0f, 1.0f };
 	glm::vec3 Center{ 0.0f, 0.0f, 0.0f };
 	bool IsTrigger = false;
+	uint32_t Layer = 1; // Physics::Layer_Default
+	uint32_t Mask = 0xFFFFFFFF; // Physics::Layer_All
 
 	BoxColliderComponent() = default;
-	BoxColliderComponent(const glm::vec3& size, const glm::vec3& center = glm::vec3(0.0f), bool isTrigger = false)
-		: Size(size), Center(center), IsTrigger(isTrigger) {}
+	BoxColliderComponent(const glm::vec3& size, const glm::vec3& center = glm::vec3(0.0f), bool isTrigger = false, uint32_t layer = 1, uint32_t mask = 0xFFFFFFFF)
+		: Size(size), Center(center), IsTrigger(isTrigger), Layer(layer), Mask(mask) {}
 };
 
 struct SphereColliderComponent {
 	float Radius = 0.5f;
 	glm::vec3 Center{ 0.0f, 0.0f, 0.0f };
 	bool IsTrigger = false;
+	uint32_t Layer = 1;
+	uint32_t Mask = 0xFFFFFFFF;
 
 	SphereColliderComponent() = default;
-	SphereColliderComponent(float radius, const glm::vec3& center = glm::vec3(0.0f), bool isTrigger = false)
-		: Radius(radius), Center(center), IsTrigger(isTrigger) {}
+	SphereColliderComponent(float radius, const glm::vec3& center = glm::vec3(0.0f), bool isTrigger = false, uint32_t layer = 1, uint32_t mask = 0xFFFFFFFF)
+		: Radius(radius), Center(center), IsTrigger(isTrigger), Layer(layer), Mask(mask) {}
 };
 
 struct CapsuleColliderComponent {
@@ -291,17 +298,47 @@ struct CapsuleColliderComponent {
 	float Height = 1.0f;
 	glm::vec3 Center{ 0.0f, 0.0f, 0.0f };
 	bool IsTrigger = false;
+	uint32_t Layer = 1;
+	uint32_t Mask = 0xFFFFFFFF;
 
 	CapsuleColliderComponent() = default;
-	CapsuleColliderComponent(float radius, float height, const glm::vec3& center = glm::vec3(0.0f), bool isTrigger = false)
-		: Radius(radius), Height(height), Center(center), IsTrigger(isTrigger) {}
+	CapsuleColliderComponent(float radius, float height, const glm::vec3& center = glm::vec3(0.0f), bool isTrigger = false, uint32_t layer = 1, uint32_t mask = 0xFFFFFFFF)
+		: Radius(radius), Height(height), Center(center), IsTrigger(isTrigger), Layer(layer), Mask(mask) {}
 };
 
 struct MeshColliderComponent {
 	bool IsTrigger = false;
+	uint32_t Layer = 1;
+	uint32_t Mask = 0xFFFFFFFF;
 
 	MeshColliderComponent() = default;
-	explicit MeshColliderComponent(bool isTrigger) : IsTrigger(isTrigger) {}
+	explicit MeshColliderComponent(bool isTrigger, uint32_t layer = 1, uint32_t mask = 0xFFFFFFFF)
+		: IsTrigger(isTrigger), Layer(layer), Mask(mask) {}
+};
+
+// Kinematic Character Controller Component
+struct CharacterControllerComponent {
+	float Radius = 0.4f;
+	float Height = 1.8f;
+	float StepOffset = 0.35f;
+	float SlopeLimit = 45.0f; // degrees
+	float SkinWidth = 0.04f;
+	float Gravity = -20.0f;
+	glm::vec3 Center{ 0.0f, 0.9f, 0.0f };
+
+	uint32_t Layer = 4; // Physics::Layer_Player (1 << 2)
+	uint32_t CollisionMask = 3; // Physics::Layer_Default (1) | Physics::Layer_Static (2)
+
+	// Runtime state
+	bool IsGrounded = false;
+	glm::vec3 Velocity{ 0.0f };
+	glm::vec3 GroundNormal{ 0.0f, 1.0f, 0.0f };
+
+	CharacterControllerComponent() = default;
+
+	glm::vec3 Move(Scene& scene, Entity entity, const glm::vec3& displacement);
+	void SimpleMove(Scene& scene, Entity entity, const glm::vec3& horizontalVelocity, float deltaTime);
+	void Jump(float jumpForce);
 };
 
 // 3D Audio Source Component

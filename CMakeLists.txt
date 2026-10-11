@@ -52,6 +52,7 @@ set(ENGINE_SOURCES
     # Physics
     src/physics/rigidbody.cpp
     src/physics/collision.cpp
+    src/physics/character_controller.cpp
 
     # Editor
     src/editor/editor.cpp
@@ -117,6 +118,9 @@ set(ENGINE_HEADERS
     # Physics
     src/physics/rigidbody.h
     src/physics/collision.h
+
+    # Scripts
+    src/scripts/fps_controller.h
 
     # Editor
     src/editor/editor.h

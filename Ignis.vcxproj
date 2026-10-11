@@ -153,6 +153,7 @@
     <ClCompile Include="src\core\input.cpp" />
     <ClCompile Include="src\core\window.cpp" />
     <ClCompile Include="src\physics\collision.cpp" />
+    <ClCompile Include="src\physics\character_controller.cpp" />
     <ClCompile Include="src\renderer\framebuffer.cpp" />
     <ClCompile Include="src\renderer\index_buffer.cpp" />
     <ClCompile Include="src\renderer\bloom_renderer.cpp" />
@@ -225,6 +226,7 @@
     <ClInclude Include="vendor\miniaudio\miniaudio.h" />
     <ClInclude Include="src\physics\rigidbody.h" />
     <ClInclude Include="src\physics\collision.h" />
+    <ClInclude Include="src\scripts\fps_controller.h" />
     <ClInclude Include="src\editor\editor.h" />
     <ClInclude Include="vendor\assimp\aabb.h" />
     <ClInclude Include="vendor\assimp\ai_assert.h" />
