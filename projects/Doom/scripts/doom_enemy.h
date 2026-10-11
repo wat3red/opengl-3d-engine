@@ -10,6 +10,7 @@
 class DoomEnemy : public ScriptableEntity {
 public:
 	int Health = 80;
+	int MaxHealth = 80;
 	float MoveSpeed = 4.5f;
 	float DetectionRadius = 40.0f;
 	float AttackRadius = 2.4f;
@@ -18,8 +19,17 @@ public:
 
 	bool IsDead = false;
 
+	glm::vec3 SpawnPosition{ 0.0f };
+	glm::vec3 SpawnRotation{ 0.0f };
+	glm::vec3 SpawnScale{ 1.0f };
+
 	void OnCreate() override
 	{
+		auto& tc = GetComponent<TransformComponent>();
+		SpawnPosition = tc.Position;
+		SpawnRotation = tc.Rotation;
+		SpawnScale = tc.Scale;
+
 		++DoomGameState::DemonsRemaining;
 
 		std::string tag = "Demon";
@@ -49,6 +59,7 @@ public:
 			AttackRadius = 2.2f;
 			DetectionRadius = 38.0f;
 		}
+		MaxHealth = Health;
 
 		glm::vec3 boxSize(2.2f, 2.2f, 2.2f);
 		glm::vec3 boxCenter(0.0f, 1.1f, 0.0f);
@@ -242,6 +253,41 @@ public:
 		if (DoomGameState::DemonsRemaining <= 0)
 		{
 			DoomGameState::Victory = true;
+		}
+	}
+
+	void Respawn()
+	{
+		Health = MaxHealth;
+		IsDead = false;
+		m_AttackTimer = 0.5f;
+		m_HurtFlashTimer = 0.0f;
+		m_FlyBobTimer = 0.0f;
+
+		auto& tc = GetComponent<TransformComponent>();
+		tc.Position = SpawnPosition;
+		tc.Rotation = SpawnRotation;
+		tc.Scale = SpawnScale;
+
+		if (HasComponent<BoxColliderComponent>())
+		{
+			GetComponent<BoxColliderComponent>().Layer = Physics::Layer_Enemy;
+		}
+		if (HasComponent<SphereColliderComponent>())
+		{
+			GetComponent<SphereColliderComponent>().Layer = Physics::Layer_Enemy;
+		}
+
+		if (HasComponent<CharacterControllerComponent>())
+		{
+			GetComponent<CharacterControllerComponent>().Velocity = glm::vec3(0.0f);
+		}
+
+		if (HasComponent<MaterialComponent>())
+		{
+			auto& mat = GetComponent<MaterialComponent>();
+			mat.Properties.EmissionColor = glm::vec3(0.4f, 0.1f, 0.05f);
+			mat.Properties.EmissionIntensity = 1.5f;
 		}
 	}
 

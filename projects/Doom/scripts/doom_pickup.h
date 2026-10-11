@@ -17,8 +17,16 @@ public:
 	int Amount = 25;
 	bool Collected = false;
 
+	glm::vec3 SpawnPosition{ 0.0f };
+	glm::vec3 SpawnScale{ 1.0f };
+
 	void OnCreate() override
 	{
+		auto& tc = GetComponent<TransformComponent>();
+		SpawnPosition = tc.Position;
+		SpawnScale = tc.Scale;
+		m_InitialY = tc.Position.y;
+
 		if (HasComponent<TagComponent>())
 		{
 			const auto& tag = GetComponent<TagComponent>().Tag;
@@ -37,7 +45,6 @@ public:
 			}
 		}
 
-		m_InitialY = GetComponent<TransformComponent>().Position.y;
 		m_PickupSfx = AudioEngine::Get().CreateSound("res/audio/item_pickup.wav", false, false);
 
 		if (!HasComponent<MaterialComponent>())
@@ -103,6 +110,15 @@ public:
 				tc.Position.y = -50.0f;
 			}
 		}
+	}
+
+	void Respawn()
+	{
+		Collected = false;
+		m_Time = 0.0f;
+		auto& tc = GetComponent<TransformComponent>();
+		tc.Position = SpawnPosition;
+		tc.Scale = SpawnScale;
 	}
 
 private:

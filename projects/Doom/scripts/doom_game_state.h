@@ -23,7 +23,7 @@ struct DoomGameState {
 	static inline glm::vec3 PlayerPosition{ 0.0f, 1.8f, 0.0f };
 	static inline glm::vec3 PlayerForward{ 0.0f, 0.0f, -1.0f };
 
-	static void Reset()
+	static void ResetPlayerState()
 	{
 		PlayerHealth = 100;
 		PlayerMaxHealth = 100;
@@ -31,8 +31,6 @@ struct DoomGameState {
 		PlayerMaxArmor = 100;
 		ShellsAmmo = 24;
 		MaxShells = 60;
-		DemonsRemaining = 0;
-		Score = 0;
 		HitmarkerTimer = 0.0f;
 		DamageFlashTimer = 0.0f;
 		MuzzleFlashTimer = 0.0f;
@@ -40,7 +38,12 @@ struct DoomGameState {
 		Victory = false;
 		PlayerPosition = glm::vec3(0.0f, 1.8f, 0.0f);
 		PlayerForward = glm::vec3(0.0f, 0.0f, -1.0f);
+	}
 
-		std::println("Reset being called");
+	static void Reset()
+	{
+		ResetPlayerState();
+		DemonsRemaining = 0;
+		Score = 0;
 	}
 };

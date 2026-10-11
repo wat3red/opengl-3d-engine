@@ -3,6 +3,7 @@
 #include <ignis/ignis.h>
 #include "doom_game_state.h"
 #include "doom_enemy.h"
+#include "doom_pickup.h"
 #include "doom_hud.h"
 #include <iostream>
 #include <print>
@@ -21,9 +22,14 @@ public:
 	float Pitch = 0.0f;
 	bool CursorLocked = true;
 
+	glm::vec3 SpawnPosition{ 0.0f, 0.05f, 56.0f };
+
 	void OnCreate() override
 	{
-		DoomGameState::Reset();
+		DoomGameState::ResetPlayerState();
+
+		auto& tc = GetComponent<TransformComponent>();
+		SpawnPosition = tc.Position;
 
 		Input::SetCursorMode(CursorMode::Locked);
 		CursorLocked = true;
@@ -37,6 +43,64 @@ public:
 
 		m_ShotgunSfx = AudioEngine::Get().CreateSound("res/audio/shotgun_fire.wav", false, false);
 		m_JumpSfx = AudioEngine::Get().CreateSound("res/audio/player_jump.wav", false, false);
+	}
+
+	void Respawn()
+	{
+		auto& tc = GetComponent<TransformComponent>();
+		tc.Position = SpawnPosition;
+		Yaw = -90.0f;
+		Pitch = 0.0f;
+		tc.Rotation = glm::vec3(0.0f, -90.0f, 0.0f);
+
+		if (HasComponent<CameraComponent>())
+		{
+			GetComponent<CameraComponent>().CameraInstance.SetYawAndPitch(Yaw, Pitch);
+		}
+
+		if (HasComponent<CharacterControllerComponent>())
+		{
+			GetComponent<CharacterControllerComponent>().Velocity = glm::vec3(0.0f);
+		}
+
+		CursorLocked = true;
+		Input::SetCursorMode(CursorMode::Locked);
+		m_ShootCooldown = 0.2f;
+	}
+
+	void RestartGame()
+	{
+		Scene* scene = GetScene();
+		if (!scene)
+			return;
+
+		DoomGameState::ResetPlayerState();
+
+		int demonCount = 0;
+		auto view = scene->GetRegistry().view<TagComponent, NativeScriptComponent>();
+		for (auto [handle, tag, nsc] : view.each())
+		{
+			if (nsc.Instance)
+			{
+				if (nsc.ScriptName == "DoomEnemy")
+				{
+					auto* enemy = static_cast<DoomEnemy*>(nsc.Instance);
+					enemy->Respawn();
+					demonCount++;
+				}
+				else if (nsc.ScriptName == "DoomPickup")
+				{
+					auto* pickup = static_cast<DoomPickup*>(nsc.Instance);
+					pickup->Respawn();
+				}
+			}
+		}
+
+		Respawn();
+
+		DoomGameState::DemonsRemaining = demonCount;
+		DoomGameState::GameOver = false;
+		DoomGameState::Victory = false;
 	}
 
 	void OnUpdate(float deltaTime) override
@@ -57,8 +121,7 @@ public:
 		// Restart on R if GameOver / Victory
 		if ((DoomGameState::GameOver || DoomGameState::Victory) && Input::IsKeyPressed(KeyCode::R))
 		{
-			DoomGameState::Reset();
-			GetComponent<TransformComponent>().Position = glm::vec3(0.0f, 0.05f, 56.0f);
+			RestartGame();
 		}
 
 		// Cursor toggle on Escape / Left click
@@ -158,6 +221,9 @@ public:
 
 	void OnDestroy() override
 	{
+		DoomGameState::DemonsRemaining = 0;
+		DoomGameState::GameOver = false;
+		DoomGameState::Victory = false;
 		Input::SetCursorMode(CursorMode::Normal);
 	}
 
