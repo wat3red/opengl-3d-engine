@@ -15,11 +15,14 @@ out mat3 TBN;
 uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
+uniform vec2 uvTiling;
+uniform vec2 uvOffset;
 
 void main()
 {
     FragPos = vec3(model * vec4(aPos, 1.0));
-    TexCoords = aTexCoords;
+    vec2 tiling = (uvTiling == vec2(0.0)) ? vec2(1.0) : uvTiling;
+    TexCoords = aTexCoords * tiling + uvOffset;
 
     mat3 normalMatrix = transpose(inverse(mat3(model)));
     vec3 N = normalize(normalMatrix * aNormal);
@@ -73,6 +76,8 @@ uniform vec4 baseColorFactor;
 uniform float metallicFactor;
 uniform float roughnessFactor;
 uniform float aoStrength;
+uniform vec3 emissionColor;
+uniform float emissionIntensity;
 
 // Lights
 struct DirLight {
@@ -479,7 +484,8 @@ void main()
     // Ambient Lighting (soft ambient scaled by AO)
     vec3 ambient = (dirLight.color * dirLight.intensity * 0.05 + vec3(0.03)) * albedo * ao;
 
-    vec3 color = ambient + Lo;
+    vec3 emission = emissionColor * emissionIntensity;
+    vec3 color = ambient + Lo + emission;
 
     if (fogEnabled == 1)
     {

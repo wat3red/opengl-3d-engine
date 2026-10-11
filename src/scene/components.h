@@ -8,6 +8,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "model.h"
+#include "material.h"
 #include "asset_manager.h"
 #include "shader.h"
 #include "camera.h"
@@ -89,12 +90,12 @@ struct MeshComponent {
 		}
 	}
 
-	void Draw(Shader& shader, const glm::mat4& transform)
+	void Draw(Shader& shader, const glm::mat4& transform, const MaterialProperties* materialProps = nullptr)
 	{
 		if (ModelAsset)
 		{
 			shader.SetUniformMat4f("model", transform);
-			ModelAsset->Draw(shader);
+			ModelAsset->Draw(shader, materialProps);
 		}
 	}
 
@@ -126,6 +127,35 @@ struct MeshComponent {
 			outMin = glm::min(outMin, transformed);
 			outMax = glm::max(outMax, transformed);
 		}
+	}
+};
+
+// PBR Material Component
+struct MaterialComponent {
+	std::string MaterialName = "Default";
+	MaterialProperties Properties;
+
+	MaterialComponent() = default;
+	explicit MaterialComponent(const std::string& name) : MaterialName(name) {}
+	explicit MaterialComponent(MaterialPreset preset)
+	{
+		Properties = MaterialProperties::CreatePreset(preset);
+		switch (preset)
+		{
+		case MaterialPreset::Metal: MaterialName = "Metal"; break;
+		case MaterialPreset::Gold: MaterialName = "Gold"; break;
+		case MaterialPreset::Copper: MaterialName = "Copper"; break;
+		case MaterialPreset::PlasticRough: MaterialName = "Plastic Rough"; break;
+		case MaterialPreset::GlassSmooth: MaterialName = "Glass Smooth"; break;
+		case MaterialPreset::EmissiveCore: MaterialName = "Emissive Core"; break;
+		case MaterialPreset::ConcreteStone: MaterialName = "Concrete"; break;
+		default: MaterialName = "Default"; break;
+		}
+	}
+
+	void SetPreset(MaterialPreset preset)
+	{
+		Properties = MaterialProperties::CreatePreset(preset);
 	}
 };
 

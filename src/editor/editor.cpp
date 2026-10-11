@@ -369,6 +369,8 @@ void Editor::RenderUI(float deltaTime)
 	DrawEntityInspectorPanel();
 	DrawEnvironmentPanel();
 	DrawMetricsPanel(deltaTime);
+	if (m_ShowContentBrowser)
+		DrawContentBrowserPanel();
 
 	m_ResetLayout = false;
 
@@ -578,6 +580,7 @@ void Editor::DrawSceneHierarchyPanel()
 
 		std::string componentBadges = "";
 		if (entity.HasComponent<MeshComponent>()) componentBadges += "[Mesh] ";
+		if (entity.HasComponent<MaterialComponent>()) componentBadges += "[Mat] ";
 		if (entity.HasComponent<LightComponent>()) componentBadges += "[Light] ";
 		if (entity.HasComponent<CameraComponent>()) componentBadges += "[Camera] ";
 		if (entity.HasComponent<BoxColliderComponent>() || entity.HasComponent<SphereColliderComponent>() || entity.HasComponent<CapsuleColliderComponent>() || entity.HasComponent<MeshColliderComponent>()) componentBadges += "[Col] ";
@@ -823,6 +826,112 @@ void Editor::DrawEntityInspectorPanel()
 		}
 	}
 
+	// Material Component
+	if (selectedEntity.HasComponent<MaterialComponent>())
+	{
+		ImGui::Separator();
+		if (ImGui::CollapsingHeader("PBR Material", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			auto& mat = selectedEntity.GetComponent<MaterialComponent>();
+
+			char matNameBuf[64];
+			strncpy_s(matNameBuf, mat.MaterialName.c_str(), sizeof(matNameBuf));
+			if (ImGui::InputText("Material Name", matNameBuf, sizeof(matNameBuf)))
+			{
+				mat.MaterialName = matNameBuf;
+			}
+
+			// Preset selector
+			const char* presetNames[] = {
+				"Select Preset...",
+				"Default (White)",
+				"Metal / Chrome",
+				"Gold",
+				"Copper",
+				"Plastic (Rough)",
+				"Glass (Smooth)",
+				"Emissive Core",
+				"Concrete / Stone"
+			};
+			static int selectedPreset = 0;
+			if (ImGui::Combo("Presets", &selectedPreset, presetNames, IM_ARRAYSIZE(presetNames)))
+			{
+				if (selectedPreset > 0)
+				{
+					mat.SetPreset(static_cast<MaterialPreset>(selectedPreset));
+					switch (static_cast<MaterialPreset>(selectedPreset))
+					{
+					case MaterialPreset::Metal: mat.MaterialName = "Metal"; break;
+					case MaterialPreset::Gold: mat.MaterialName = "Gold"; break;
+					case MaterialPreset::Copper: mat.MaterialName = "Copper"; break;
+					case MaterialPreset::PlasticRough: mat.MaterialName = "Plastic Rough"; break;
+					case MaterialPreset::GlassSmooth: mat.MaterialName = "Glass Smooth"; break;
+					case MaterialPreset::EmissiveCore: mat.MaterialName = "Emissive Core"; break;
+					case MaterialPreset::ConcreteStone: mat.MaterialName = "Concrete"; break;
+					default: mat.MaterialName = "Default"; break;
+					}
+					selectedPreset = 0;
+				}
+			}
+
+			ImGui::ColorEdit4("Albedo Color", &mat.Properties.AlbedoColor.x);
+			ImGui::SliderFloat("Metallic", &mat.Properties.Metallic, 0.0f, 1.0f);
+			ImGui::SliderFloat("Roughness", &mat.Properties.Roughness, 0.0f, 1.0f);
+			ImGui::SliderFloat("Ambient Occlusion", &mat.Properties.AO, 0.0f, 1.0f);
+
+			ImGui::ColorEdit3("Emission Color", &mat.Properties.EmissionColor.x);
+			ImGui::DragFloat("Emission Intensity", &mat.Properties.EmissionIntensity, 0.1f, 0.0f, 50.0f);
+
+			ImGui::DragFloat2("UV Tiling", &mat.Properties.Tiling.x, 0.05f, 0.01f, 100.0f);
+			ImGui::DragFloat2("UV Offset", &mat.Properties.Offset.x, 0.01f, -10.0f, 10.0f);
+
+			if (ImGui::TreeNodeEx("Custom Texture Maps", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				auto DrawTextureSlot = [&](const char* label, std::string& path, std::shared_ptr<Texture2D>& tex) {
+					char pathBuf[256];
+					strncpy_s(pathBuf, path.c_str(), sizeof(pathBuf));
+					ImGui::PushID(label);
+					if (ImGui::InputText(label, pathBuf, sizeof(pathBuf)))
+					{
+						path = pathBuf;
+					}
+					ImGui::SameLine();
+					if (ImGui::Button("Load"))
+					{
+						path = pathBuf;
+						tex = AssetManager::Get().LoadTexture(path);
+					}
+					if (!path.empty())
+					{
+						ImGui::SameLine();
+						if (ImGui::Button("Clear"))
+						{
+							path = "";
+							tex = nullptr;
+						}
+					}
+					if (tex)
+					{
+						ImGui::TextColored(ImVec4(0.3f, 0.9f, 0.4f, 1.0f), "  -> Bound (%dx%d)", tex->GetWidth(), tex->GetHeight());
+					}
+					ImGui::PopID();
+				};
+
+				DrawTextureSlot("Albedo Map", mat.Properties.AlbedoMapPath, mat.Properties.AlbedoMap);
+				DrawTextureSlot("Normal Map", mat.Properties.NormalMapPath, mat.Properties.NormalMap);
+				DrawTextureSlot("Metallic-Roughness", mat.Properties.MetallicRoughnessMapPath, mat.Properties.MetallicRoughnessMap);
+				DrawTextureSlot("AO Map", mat.Properties.AOMapPath, mat.Properties.AOMap);
+
+				ImGui::TreePop();
+			}
+
+			if (ImGui::Button("Remove Material Component"))
+			{
+				selectedEntity.RemoveComponent<MaterialComponent>();
+			}
+		}
+	}
+
 	// Light Component
 	if (selectedEntity.HasComponent<LightComponent>())
 	{
@@ -1020,6 +1129,13 @@ void Editor::DrawEntityInspectorPanel()
 			if (ImGui::MenuItem("Mesh Component"))
 			{
 				selectedEntity.AddComponent<MeshComponent>();
+			}
+		}
+		if (!selectedEntity.HasComponent<MaterialComponent>())
+		{
+			if (ImGui::MenuItem("Material Component"))
+			{
+				selectedEntity.AddComponent<MaterialComponent>();
 			}
 		}
 		if (!selectedEntity.HasComponent<LightComponent>())
@@ -1389,6 +1505,8 @@ void Editor::DrawMainMenuBar()
 
 		if (ImGui::BeginMenu("Window"))
 		{
+			ImGui::MenuItem("Content Browser", nullptr, &m_ShowContentBrowser);
+			ImGui::Separator();
 			if (ImGui::MenuItem("Reset Layout"))
 			{
 				m_ResetLayout = true;
@@ -1456,3 +1574,206 @@ void Editor::DrawModals()
 		ImGui::EndPopup();
 	}
 }
+
+void Editor::DrawContentBrowserPanel()
+{
+	if (m_ResetLayout)
+	{
+		ImGui::SetNextWindowPos(ImVec2(290, 620), ImGuiCond_Always);
+		ImGui::SetNextWindowSize(ImVec2(1010, 270), ImGuiCond_Always);
+	}
+
+	if (!ImGui::Begin("Content Browser", &m_ShowContentBrowser))
+	{
+		ImGui::End();
+		return;
+	}
+
+	// Navigation Bar
+	bool hasParent = (m_ContentBrowserCurrentPath != "res" && m_ContentBrowserCurrentPath.has_parent_path());
+	if (hasParent)
+	{
+		if (ImGui::Button("<- Back"))
+		{
+			m_ContentBrowserCurrentPath = m_ContentBrowserCurrentPath.parent_path();
+		}
+		ImGui::SameLine();
+	}
+
+	// Quick jump buttons
+	if (ImGui::Button("res")) m_ContentBrowserCurrentPath = "res";
+	ImGui::SameLine();
+	if (ImGui::Button("models")) m_ContentBrowserCurrentPath = "res/models";
+	ImGui::SameLine();
+	if (ImGui::Button("textures")) m_ContentBrowserCurrentPath = "res/textures";
+	ImGui::SameLine();
+	if (ImGui::Button("scenes")) m_ContentBrowserCurrentPath = "res/scenes";
+	ImGui::SameLine();
+	if (ImGui::Button("shaders")) m_ContentBrowserCurrentPath = "shaders";
+	ImGui::SameLine();
+
+	ImGui::TextDisabled("| Path: %s", m_ContentBrowserCurrentPath.string().c_str());
+
+	ImGui::Separator();
+
+	// Search filter
+	static char searchFilter[64] = "";
+	ImGui::SetNextItemWidth(250.0f);
+	ImGui::InputTextWithHint("##SearchFilter", "Search files...", searchFilter, sizeof(searchFilter));
+	std::string searchStr = searchFilter;
+	std::transform(searchStr.begin(), searchStr.end(), searchStr.begin(), ::tolower);
+
+	ImGui::Separator();
+
+	std::error_code ec;
+	if (std::filesystem::exists(m_ContentBrowserCurrentPath, ec) && std::filesystem::is_directory(m_ContentBrowserCurrentPath, ec))
+	{
+		Entity selectedEntity = m_Scene.GetSelectedEntity();
+
+		if (ImGui::BeginTable("ContentBrowserTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY))
+		{
+			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("Type / Size", ImGuiTableColumnFlags_WidthFixed, 110.0f);
+			ImGui::TableSetupColumn("Actions", ImGuiTableColumnFlags_WidthFixed, 230.0f);
+			ImGui::TableHeadersRow();
+
+			for (const auto& entry : std::filesystem::directory_iterator(m_ContentBrowserCurrentPath, ec))
+			{
+				const auto& path = entry.path();
+				std::string filename = path.filename().string();
+
+				if (!searchStr.empty())
+				{
+					std::string lowerName = filename;
+					std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
+					if (lowerName.find(searchStr) == std::string::npos)
+						continue;
+				}
+
+				ImGui::TableNextRow();
+
+				if (entry.is_directory())
+				{
+					ImGui::TableSetColumnIndex(0);
+					std::string dirLabel = "[DIR] " + filename;
+					if (ImGui::Selectable(dirLabel.c_str(), false))
+					{
+						m_ContentBrowserCurrentPath /= path.filename();
+					}
+
+					ImGui::TableSetColumnIndex(1);
+					ImGui::TextDisabled("Folder");
+
+					ImGui::TableSetColumnIndex(2);
+					if (ImGui::SmallButton(("Open##" + filename).c_str()))
+					{
+						m_ContentBrowserCurrentPath /= path.filename();
+					}
+				}
+				else
+				{
+					std::string ext = path.extension().string();
+					std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+					ImGui::TableSetColumnIndex(0);
+					std::string fileLabel = filename;
+					if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj") fileLabel = "[3D] " + filename;
+					else if (ext == ".scene") fileLabel = "[SCENE] " + filename;
+					else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga") fileLabel = "[TEX] " + filename;
+					else if (ext == ".shader") fileLabel = "[SHD] " + filename;
+					else fileLabel = "[FILE] " + filename;
+
+					ImGui::Text("%s", fileLabel.c_str());
+
+					ImGui::TableSetColumnIndex(1);
+					auto fileSize = entry.file_size(ec);
+					if (fileSize > 1024 * 1024)
+						ImGui::Text("%.1f MB", static_cast<float>(fileSize) / (1024.0f * 1024.0f));
+					else if (fileSize > 1024)
+						ImGui::Text("%.1f KB", static_cast<float>(fileSize) / 1024.0f);
+					else
+						ImGui::Text("%llu B", fileSize);
+
+					ImGui::TableSetColumnIndex(2);
+					std::string fullPathStr = path.generic_string();
+
+					if (ext == ".gltf" || ext == ".glb" || ext == ".fbx" || ext == ".obj")
+					{
+						if (ImGui::SmallButton(("Spawn##" + filename).c_str()))
+						{
+							Entity e = m_Scene.CreateModelEntity(path.stem().string(), fullPathStr);
+							e.SetPosition(m_Camera.Position + m_Camera.Front * 5.0f);
+							m_Scene.SetSelectedEntity(e);
+						}
+						if (selectedEntity && selectedEntity.HasComponent<MeshComponent>())
+						{
+							ImGui::SameLine();
+							if (ImGui::SmallButton(("Assign##" + filename).c_str()))
+							{
+								selectedEntity.GetComponent<MeshComponent>().LoadModel(fullPathStr);
+							}
+						}
+					}
+					else if (ext == ".scene")
+					{
+						if (ImGui::SmallButton(("Load Scene##" + filename).c_str()))
+						{
+							LoadScene(fullPathStr);
+						}
+					}
+					else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".tga")
+					{
+						if (selectedEntity && selectedEntity.HasComponent<MaterialComponent>())
+						{
+							auto& mat = selectedEntity.GetComponent<MaterialComponent>();
+							if (ImGui::SmallButton(("Albedo##" + filename).c_str()))
+							{
+								mat.Properties.AlbedoMapPath = fullPathStr;
+								mat.Properties.AlbedoMap = AssetManager::Get().LoadTexture(fullPathStr);
+							}
+							ImGui::SameLine();
+							if (ImGui::SmallButton(("Norm##" + filename).c_str()))
+							{
+								mat.Properties.NormalMapPath = fullPathStr;
+								mat.Properties.NormalMap = AssetManager::Get().LoadTexture(fullPathStr);
+							}
+							ImGui::SameLine();
+							if (ImGui::SmallButton(("MR##" + filename).c_str()))
+							{
+								mat.Properties.MetallicRoughnessMapPath = fullPathStr;
+								mat.Properties.MetallicRoughnessMap = AssetManager::Get().LoadTexture(fullPathStr);
+							}
+							ImGui::SameLine();
+							if (ImGui::SmallButton(("AO##" + filename).c_str()))
+							{
+								mat.Properties.AOMapPath = fullPathStr;
+								mat.Properties.AOMap = AssetManager::Get().LoadTexture(fullPathStr);
+							}
+						}
+						else
+						{
+							ImGui::TextDisabled("Select entity w/ Mat");
+						}
+					}
+					else
+					{
+						ImGui::TextDisabled("-");
+					}
+				}
+			}
+
+			ImGui::EndTable();
+		}
+	}
+	else
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Directory '%s' does not exist.", m_ContentBrowserCurrentPath.string().c_str());
+		if (ImGui::Button("Reset to 'res'"))
+		{
+			m_ContentBrowserCurrentPath = "res";
+		}
+	}
+
+	ImGui::End();
+}
+

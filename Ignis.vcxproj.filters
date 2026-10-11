@@ -48,6 +48,9 @@
     <ClCompile Include="src\renderer\shader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\renderer\material.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\renderer\shadow_renderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -147,6 +150,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\renderer\mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\renderer\material.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\renderer\model.h">

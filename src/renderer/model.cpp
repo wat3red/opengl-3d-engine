@@ -153,9 +153,9 @@ Model::~Model() {
 	}
 }
 
-void Model::Draw(Shader& shader) {
+void Model::Draw(Shader& shader, const MaterialProperties* materialProps) {
 	for (unsigned int i = 0; i < meshes.size(); i++) {
-		meshes[i].Draw(shader);
+		meshes[i].Draw(shader, materialProps);
 	}
 }
 

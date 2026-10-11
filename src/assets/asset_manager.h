@@ -2,6 +2,7 @@
 
 #include "shader.h"
 #include "model.h"
+#include "texture.h"
 #include "texture_cube.h"
 #include <string>
 #include <memory>
@@ -20,6 +21,10 @@ public:
 	[[nodiscard]] std::shared_ptr<Model> GetModel(const std::string& filepath);
 	[[nodiscard]] bool HasModel(const std::string& filepath) const;
 
+	std::shared_ptr<Texture2D> LoadTexture(const std::string& filepath);
+	[[nodiscard]] std::shared_ptr<Texture2D> GetTexture(const std::string& filepath);
+	[[nodiscard]] bool HasTexture(const std::string& filepath) const;
+
 	std::shared_ptr<TextureCube> LoadCubemap(const std::string& name, const std::vector<std::string>& facePaths);
 	[[nodiscard]] std::shared_ptr<TextureCube> GetCubemap(const std::string& name);
 	[[nodiscard]] bool HasCubemap(const std::string& name) const;
@@ -35,5 +40,6 @@ private:
 
 	std::unordered_map<std::string, std::shared_ptr<Shader>> m_Shaders;
 	std::unordered_map<std::string, std::shared_ptr<Model>> m_Models;
+	std::unordered_map<std::string, std::shared_ptr<Texture2D>> m_Textures;
 	std::unordered_map<std::string, std::shared_ptr<TextureCube>> m_Cubemaps;
 };

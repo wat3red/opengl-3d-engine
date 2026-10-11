@@ -30,7 +30,7 @@ public:
 	std::vector<Mesh>& GetMeshes() { return meshes; }
 	size_t GetMeshCount() const { return meshes.size(); }
 
-	void Draw(Shader& shader);
+	void Draw(Shader& shader, const MaterialProperties* materialProps = nullptr);
 private:
 	void loadModel(const std::string& path, bool flipUVs = false);
 	void processNode(aiNode* node, const aiScene* scene);

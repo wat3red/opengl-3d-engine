@@ -160,6 +160,7 @@
     <ClCompile Include="src\renderer\primitive.cpp" />
     <ClCompile Include="src\renderer\renderer.cpp" />
     <ClCompile Include="src\renderer\shader.cpp" />
+    <ClCompile Include="src\renderer\material.cpp" />
     <ClCompile Include="src\renderer\shadow_renderer.cpp" />
     <ClCompile Include="src\renderer\skybox.cpp" />
     <ClCompile Include="src\renderer\texture.cpp" />
@@ -198,6 +199,7 @@
     <ClInclude Include="src\renderer\bloom_renderer.h" />
     <ClInclude Include="src\renderer\frustum.h" />
     <ClInclude Include="src\renderer\mesh.h" />
+    <ClInclude Include="src\renderer\material.h" />
     <ClInclude Include="src\renderer\model.h" />
     <ClInclude Include="src\renderer\primitive.h" />
     <ClInclude Include="src\renderer\renderer.h" />

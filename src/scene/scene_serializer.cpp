@@ -48,9 +48,23 @@ struct JsonValue {
 		return (type == JsonType::String) ? strVal : defaultVal;
 	}
 
+	glm::vec2 AsVec2(const glm::vec2& defaultVal = glm::vec2(0.0f)) const {
+		if (type == JsonType::Array && arrVal.size() >= 2) {
+			return glm::vec2(arrVal[0].AsFloat(), arrVal[1].AsFloat());
+		}
+		return defaultVal;
+	}
+
 	glm::vec3 AsVec3(const glm::vec3& defaultVal = glm::vec3(0.0f)) const {
 		if (type == JsonType::Array && arrVal.size() >= 3) {
 			return glm::vec3(arrVal[0].AsFloat(), arrVal[1].AsFloat(), arrVal[2].AsFloat());
+		}
+		return defaultVal;
+	}
+
+	glm::vec4 AsVec4(const glm::vec4& defaultVal = glm::vec4(0.0f)) const {
+		if (type == JsonType::Array && arrVal.size() >= 4) {
+			return glm::vec4(arrVal[0].AsFloat(), arrVal[1].AsFloat(), arrVal[2].AsFloat(), arrVal[3].AsFloat());
 		}
 		return defaultVal;
 	}
@@ -350,6 +364,27 @@ bool SceneSerializer::Serialize(const std::string& filepath)
 			out << "\t\t\t}";
 		}
 
+		if (entity.HasComponent<MaterialComponent>())
+		{
+			const auto& mat = entity.GetComponent<MaterialComponent>();
+			out << ",\n";
+			out << "\t\t\t\"Material\": {\n";
+			out << "\t\t\t\t\"Name\": \"" << mat.MaterialName << "\",\n";
+			out << "\t\t\t\t\"AlbedoColor\": [" << mat.Properties.AlbedoColor.r << ", " << mat.Properties.AlbedoColor.g << ", " << mat.Properties.AlbedoColor.b << ", " << mat.Properties.AlbedoColor.a << "],\n";
+			out << "\t\t\t\t\"Metallic\": " << mat.Properties.Metallic << ",\n";
+			out << "\t\t\t\t\"Roughness\": " << mat.Properties.Roughness << ",\n";
+			out << "\t\t\t\t\"AO\": " << mat.Properties.AO << ",\n";
+			out << "\t\t\t\t\"EmissionColor\": [" << mat.Properties.EmissionColor.r << ", " << mat.Properties.EmissionColor.g << ", " << mat.Properties.EmissionColor.b << "],\n";
+			out << "\t\t\t\t\"EmissionIntensity\": " << mat.Properties.EmissionIntensity << ",\n";
+			out << "\t\t\t\t\"Tiling\": [" << mat.Properties.Tiling.x << ", " << mat.Properties.Tiling.y << "],\n";
+			out << "\t\t\t\t\"Offset\": [" << mat.Properties.Offset.x << ", " << mat.Properties.Offset.y << "],\n";
+			out << "\t\t\t\t\"AlbedoMap\": \"" << mat.Properties.AlbedoMapPath << "\",\n";
+			out << "\t\t\t\t\"NormalMap\": \"" << mat.Properties.NormalMapPath << "\",\n";
+			out << "\t\t\t\t\"MetallicRoughnessMap\": \"" << mat.Properties.MetallicRoughnessMapPath << "\",\n";
+			out << "\t\t\t\t\"AOMap\": \"" << mat.Properties.AOMapPath << "\"\n";
+			out << "\t\t\t}";
+		}
+
 		out << "\n\t\t}" << (entityIdx + 1 < totalEntities ? "," : "") << "\n";
 		entityIdx++;
 	}
@@ -519,6 +554,27 @@ bool SceneSerializer::Deserialize(const std::string& filepath)
 				NativeScriptComponent nsc;
 				nsc.ScriptName = nsVal.Get("ScriptName").AsString("NativeScript");
 				entity.AddComponent<NativeScriptComponent>(nsc);
+			}
+
+			if (entVal.Has("Material")) {
+				const auto& mVal = entVal.Get("Material");
+				MaterialComponent mat;
+				mat.MaterialName = mVal.Get("Name").AsString("Default");
+				if (mVal.Has("AlbedoColor")) mat.Properties.AlbedoColor = mVal.Get("AlbedoColor").AsVec4(glm::vec4(1.0f));
+				if (mVal.Has("Metallic")) mat.Properties.Metallic = mVal.Get("Metallic").AsFloat(0.0f);
+				if (mVal.Has("Roughness")) mat.Properties.Roughness = mVal.Get("Roughness").AsFloat(0.5f);
+				if (mVal.Has("AO")) mat.Properties.AO = mVal.Get("AO").AsFloat(1.0f);
+				if (mVal.Has("EmissionColor")) mat.Properties.EmissionColor = mVal.Get("EmissionColor").AsVec3(glm::vec3(0.0f));
+				if (mVal.Has("EmissionIntensity")) mat.Properties.EmissionIntensity = mVal.Get("EmissionIntensity").AsFloat(0.0f);
+				if (mVal.Has("Tiling")) mat.Properties.Tiling = mVal.Get("Tiling").AsVec2(glm::vec2(1.0f));
+				if (mVal.Has("Offset")) mat.Properties.Offset = mVal.Get("Offset").AsVec2(glm::vec2(0.0f));
+				if (mVal.Has("AlbedoMap")) mat.Properties.AlbedoMapPath = mVal.Get("AlbedoMap").AsString("");
+				if (mVal.Has("NormalMap")) mat.Properties.NormalMapPath = mVal.Get("NormalMap").AsString("");
+				if (mVal.Has("MetallicRoughnessMap")) mat.Properties.MetallicRoughnessMapPath = mVal.Get("MetallicRoughnessMap").AsString("");
+				if (mVal.Has("AOMap")) mat.Properties.AOMapPath = mVal.Get("AOMap").AsString("");
+
+				mat.Properties.LoadTextures();
+				entity.AddComponent<MaterialComponent>(mat);
 			}
 		}
 	}

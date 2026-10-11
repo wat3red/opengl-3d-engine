@@ -8,6 +8,7 @@
 #include "bloom_renderer.h"
 #include <glm/glm.hpp>
 #include <memory>
+#include <filesystem>
 
 struct GLFWwindow;
 
@@ -117,6 +118,9 @@ private:
 	SceneState m_SceneState = SceneState::Edit;
 	std::unique_ptr<Scene> m_EditorSceneBackup = nullptr;
 
+	bool m_ShowContentBrowser = true;
+	std::filesystem::path m_ContentBrowserCurrentPath = "res";
+
 	void DrawMainMenuBar();
 	void DrawModals();
 	void DrawToolbar();
@@ -125,4 +129,5 @@ private:
 	void DrawEntityInspectorPanel();
 	void DrawEnvironmentPanel();
 	void DrawMetricsPanel(float deltaTime);
+	void DrawContentBrowserPanel();
 };

@@ -63,6 +63,41 @@ bool AssetManager::HasModel(const std::string& filepath) const
 	return m_Models.contains(filepath);
 }
 
+std::shared_ptr<Texture2D> AssetManager::LoadTexture(const std::string& filepath)
+{
+	if (filepath.empty())
+		return nullptr;
+
+	if (auto it = m_Textures.find(filepath); it != m_Textures.end())
+	{
+		return it->second;
+	}
+
+	std::println("[AssetManager] Loading texture from: {}", filepath);
+	auto texture = std::make_shared<Texture2D>(filepath);
+	if (texture->GetRendererID() == 0)
+	{
+		std::println(stderr, "[AssetManager] Failed to load texture: {}", filepath);
+		return nullptr;
+	}
+
+	m_Textures[filepath] = texture;
+	return texture;
+}
+
+std::shared_ptr<Texture2D> AssetManager::GetTexture(const std::string& filepath)
+{
+	if (auto it = m_Textures.find(filepath); it != m_Textures.end())
+		return it->second;
+
+	return nullptr;
+}
+
+bool AssetManager::HasTexture(const std::string& filepath) const
+{
+	return m_Textures.contains(filepath);
+}
+
 std::shared_ptr<TextureCube> AssetManager::LoadCubemap(const std::string& name, const std::vector<std::string>& facePaths)
 {
 	if (auto it = m_Cubemaps.find(name); it != m_Cubemaps.end())
@@ -95,5 +130,7 @@ void AssetManager::Clear()
 {
 	m_Shaders.clear();
 	m_Models.clear();
+	m_Textures.clear();
 	m_Cubemaps.clear();
 }
+

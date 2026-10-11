@@ -25,6 +25,7 @@ set(ENGINE_SOURCES
     src/renderer/renderer.cpp
     src/renderer/shadow_renderer.cpp
     src/renderer/shader.cpp
+    src/renderer/material.cpp
     src/renderer/texture.cpp
     src/renderer/texture_cube.cpp
     src/renderer/vertex_array.cpp

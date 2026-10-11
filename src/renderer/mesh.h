@@ -9,6 +9,8 @@
 #include <GLFW/glfw3.h>
 
 #include "shader.h"
+#include "material.h"
+#include "texture.h"
 
 #include <string>
 #include <vector>
@@ -91,7 +93,7 @@ public:
 
 	Mesh(const Mesh&) = delete;
 
-	void Draw(Shader& shader)
+	void Draw(Shader& shader, const MaterialProperties* materialProps = nullptr)
 	{
 		bool isPBR = (glGetUniformLocation(shader.RendererID(), "normalMap") != -1);
 		bool hasAlbedoUniform = (glGetUniformLocation(shader.RendererID(), "albedoMap") != -1);
@@ -151,6 +153,7 @@ public:
 			int hasAlbedo = 0;
 			int hasNormal = 0;
 
+			// First, bind mesh loaded textures
 			for (const auto& tex : textures)
 			{
 				if ((tex.type == "texture_albedo" || tex.type == "material.diffuse") && !hasAlbedo)
@@ -177,6 +180,33 @@ public:
 				}
 			}
 
+			// Custom material textures override mesh textures if provided
+			if (materialProps)
+			{
+				if (materialProps->HasCustomAlbedo())
+				{
+					glActiveTexture(GL_TEXTURE0);
+					materialProps->AlbedoMap->Bind(0);
+					hasAlbedo = 1;
+				}
+				if (isPBR && materialProps->HasCustomMR())
+				{
+					glActiveTexture(GL_TEXTURE1);
+					materialProps->MetallicRoughnessMap->Bind(1);
+				}
+				if (isPBR && materialProps->HasCustomNormal())
+				{
+					glActiveTexture(GL_TEXTURE2);
+					materialProps->NormalMap->Bind(2);
+					hasNormal = 1;
+				}
+				if (isPBR && materialProps->HasCustomAO())
+				{
+					glActiveTexture(GL_TEXTURE3);
+					materialProps->AOMap->Bind(3);
+				}
+			}
+
 			shader.SetUniform1i("albedoMap", 0);
 
 			if (isPBR)
@@ -186,10 +216,28 @@ public:
 				shader.SetUniform1i("aoMap", 3);
 				shader.SetUniform1i("hasNormalMap", hasNormal);
 
-				shader.SetUniform4f("baseColorFactor", factors.baseColorFactor);
-				shader.SetUniform1f("metallicFactor", factors.metallicFactor);
-				shader.SetUniform1f("roughnessFactor", factors.roughnessFactor);
-				shader.SetUniform1f("aoStrength", factors.aoStrength);
+				if (materialProps)
+				{
+					shader.SetUniform4f("baseColorFactor", materialProps->AlbedoColor * factors.baseColorFactor);
+					shader.SetUniform1f("metallicFactor", materialProps->Metallic * factors.metallicFactor);
+					shader.SetUniform1f("roughnessFactor", materialProps->Roughness * factors.roughnessFactor);
+					shader.SetUniform1f("aoStrength", materialProps->AO * factors.aoStrength);
+					shader.SetUniform3f("emissionColor", materialProps->EmissionColor);
+					shader.SetUniform1f("emissionIntensity", materialProps->EmissionIntensity);
+					shader.SetUniform2f("uvTiling", materialProps->Tiling);
+					shader.SetUniform2f("uvOffset", materialProps->Offset);
+				}
+				else
+				{
+					shader.SetUniform4f("baseColorFactor", factors.baseColorFactor);
+					shader.SetUniform1f("metallicFactor", factors.metallicFactor);
+					shader.SetUniform1f("roughnessFactor", factors.roughnessFactor);
+					shader.SetUniform1f("aoStrength", factors.aoStrength);
+					shader.SetUniform3f("emissionColor", glm::vec3(0.0f));
+					shader.SetUniform1f("emissionIntensity", 0.0f);
+					shader.SetUniform2f("uvTiling", glm::vec2(1.0f));
+					shader.SetUniform2f("uvOffset", glm::vec2(0.0f));
+				}
 			}
 		}
 

@@ -51,6 +51,7 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, S
 	struct RenderItem {
 		MeshComponent* mesh;
 		glm::mat4 transform;
+		const MaterialProperties* materialProps = nullptr;
 	};
 	std::vector<RenderItem> visibleItems;
 	visibleItems.reserve(meshView.size_hint());
@@ -59,17 +60,22 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, S
 		if (!tag.Active || !mesh.ModelAsset) continue;
 
 		glm::mat4 modelMat = tc.GetMatrix();
+		const MaterialProperties* matProps = nullptr;
+		if (auto* matComp = registry.try_get<MaterialComponent>(entityHandle)) {
+			matProps = &matComp->Properties;
+		}
+
 		if (m_FrustumCullingEnabled) {
 			glm::vec3 bmin, bmax;
 			mesh.GetWorldAABB(modelMat, bmin, bmax);
 			if (cameraFrustum.IsAABBVisible(bmin, bmax)) {
-				visibleItems.push_back({ &mesh, modelMat });
+				visibleItems.push_back({ &mesh, modelMat, matProps });
 				m_Stats.renderedEntities++;
 			} else {
 				m_Stats.culledEntities++;
 			}
 		} else {
-			visibleItems.push_back({ &mesh, modelMat });
+			visibleItems.push_back({ &mesh, modelMat, matProps });
 			m_Stats.renderedEntities++;
 		}
 	}
@@ -203,7 +209,7 @@ void Renderer::RenderScene(const glm::ivec2& windowSize, const Camera& camera, S
 	}
 
 	for (const auto& item : visibleItems) {
-		item.mesh->Draw(m_MainShader, item.transform);
+		item.mesh->Draw(m_MainShader, item.transform, item.materialProps);
 	}
 
 	m_MainShader.Unbind();
